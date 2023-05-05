@@ -21,9 +21,18 @@ pub(crate) enum Piece {
     King
 }
 
-pub const PIECE_CHARS: [char; 6] = [
-    'p', 'n', 'b', 'r', 'q', 'k'
-];
+impl Into<char> for Piece {
+    fn into(self) -> char {
+        match self {
+            Piece::Pawn => 'p',
+            Piece::Knight => 'n',
+            Piece::Bishop => 'b',
+            Piece::Rook => 'r',
+            Piece::Queen => 'q',
+            Piece::King => 'k'
+        }
+    }
+}
 
 pub(crate) struct Sides {
     white: BitBoard,
@@ -185,23 +194,21 @@ impl Position {
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut board_str = String::with_capacity(64 + 7);
-        for (idx, sq) in Square::iter().enumerate().rev() {
-            let piece_side = self.piece_type_at(&sq);
-            let ch = match piece_side {
-                Some((Piece::Pawn, ..)) => 'p',
-                Some((Piece::Knight, ..)) => 'n',
-                Some((Piece::Bishop, ..)) => 'b',
-                Some((Piece::Rook, ..)) => 'r',
-                Some((Piece::Queen, ..)) => 'q',
-                Some((Piece::King, ..)) => 'k',
-                None => '.'
+        for (idx, sq) in Square::iter().enumerate() {
+            let maybe_piece_side = self.piece_type_at(&sq);
+            let ch = if let Some((p, s)) = maybe_piece_side {
+                if s == Side::White {
+                    <Piece as Into<char>>::into(p).to_ascii_uppercase()
+                } else {
+                    <Piece as Into<char>>::into(p)
+                }
+            } else {
+                '.'
             };
-            board_str.push(match piece_side {
-                Some((_, Side::White)) => ch.to_ascii_uppercase(),
-                _ => ch,
-            });
 
-            if idx % 8 == 0 && idx != 0 {
+            board_str.push(ch);
+
+            if (idx + 1) % 8 == 0 && (idx + 1) != 64 {
                 board_str.push('\n');
             }
         }
