@@ -2,6 +2,7 @@ use std::fmt;
 use std::ops::Index;
 
 use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 use crate::bitboard::{BitBoard,Square};
 use crate::bitboard::Square::*;
@@ -12,6 +13,7 @@ pub(crate) enum Side {
     Black
 }
 
+#[derive(EnumIter)]
 pub(crate) enum Piece {
     Pawn,
     Knight,
@@ -160,34 +162,18 @@ impl Position {
         }
     }
 
-    fn piece_type_at(&self, sq: &Square) -> Option<(Piece, Side)> {
-        if self.pieces.pawns.white.is_piece_at(sq) {
-            Some((Piece::Pawn, Side::White))
-        } else if self.pieces.knights.white.is_piece_at(sq) {
-            Some((Piece::Knight, Side::White))
-        } else if self.pieces.bishops.white.is_piece_at(sq) {
-            Some((Piece::Bishop, Side::White))
-        } else if self.pieces.rooks.white.is_piece_at(sq) {
-            Some((Piece::Rook, Side::White))
-        } else if self.pieces.queens.white.is_piece_at(sq) {
-            Some((Piece::Queen, Side::White))
-        } else if self.pieces.kings.white.is_piece_at(sq) {
-            Some((Piece::King, Side::White))
-        } else if self.pieces.pawns.black.is_piece_at(sq) {
-            Some((Piece::Pawn, Side::Black))
-        } else if self.pieces.knights.black.is_piece_at(sq) {
-            Some((Piece::Knight, Side::Black))
-        } else if self.pieces.bishops.black.is_piece_at(sq) {
-            Some((Piece::Bishop, Side::Black))
-        } else if self.pieces.rooks.black.is_piece_at(sq) {
-            Some((Piece::Rook, Side::Black))
-        } else if self.pieces.queens.black.is_piece_at(sq) {
-            Some((Piece::Queen, Side::Black))
-        } else if self.pieces.kings.black.is_piece_at(sq) {
-            Some((Piece::King, Side::Black))
-        } else {
-            None
+    fn is_piece_at(&self, square: &Square) -> Option<(Piece, Side)> {
+        for piece in Piece::iter() {
+            let sides = &self.pieces[&piece];
+            if sides.white.is_piece_at(square) {
+                return Some((piece, Side::White));
+            }
+            else if sides.black.is_piece_at(square) {
+                return Some((piece, Side::Black));
+            }
         }
+
+        None
     }
 }
 
@@ -195,7 +181,7 @@ impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut board_str = String::with_capacity(64 + 7);
         for (idx, sq) in Square::iter().enumerate() {
-            let maybe_piece_side = self.piece_type_at(&sq);
+            let maybe_piece_side = self.is_piece_at(&sq);
             let ch = if let Some((p, s)) = maybe_piece_side {
                 if s == Side::White {
                     <Piece as Into<char>>::into(p).to_ascii_uppercase()
