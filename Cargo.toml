@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 strum = "0.24.1"
 strum_macros = "0.24.3"
+testresult = "0.3.0"
+thiserror = "1.0.40"
