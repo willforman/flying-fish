@@ -74,24 +74,21 @@ fn castling_rights_from_fen(castling_rights_str: &str) -> Result<CastlingRights,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test_case::test_case;
 
-    #[test]
-    fn test_castling_rights_from_fen() {
-        let cases = [
-            ("-", CastlingRights::new(false, false, false, false)),
-            ("KQkq", CastlingRights::new(true, true, true, true)),
-            ("Kq", CastlingRights::new(true, false, false, true)),
-            ("k", CastlingRights::new(false, false, true, false)),
-        ];
+    #[test_case("-", CastlingRights::new(false, false, false, false) ; "empty")]
+    #[test_case("KQkq", CastlingRights::new(true, true, true, true)  ; "KQkq")]
+    #[test_case("Qk", CastlingRights::new(false, true, true, false)  ; "Qk")]
+    #[test_case("K", CastlingRights::new(true, false, false, false)  ; "K")]
+    fn test_castling_rights_from_fen(inp: &str, want: CastlingRights) {
+        let got = castling_rights_from_fen(inp);
+        assert!(got.is_ok());
+        assert_eq!(got.unwrap(), want);
+    }
 
-        for (inp_str, want) in cases {
-            let got = castling_rights_from_fen(inp_str);
-            assert!(got.is_ok());
-            assert_eq!(got.unwrap(), want);
-        }
-
-        let err_inp = "abc";
-        let got = castling_rights_from_fen(err_inp);
+    #[test_case("abc")]
+    fn test_castling_rights_from_fen_invalid(inp: &str) {
+        let got = castling_rights_from_fen(inp);
         assert!(matches!(got, Err(FenParseError::CastlingRights(_, _))));
     }
 }
