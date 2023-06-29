@@ -113,11 +113,12 @@ impl Index<&Piece> for Pieces {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct CastlingRights {
-    white_king_side: bool,
-    white_queen_side: bool,
-    black_king_side: bool,
-    black_queen_side: bool,
+    pub(crate) white_king_side: bool,
+    pub(crate) white_queen_side: bool,
+    pub(crate) black_king_side: bool,
+    pub(crate) black_queen_side: bool,
 }
 
 impl CastlingRights {
@@ -127,6 +128,15 @@ impl CastlingRights {
             white_queen_side: true,
             black_king_side: true,
             black_queen_side: true,
+        }
+    }
+
+    pub(crate) fn new(white_king_side: bool, white_queen_side: bool, black_king_side: bool, black_queen_side: bool) -> Self {
+        Self {
+            white_king_side,
+            white_queen_side,
+            black_king_side,
+            black_queen_side,
         }
     }
 }
