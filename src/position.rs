@@ -3,11 +3,11 @@ use std::ops::Index;
 
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-use thiserror;
 
 use crate::bitboard::{BitBoard,Square};
 use crate::bitboard::Square::*;
-use crate::fen::from_fen;
+
+mod fen;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Side {
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_from_fen() -> TestResult {
-        let pos: Position = from_fen("1R2k3/2Q5/8/8/7p/8/5P1P/6K1 b - - 7 42")?;
+        let pos = Position::from_fen("1R2k3/2Q5/8/8/7p/8/5P1P/6K1 b - - 7 42")?;
 
         assert!(pos.state.en_passant_target.is_none());
         assert_eq!(pos.state.half_move_counter, 7);

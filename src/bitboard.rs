@@ -2,7 +2,7 @@
 use std::fmt;
 
 use std::string::ToString;
-use strum_macros::{EnumIter,FromRepr,Display};
+use strum_macros::{EnumIter,EnumString,FromRepr,Display};
 use strum::IntoEnumIterator;
 
 #[allow(dead_code)]

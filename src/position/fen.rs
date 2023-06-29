@@ -1,4 +1,4 @@
-use crate::position::{Position,Side,CastlingRights};
+use crate::{position::{Position,Side,CastlingRights}, bitboard::Square};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FenParseError {
@@ -12,21 +12,24 @@ pub enum FenParseError {
     CastlingRights(String, usize),
 }
 
-pub fn from_fen(fen: &str) -> Result<Position, FenParseError> {
-    let fields = fen.split(' ').collect::<Vec<&str>>(); 
+impl Position {
+    pub fn from_fen(fen: &str) -> Result<Self, FenParseError> {
+        let fields = fen.split(' ').collect::<Vec<&str>>(); 
 
-    if fields.len() != 6 {
-        Err(FenParseError::NumFields(fields.len()))?
+        if fields.len() != 6 {
+            Err(FenParseError::NumFields(fields.len()))?
+        }
+
+        let to_move = match fields[1] {
+            "w" => Side::White,
+            "b" => Side::Black,
+            _ => Err(FenParseError::SideToMove(String::from(fields[1])))?
+        };
+
+        Ok(Position::start())
     }
-
-    let to_move = match fields[1] {
-        "w" => Side::White,
-        "b" => Side::Black,
-        _ => Err(FenParseError::SideToMove(String::from(fields[1])))?
-    };
-
-    Ok(Position::start())
 }
+
 
 fn castling_rights_from_fen(castling_rights_str: &str) -> Result<CastlingRights, FenParseError> {
     if castling_rights_str.is_empty() || castling_rights_str == "-" {
