@@ -9,6 +9,12 @@ use crate::bitboard::Square::*;
 
 mod fen;
 
+#[derive(thiserror::Error, Debug)]
+pub enum PositionError {
+    #[error("char -> piece: got {0}")]
+    FromCharPiece(char),
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Side {
     White,
@@ -34,6 +40,22 @@ impl Into<char> for Piece {
             Piece::Rook => 'r',
             Piece::Queen => 'q',
             Piece::King => 'k'
+        }
+    }
+}
+
+impl TryFrom<char> for Piece {
+    type Error = PositionError;
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        match value {
+            'p' => Ok(Piece::Pawn),
+            'n' => Ok(Piece::Knight),
+            'b' => Ok(Piece::Bishop),
+            'r' => Ok(Piece::Rook),
+            'q' => Ok(Piece::Queen),
+            'k' => Ok(Piece::King),
+            _ => Err(PositionError::FromCharPiece(value))
         }
     }
 }
@@ -193,15 +215,10 @@ impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut board_str = String::with_capacity(64 + 7);
         for (idx, sq) in Square::iter().enumerate() {
-            let maybe_piece_side = self.is_piece_at(&sq);
-            let ch = if let Some((p, s)) = maybe_piece_side {
-                if s == Side::White {
-                    <Piece as Into<char>>::into(p).to_ascii_uppercase()
-                } else {
-                    <Piece as Into<char>>::into(p)
-                }
-            } else {
-                '.'
+            let ch = match self.is_piece_at(&sq) {
+                Some((p, Side::White)) => <Piece as Into<char>>::into(p).to_ascii_uppercase(),
+                Some((p, Side::Black)) => <Piece as Into<char>>::into(p),
+                None => '.',
             };
 
             board_str.push(ch);
