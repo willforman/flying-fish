@@ -23,12 +23,20 @@ pub(crate) enum Square {
 pub(crate) struct BitBoard(u64);
 
 impl BitBoard {
+    pub(crate) fn new() -> Self {
+        BitBoard(0)
+    }
+
     pub(crate) fn from_squares(squares: &[Square]) -> Self {
         BitBoard(
             squares
             .iter()
             .fold(0, |board, sq| board | 1 << (*sq as u8))
         )
+    }
+
+    pub(crate) fn add_piece(&mut self, square: &Square) {
+        self.0 &= *square as u64
     }
 
     pub(crate) fn is_piece_at(&self, square: &Square) -> bool {

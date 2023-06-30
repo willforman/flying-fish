@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -66,6 +66,12 @@ pub(crate) struct Sides {
 }
 
 impl Sides {
+    fn new() -> Self {
+        Self {
+            white: BitBoard::new(),
+            black: BitBoard::new(),
+        }
+    }
     fn start() -> Self {
         Self {
             white: BitBoard::from_squares(&[
@@ -80,6 +86,26 @@ impl Sides {
     }
 }
 
+impl Index<&Side> for Sides {
+    type Output = BitBoard;
+
+    fn index(&self, index: &Side) -> &Self::Output {
+        match index {
+            Side::White => &self.white,
+            Side::Black => &self.black,
+        }
+    }
+}
+
+impl IndexMut<&Side> for Sides {
+    fn index_mut(&mut self, index: &Side) -> &mut Self::Output {
+        match index {
+            Side::White => &mut self.white,
+            Side::Black => &mut self.black,
+        }
+    }
+}
+
 pub(crate) struct Pieces {
     pawns: Sides,
     knights: Sides,
@@ -90,6 +116,16 @@ pub(crate) struct Pieces {
 }
 
 impl Pieces {
+    fn new() -> Self {
+        Self {
+            pawns: Sides::new(),
+            knights: Sides::new(),
+            bishops: Sides::new(),
+            rooks: Sides::new(),
+            queens: Sides::new(),
+            kings: Sides::new(),
+        }
+    }
     fn start() -> Self {
         Self {
             pawns: Sides {
@@ -131,6 +167,19 @@ impl Index<&Piece> for Pieces {
             Piece::Rook => &self.rooks,
             Piece::Queen => &self.queens,
             Piece::King => &self.kings,
+        }
+    }
+}
+
+impl IndexMut<&Piece> for Pieces {
+    fn index_mut(&mut self, index: &Piece) -> &mut Self::Output {
+        match index {
+            Piece::Pawn => &mut self.pawns,
+            Piece::Knight => &mut self.knights,
+            Piece::Bishop => &mut self.bishops,
+            Piece::Rook => &mut self.rooks,
+            Piece::Queen => &mut self.queens,
+            Piece::King => &mut self.kings,
         }
     }
 }
