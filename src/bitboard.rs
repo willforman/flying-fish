@@ -1,14 +1,13 @@
 // use std::ops::Index;
 use std::fmt;
 
-use std::string::ToString;
 use strum_macros::{EnumIter,EnumString,FromRepr,Display};
 use strum::IntoEnumIterator;
 
 #[allow(dead_code)]
 #[rustfmt::skip]
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, FromRepr, Display)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, EnumString, FromRepr, Display)]
 pub(crate) enum Square {
     A1, B1, C1, D1, E1, F1, G1, H1,
     A2, B2, C2, D2, E2, F2, G2, H2,

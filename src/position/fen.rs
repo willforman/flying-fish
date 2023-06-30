@@ -1,4 +1,5 @@
 use crate::{position::{Position,Side,CastlingRights}, bitboard::Square};
+use std::str::FromStr;
 
 #[derive(thiserror::Error, Debug)]
 pub enum FenParseError {
@@ -10,6 +11,9 @@ pub enum FenParseError {
 
     #[error("castling rights given: got {0}, err at idx {1}")]
     CastlingRights(String, usize),
+
+    #[error("en passant target: got {0}")]
+    EnPassantTarget(String),
 }
 
 impl Position {
@@ -29,7 +33,6 @@ impl Position {
         Ok(Position::start())
     }
 }
-
 
 fn castling_rights_from_fen(castling_rights_str: &str) -> Result<CastlingRights, FenParseError> {
     if castling_rights_str.is_empty() || castling_rights_str == "-" {
@@ -74,19 +77,32 @@ fn castling_rights_from_fen(castling_rights_str: &str) -> Result<CastlingRights,
     Ok(CastlingRights::new(white_king_side, white_queen_side, black_king_side, black_queen_side))
 }
 
+fn en_passant_target_from_fen(en_passant_target_str: &str) -> Result<Option<Square>, FenParseError> {
+    if en_passant_target_str == "-" {
+        return Ok(None);
+    }
+
+    // FEN uses lowercase letter for square names, Square uses uppercase
+    Square::from_str(&en_passant_target_str.to_uppercase())
+        .map_err(|_| FenParseError::EnPassantTarget(en_passant_target_str.to_string()))
+        .map(Some)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::Square::*;
     use test_case::test_case;
+    use testresult::TestResult;
 
     #[test_case("-", CastlingRights::new(false, false, false, false) ; "empty")]
     #[test_case("KQkq", CastlingRights::new(true, true, true, true)  ; "KQkq")]
     #[test_case("Qk", CastlingRights::new(false, true, true, false)  ; "Qk")]
     #[test_case("K", CastlingRights::new(true, false, false, false)  ; "K")]
-    fn test_castling_rights_from_fen(inp: &str, want: CastlingRights) {
-        let got = castling_rights_from_fen(inp);
-        assert!(got.is_ok());
-        assert_eq!(got.unwrap(), want);
+    fn test_castling_rights_from_fen(inp: &str, want: CastlingRights) -> TestResult {
+        let got = castling_rights_from_fen(inp)?;
+        assert_eq!(got, want);
+        Ok(())
     }
 
     #[test_case("abc")]
@@ -94,4 +110,19 @@ mod tests {
         let got = castling_rights_from_fen(inp);
         assert!(matches!(got, Err(FenParseError::CastlingRights(_, _))));
     }
-}
+
+    #[test_case("-", None      ; "empty")]
+    #[test_case("e3", Some(E3) ; "e3")]
+    #[test_case("c6", Some(C6) ; "c6")]
+    fn test_en_passant_target_from_fen(inp: &str, want: Option<Square>) -> TestResult {
+        let got = en_passant_target_from_fen(inp)?;
+        assert_eq!(got, want);
+        Ok(())
+    }
+
+    #[test_case("abc")]
+    fn test_en_passant_target_from_fen_invalid(inp: &str) {
+        let got = en_passant_target_from_fen(inp);
+        assert!(matches!(got, Err(FenParseError::EnPassantTarget(_))));
+    }
+ }
