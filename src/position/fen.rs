@@ -14,6 +14,9 @@ pub enum FenParseError {
 
     #[error("en passant target: got {0}")]
     EnPassantTarget(String),
+
+    #[error("halfmove clock: want 0 <= x < 50 got {0}")]
+    HalfmoveClock(String)
 }
 
 impl Position {
@@ -29,6 +32,17 @@ impl Position {
             "b" => Side::Black,
             _ => Err(FenParseError::SideToMove(String::from(fields[1])))?
         };
+
+        let castling_rights = castling_rights_from_fen(fields[2])?;
+
+        let half_move_clock = fields[4].parse::<u8>()
+            .map_err(|_| FenParseError::HalfmoveClock(fields[4].to_string()))?;
+
+        // Half move counter must be in 0..=49
+        // Don't have to check if less than zero because u8 min value = 0
+        if half_move_clock >= 50 {
+            Err(FenParseError::HalfmoveClock(fields[4].to_string()))?
+        }
 
         Ok(Position::start())
     }
