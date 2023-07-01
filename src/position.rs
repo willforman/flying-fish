@@ -15,7 +15,7 @@ pub enum PositionError {
     FromCharPiece(char),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, EnumIter)]
 pub(crate) enum Side {
     White,
     Black
@@ -307,59 +307,4 @@ mod tests {
         assert_eq!(pos.state.to_move, Side::White);
     }
 
-    #[test]
-    fn test_from_fen() -> TestResult {
-        let pos = Position::from_fen("1R2k3/2Q5/8/8/7p/8/5P1P/6K1 b - - 7 42")?;
-
-        assert!(pos.state.en_passant_target.is_none());
-        assert_eq!(pos.state.half_move_counter, 7);
-        assert_eq!(pos.state.castling_rights.white_king_side, false);
-        assert_eq!(pos.state.castling_rights.white_queen_side, false);
-        assert_eq!(pos.state.castling_rights.black_king_side, false);
-        assert_eq!(pos.state.castling_rights.black_queen_side, false);
-
-        const PIECES_EXPECTED: [( Square, Piece, Side ); 7] = [
-            (B8, Piece::Rook, Side::White),
-            (C7, Piece::Queen, Side::White),
-            (E8, Piece::King, Side::Black),
-            (F2, Piece::Pawn, Side::White),
-            (G1, Piece::King, Side::White),
-            (H4, Piece::Pawn, Side::Black),
-            (H2, Piece::Pawn, Side::White),
-        ];
-
-        for sq in Square::iter() {
-            let piece_here = PIECES_EXPECTED.iter()
-                .any(|(piece_sq, piece, side)| {
-                    if &sq == piece_sq {
-                        // Make sure the piece exists in the pieces bitboards
-                        let maybe_piece_side = pos.is_piece_at(piece_sq);
-                        assert!(maybe_piece_side.is_some());
-
-                        let (p, s) = maybe_piece_side.unwrap();
-                        assert_eq!(&p, piece);
-                        assert_eq!(&s, side);
-
-                        // Make sure the piece exists in the sides bitboards
-                        if side == &Side::White {
-                            assert!(pos.sides.white.is_piece_at(&sq));
-                            assert!(!pos.sides.black.is_piece_at(&sq));
-                        } else {
-                            assert!(!pos.sides.white.is_piece_at(&sq));
-                            assert!(pos.sides.black.is_piece_at(&sq));
-                        }
-
-                        true
-                    } else {
-                        false
-                    }
-                });
-            if !piece_here {
-                assert!(pos.is_piece_at(&sq).is_none());
-                assert!(!pos.sides.white.is_piece_at(&sq));
-                assert!(!pos.sides.black.is_piece_at(&sq));
-            }
-        }
-        Ok(())
-    }
 }

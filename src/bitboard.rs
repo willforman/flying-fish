@@ -36,7 +36,7 @@ impl BitBoard {
     }
 
     pub(crate) fn add_piece(&mut self, square: &Square) {
-        self.0 &= *square as u64
+        self.0 |= 1 << *square as u64
     }
 
     pub(crate) fn is_piece_at(&self, square: &Square) -> bool {
@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_debug() {
-        let got = BitBoard::from_squares(&[H8, G7, F6, E5, D4, C3, B2, A1]);
+        let got = BitBoard::from_squares(&[A8, B7, C6, D5, E4, F3, G2, H1]);
         let want = "X.......\n.X......\n..X.....\n...X....\n....X...\n.....X..\n......X.\n.......X";
         assert_eq!(format!("{:?}", got), want);
     }

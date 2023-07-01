@@ -3,13 +3,15 @@ use crate::bitboard::Square;
 use crate::bitboard::Square::*;
 use std::str::FromStr;
 
+use strum::IntoEnumIterator;
+
 #[derive(thiserror::Error, Debug)]
 pub enum FenParseError {
     #[error("num fields: want 6 got {0}")]
     NumFields(usize),
 
-    #[error("piece placement: got {0}")]
-    PiecePlacement(String),
+    #[error("piece placement: got {0}, err at {1}")]
+    PiecePlacement(String, usize),
 
     #[error("side to move: want 'w'|'b' got {0}")]
     SideToMove(String),
@@ -118,14 +120,13 @@ const FEN_SQUARE_ORDER: [Square; 64] = [
     A1, B1, C1, D1, E1, F1, G1, H1
 ];
 
-
 fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
     let mut sides = Sides::new();
     let mut pieces = Pieces::new();
     let mut sq_idx = 0;
 
-    for ch in pieces_str.chars() {
-        if let Ok(piece) = Piece::try_from(ch) {
+    for (ch_idx, ch) in pieces_str.chars().enumerate() {
+        if let Ok(piece) = Piece::try_from(ch.to_ascii_lowercase()) {
             let square = FEN_SQUARE_ORDER[sq_idx];
             let side = if ch.is_uppercase() { Side::White } else { Side::Black }; 
 
@@ -138,9 +139,13 @@ fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
         } else if ch == '/' {
             // pass
         } else {
-            Err(FenParseError::PiecePlacement(pieces_str.to_string()))?
+            Err(FenParseError::PiecePlacement(pieces_str.to_string(), ch_idx))?
         }
     }
+
+    println!("{:?}", sides.white);
+    println!("");
+    println!("{:?}", sides.black);
 
     Ok((sides, pieces))
 }
@@ -180,5 +185,51 @@ mod tests {
     fn test_en_passant_target_from_fen_invalid(inp: &str) {
         let got = en_passant_target_from_fen(inp);
         assert!(matches!(got, Err(FenParseError::EnPassantTarget(_))));
+    }
+
+    // 1R2k3/2Q5/8/8/7p/8/5P1P/6K1 b - - 7 42
+    #[test_case("1R2k3/2Q5/8/8/7p/8/5P1P/6K1", [
+        (B8, Piece::Rook, Side::White),
+        (E8, Piece::King, Side::Black),
+        (C7, Piece::Queen, Side::White),
+        (H4, Piece::Pawn, Side::Black),
+        (F2, Piece::Pawn, Side::White),
+        (H2, Piece::Pawn, Side::White),
+        (G1, Piece::King, Side::White),
+    ] ; "first")]
+    fn test_pieces_from_fen(inp: &str, expected_pieces: [( Square, Piece, Side ); 7]) -> TestResult {
+        let (sides, pieces) = pieces_from_fen(inp)?;
+
+        for square in Square::iter() {
+            let maybe_piece_here = expected_pieces.iter()
+                .find(|&&(piece_square, _, _)| square == piece_square);
+            if let Some((_, piece, piece_side)) = maybe_piece_here {
+                let opp_piece_side = if piece_side == &Side::White { Side::Black } else { Side::White };
+                assert!(sides[piece_side].is_piece_at(&square));
+                assert!(!sides[&opp_piece_side].is_piece_at(&square));
+
+                // Check if the piece is at this square, and make sure other
+                // piece types aren't also at this square. Also make sure 
+                // a piece from the other side isn't there.
+                for check_piece in Piece::iter() {
+                    let is_piece_here = pieces[piece][piece_side].is_piece_at(&square);
+                    if piece == &check_piece {
+                        assert!(is_piece_here);
+                    } else {
+                        assert!(!is_piece_here);
+                    }
+                    assert!(!pieces[piece][&opp_piece_side].is_piece_at(&square));
+                }
+            } else {
+                for side in Side::iter() {
+                    assert!(!sides[&side].is_piece_at(&square));
+                    for piece in Piece::iter() {
+                        assert!(!pieces[&piece][&side].is_piece_at(&square));
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
  }
