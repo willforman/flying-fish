@@ -1,4 +1,4 @@
-use crate::position::{Position,Side,Piece,CastlingRights,Sides,Pieces};
+use crate::position::{Position,Side,Piece,CastlingRights,Sides,Pieces,State};
 use crate::bitboard::Square;
 use crate::bitboard::Square::*;
 use std::str::FromStr;
@@ -34,13 +34,13 @@ impl Position {
             Err(FenParseError::NumFields(fields.len()))?
         }
 
+        let (sides, pieces) = pieces_from_fen(fields[0])?;
+
         let to_move = match fields[1] {
             "w" => Side::White,
             "b" => Side::Black,
             _ => Err(FenParseError::SideToMove(String::from(fields[1])))?
         };
-
-        let castling_rights = castling_rights_from_fen(fields[2])?;
 
         let half_move_clock = fields[4].parse::<u8>()
             .map_err(|_| FenParseError::HalfmoveClock(fields[4].to_string()))?;
@@ -51,7 +51,19 @@ impl Position {
             Err(FenParseError::HalfmoveClock(fields[4].to_string()))?
         }
 
-        Ok(Position::start())
+
+        let state = State {
+            castling_rights: castling_rights_from_fen(fields[2])?,
+            en_passant_target: en_passant_target_from_fen(fields[3])?,
+            half_move_clock,
+            to_move,
+        };
+
+        Ok(Position{
+            sides,
+            pieces,
+            state
+        })
     }
 }
 

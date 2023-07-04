@@ -214,7 +214,7 @@ impl CastlingRights {
 
 pub(crate) struct State {
     to_move: Side,
-    half_move_counter: u8,
+    half_move_clock: u8,
     en_passant_target: Option<Square>,
     castling_rights: CastlingRights,
 }
@@ -223,7 +223,7 @@ impl State {
     fn start() -> Self {
         Self {
             to_move: Side::White,
-            half_move_counter: 0,
+            half_move_clock: 0,
             en_passant_target: None,
             castling_rights: CastlingRights::start()
         }
@@ -302,7 +302,7 @@ mod tests {
         assert!(pos.state.castling_rights.black_king_side);
         assert!(pos.state.castling_rights.black_queen_side);
 
-        assert_eq!(pos.state.half_move_counter, 0);
+        assert_eq!(pos.state.half_move_clock, 0);
         assert_eq!(pos.state.en_passant_target, None);
         assert_eq!(pos.state.to_move, Side::White);
     }
