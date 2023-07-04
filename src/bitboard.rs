@@ -48,14 +48,17 @@ impl fmt::Debug for BitBoard {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut board_str = String::with_capacity(64 + 7);
 
-        for (idx, sq) in Square::iter().rev().enumerate() {
-            let ch = if self.is_piece_at(&sq) {
-                'X'
-            } else {
-                '.'
-            };
-            board_str.push(ch);
-            if (idx + 1) % 8 == 0 && (idx + 1) != 64 {
+        for rank in (0..8).rev() {
+            for file in 0..8 {
+                let square = Square::from_repr(rank * 8 + file).unwrap();
+                let ch = if self.is_piece_at(&square) {
+                    'X'
+                } else {
+                    '.'
+                };
+                board_str.push(ch);
+            }
+            if rank != 0 {
                 board_str.push('\n');
             }
         }
@@ -68,6 +71,7 @@ impl fmt::Debug for BitBoard {
 mod tests {
     use super::*;
     use super::Square::*;
+    use test_case::test_case;
 
     #[test]
     fn test_bitboard_from_squares() {
@@ -83,24 +87,40 @@ mod tests {
         assert_eq!(format!("{:?}", got), want);
     }
 
-    #[test]
-    fn test_is_piece_at() {
-        let bb = BitBoard::from_squares(&[A4]);
-        for sq in Square::iter() {
-            if sq == A4 {
-                assert!(bb.is_piece_at(&sq));
-            } else {
-                assert!(!bb.is_piece_at(&sq));
-            }
-        }
+    #[test_case([B8, G6, A4, F1] ; "first")]
+    fn test_is_piece_at(piece_squares: [Square; 4]) {
+        let all_other_squares: Vec<Square> = Square::iter()
+            .filter(|s| !piece_squares.contains(s))
+            .collect();
 
-        let bb = BitBoard(0b1111111111111111111111111111111111111111111111111111111111110111);
+        let bb = BitBoard::from_squares(&piece_squares);
+        let inv_bb = BitBoard::from_squares(&all_other_squares);
+
         for sq in Square::iter() {
-            if sq == D1 {
-                assert!(!bb.is_piece_at(&sq));
-            } else {
+            if piece_squares.contains(&sq) {
                 assert!(bb.is_piece_at(&sq));
+                assert!(!inv_bb.is_piece_at(&sq));
+            } else {
+                assert!(!bb.is_piece_at(&sq));
+                assert!(inv_bb.is_piece_at(&sq));
             }
         }
     }
+
+    #[test_case([B8, G6, A4, F1], 
+        0b0000001000000000010000000000000000000001000000000000000000100000
+    ; "first")]
+    fn test_is_piece_at_binary_number(piece_squares: [Square; 4], bin_num: u64) {
+        let bb = BitBoard(bin_num);
+        for sq in Square::iter() {
+            println!("{}", sq);
+            if piece_squares.contains(&sq) {
+                assert!(bb.is_piece_at(&sq));
+            } else {
+                assert!(!bb.is_piece_at(&sq));
+            }
+        }
+    }
+
+
 }

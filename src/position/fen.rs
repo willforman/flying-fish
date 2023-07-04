@@ -143,9 +143,19 @@ fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
         }
     }
 
-    println!("{:?}", sides.white);
-    println!("");
-    println!("{:?}", sides.black);
+    println!("WHITE");
+    println!("pawns:");
+    println!("{:?}", pieces.pawns.white);
+    println!("knights:");
+    println!("{:?}", pieces.knights.white);
+    println!("bishops:");
+    println!("{:?}", pieces.bishops.white);
+    println!("rooks:");
+    println!("{:?}", pieces.rooks.white);
+    println!("queeens:");
+    println!("{:?}", pieces.queens.white);
+    println!("kings:");
+    println!("{:?}", pieces.kings.white);
 
     Ok((sides, pieces))
 }
@@ -200,6 +210,34 @@ mod tests {
     fn test_pieces_from_fen(inp: &str, expected_pieces: [( Square, Piece, Side ); 7]) -> TestResult {
         let (sides, pieces) = pieces_from_fen(inp)?;
 
+        println!("WHITE");
+        println!("pawns:");
+        println!("{:?}", pieces.pawns.white);
+        println!("knights:");
+        println!("{:?}", pieces.knights.white);
+        println!("bishops:");
+        println!("{:?}", pieces.bishops.white);
+        println!("rooks:");
+        println!("{:?}", pieces.rooks.white);
+        println!("queeens:");
+        println!("{:?}", pieces.queens.white);
+        println!("kings:");
+        println!("{:?}", pieces.kings.white);
+
+        println!("BLACK");
+        println!("pawns:");
+        println!("{:?}", pieces.pawns.black);
+        println!("knights:");
+        println!("{:?}", pieces.knights.black);
+        println!("bishops:");
+        println!("{:?}", pieces.bishops.black);
+        println!("rooks:");
+        println!("{:?}", pieces.rooks.black);
+        println!("queeens:");
+        println!("{:?}", pieces.queens.black);
+        println!("kings:");
+        println!("{:?}", pieces.kings.black);
+
         for square in Square::iter() {
             let maybe_piece_here = expected_pieces.iter()
                 .find(|&&(piece_square, _, _)| square == piece_square);
@@ -212,7 +250,7 @@ mod tests {
                 // piece types aren't also at this square. Also make sure 
                 // a piece from the other side isn't there.
                 for check_piece in Piece::iter() {
-                    let is_piece_here = pieces[piece][piece_side].is_piece_at(&square);
+                    let is_piece_here = pieces[&check_piece][piece_side].is_piece_at(&square);
                     if piece == &check_piece {
                         assert!(is_piece_here);
                     } else {
