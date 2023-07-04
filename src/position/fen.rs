@@ -143,20 +143,6 @@ fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
         }
     }
 
-    println!("WHITE");
-    println!("pawns:");
-    println!("{:?}", pieces.pawns.white);
-    println!("knights:");
-    println!("{:?}", pieces.knights.white);
-    println!("bishops:");
-    println!("{:?}", pieces.bishops.white);
-    println!("rooks:");
-    println!("{:?}", pieces.rooks.white);
-    println!("queeens:");
-    println!("{:?}", pieces.queens.white);
-    println!("kings:");
-    println!("{:?}", pieces.kings.white);
-
     Ok((sides, pieces))
 }
 
@@ -209,34 +195,6 @@ mod tests {
     ] ; "first")]
     fn test_pieces_from_fen(inp: &str, expected_pieces: [( Square, Piece, Side ); 7]) -> TestResult {
         let (sides, pieces) = pieces_from_fen(inp)?;
-
-        println!("WHITE");
-        println!("pawns:");
-        println!("{:?}", pieces.pawns.white);
-        println!("knights:");
-        println!("{:?}", pieces.knights.white);
-        println!("bishops:");
-        println!("{:?}", pieces.bishops.white);
-        println!("rooks:");
-        println!("{:?}", pieces.rooks.white);
-        println!("queeens:");
-        println!("{:?}", pieces.queens.white);
-        println!("kings:");
-        println!("{:?}", pieces.kings.white);
-
-        println!("BLACK");
-        println!("pawns:");
-        println!("{:?}", pieces.pawns.black);
-        println!("knights:");
-        println!("{:?}", pieces.knights.black);
-        println!("bishops:");
-        println!("{:?}", pieces.bishops.black);
-        println!("rooks:");
-        println!("{:?}", pieces.rooks.black);
-        println!("queeens:");
-        println!("{:?}", pieces.queens.black);
-        println!("kings:");
-        println!("{:?}", pieces.kings.black);
 
         for square in Square::iter() {
             let maybe_piece_here = expected_pieces.iter()

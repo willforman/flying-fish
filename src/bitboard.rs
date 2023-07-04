@@ -113,7 +113,6 @@ mod tests {
     fn test_is_piece_at_binary_number(piece_squares: [Square; 4], bin_num: u64) {
         let bb = BitBoard(bin_num);
         for sq in Square::iter() {
-            println!("{}", sq);
             if piece_squares.contains(&sq) {
                 assert!(bb.is_piece_at(&sq));
             } else {
