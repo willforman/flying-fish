@@ -19,7 +19,21 @@ pub(crate) enum Square {
     A8, B8, C8, D8, E8, F8, G8, H8,
 }
 
-#[derive(PartialEq, Eq)]
+pub(crate) enum Direction {
+    North,
+    East,
+    South,
+    West
+}
+
+// Need to clear MSB/LSB from bb to prevent overlap
+// const EAST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
+// const WEST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
+
+const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
+const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
+
+#[derive(PartialEq, Eq, Clone)]
 pub(crate) struct BitBoard(u64);
 
 impl BitBoard {
@@ -41,6 +55,19 @@ impl BitBoard {
 
     pub(crate) fn is_piece_at(&self, square: &Square) -> bool {
         self.0 & 1 << (*square as u64) != 0
+    }
+
+    pub(crate) fn shift(&mut self, dir: Direction) {
+        match dir {
+            Direction::North => self.0 <<= 8,
+            Direction::South => self.0 >>= 8,
+            Direction::East => {
+                self.0 = (self.0 & EAST_SHIFT_MASK) << 1
+            },
+            Direction::West => {
+                self.0 = (self.0 & WEST_SHIFT_MASK) >> 1
+            },
+        }
     }
 }
 
@@ -121,5 +148,17 @@ mod tests {
         }
     }
 
+    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::North], BitBoard::from_squares(&[D5]) ; "n")]
+    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::South], BitBoard::from_squares(&[D3]) ; "s")]
+    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::East], BitBoard::from_squares(&[E4]) ; "e")]
+    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::West], BitBoard::from_squares(&[C4]) ; "w")]
+    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::East, Direction::East], BitBoard::from_squares(&[F4]) ; "ee")]
+    #[test_case(BitBoard::from_squares(&[A6]), vec![Direction::West], BitBoard(0) ; "overlap")]
+    fn test_shift(mut inp: BitBoard, shift_dirs: Vec<Direction>, want: BitBoard) {
+        for shift_dir in shift_dirs {
+            inp.shift(shift_dir);
+        }
+        assert_eq!(inp, want);
+    }
 
 }
