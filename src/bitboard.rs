@@ -50,7 +50,7 @@ impl BitBoard {
         )
     }
 
-    pub(crate) fn from_square_shifts(square: &Square, shift_dirs_list: Vec<Vec<Direction>>) -> Self {
+    pub(crate) fn from_square_shifts(square: &Square, shift_dirs_list: &Vec<Vec<Direction>>) -> Self {
         let start = BitBoard::from_square(square);
         let res = shift_dirs_list.iter()
             .fold(start.clone(), |acc, shift_dirs| {
@@ -209,8 +209,7 @@ mod tests {
     ], BitBoard::from_squares(&[D5, D3, E4, C4]) ; "all")]
     #[test_case(D4, vec![vec![Direction::North, Direction::East]], BitBoard::from_square(&E5) ; "multi")]
     fn test_from_square_shifts(inp_square: Square, shift_dirs_list: Vec<Vec<Direction>>, want: BitBoard) {
-        let got = BitBoard::from_square_shifts(&inp_square, shift_dirs_list);
+        let got = BitBoard::from_square_shifts(&inp_square, &shift_dirs_list);
         assert_eq!(got, want);
     }
-
 }
