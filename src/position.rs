@@ -68,8 +68,8 @@ pub(crate) struct Sides {
 impl Sides {
     fn new() -> Self {
         Self {
-            white: BitBoard::new(),
-            black: BitBoard::new(),
+            white: BitBoard::empty(),
+            black: BitBoard::empty(),
         }
     }
     fn start() -> Self {

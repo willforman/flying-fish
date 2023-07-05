@@ -1,5 +1,5 @@
-// use std::ops::Index;
 use std::fmt;
+use std::ops::{BitAnd,BitOr,Not};
 
 use strum_macros::{EnumIter,EnumString,FromRepr,Display};
 use strum::IntoEnumIterator;
@@ -27,9 +27,6 @@ pub(crate) enum Direction {
 }
 
 // Need to clear MSB/LSB from bb to prevent overlap
-// const EAST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
-// const WEST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
-
 const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
 const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
 
@@ -37,8 +34,12 @@ const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
 pub(crate) struct BitBoard(u64);
 
 impl BitBoard {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn empty() -> Self {
         BitBoard(0)
+    }
+
+    pub(crate) fn from_square(square: &Square) -> Self {
+        BitBoard(1 << (*square as u8))
     }
 
     pub(crate) fn from_squares(squares: &[Square]) -> Self {
@@ -49,6 +50,19 @@ impl BitBoard {
         )
     }
 
+    pub(crate) fn from_square_shifts(square: &Square, shift_dirs_list: Vec<Vec<Direction>>) -> Self {
+        let start = BitBoard::from_square(square);
+        let res = shift_dirs_list.iter()
+            .fold(start.clone(), |acc, shift_dirs| {
+                let mut shifted = start.clone();
+                for sd in shift_dirs {
+                    shifted.shift(sd);
+                }
+                acc | shifted
+            });
+        res & !start
+    }
+
     pub(crate) fn add_piece(&mut self, square: &Square) {
         self.0 |= 1 << *square as u64
     }
@@ -57,7 +71,7 @@ impl BitBoard {
         self.0 & 1 << (*square as u64) != 0
     }
 
-    pub(crate) fn shift(&mut self, dir: Direction) {
+    fn shift(&mut self, dir: &Direction) {
         match dir {
             Direction::North => self.0 <<= 8,
             Direction::South => self.0 >>= 8,
@@ -68,6 +82,30 @@ impl BitBoard {
                 self.0 = (self.0 & WEST_SHIFT_MASK) >> 1
             },
         }
+    }
+}
+
+impl BitOr for BitBoard {
+    type Output = BitBoard;
+
+    fn bitor(self, other: BitBoard) -> BitBoard {
+        BitBoard(self.0 | other.0)
+    }
+}
+
+impl BitAnd for BitBoard {
+    type Output = BitBoard;
+
+    fn bitand(self, other: BitBoard) -> BitBoard {
+        BitBoard(self.0 & other.0)
+    }
+}
+
+impl Not for BitBoard {
+    type Output = BitBoard;
+
+    fn not(self) -> Self::Output {
+        BitBoard(!self.0)
     }
 }
 
@@ -148,17 +186,31 @@ mod tests {
         }
     }
 
-    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::North], BitBoard::from_squares(&[D5]) ; "n")]
-    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::South], BitBoard::from_squares(&[D3]) ; "s")]
-    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::East], BitBoard::from_squares(&[E4]) ; "e")]
-    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::West], BitBoard::from_squares(&[C4]) ; "w")]
-    #[test_case(BitBoard::from_squares(&[D4]), vec![Direction::East, Direction::East], BitBoard::from_squares(&[F4]) ; "ee")]
-    #[test_case(BitBoard::from_squares(&[A6]), vec![Direction::West], BitBoard(0) ; "overlap")]
+    #[test_case(BitBoard::from_square(&D4), vec![Direction::North], BitBoard::from_square(&D5) ; "n")]
+    #[test_case(BitBoard::from_square(&D4), vec![Direction::South], BitBoard::from_square(&D3) ; "s")]
+    #[test_case(BitBoard::from_square(&D4), vec![Direction::East], BitBoard::from_square(&E4) ; "e")]
+    #[test_case(BitBoard::from_square(&D4), vec![Direction::West], BitBoard::from_square(&C4) ; "w")]
+    #[test_case(BitBoard::from_square(&D4), vec![Direction::East, Direction::East], BitBoard::from_square(&F4) ; "ee")]
+    #[test_case(BitBoard::from_square(&A6), vec![Direction::West], BitBoard(0) ; "overlap")]
     fn test_shift(mut inp: BitBoard, shift_dirs: Vec<Direction>, want: BitBoard) {
         for shift_dir in shift_dirs {
-            inp.shift(shift_dir);
+            inp.shift(&shift_dir);
         }
         assert_eq!(inp, want);
+    }
+
+    #[test_case(D4, vec![vec![Direction::North]], BitBoard::from_square(&D5) ; "one")]
+    #[test_case(D4, vec![vec![Direction::North], vec![Direction::South]], BitBoard::from_squares(&[D5, D3]) ; "two")]
+    #[test_case(D4, vec![
+        vec![Direction::North], 
+        vec![Direction::South],
+        vec![Direction::East],
+        vec![Direction::West],
+    ], BitBoard::from_squares(&[D5, D3, E4, C4]) ; "all")]
+    #[test_case(D4, vec![vec![Direction::North, Direction::East]], BitBoard::from_square(&E5) ; "multi")]
+    fn test_from_square_shifts(inp_square: Square, shift_dirs_list: Vec<Vec<Direction>>, want: BitBoard) {
+        let got = BitBoard::from_square_shifts(&inp_square, shift_dirs_list);
+        assert_eq!(got, want);
     }
 
 }
