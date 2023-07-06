@@ -19,6 +19,7 @@ pub(crate) enum Square {
     A8, B8, C8, D8, E8, F8, G8, H8,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) enum Direction {
     North,
     East,
@@ -38,8 +39,8 @@ impl BitBoard {
         BitBoard(0)
     }
 
-    pub(crate) fn from_square(square: &Square) -> Self {
-        BitBoard(1 << (*square as u8))
+    pub(crate) fn from_square(square: Square) -> Self {
+        BitBoard(1 << (square as u8))
     }
 
     pub(crate) fn from_squares(squares: &[Square]) -> Self {
@@ -50,12 +51,12 @@ impl BitBoard {
         )
     }
 
-    pub(crate) fn from_square_shifts(square: &Square, shift_dirs_list: &Vec<Vec<Direction>>) -> Self {
+    pub(crate) fn from_square_shifts(square: Square, shift_dirs_list: &Vec<Vec<Direction>>) -> Self {
         let start = BitBoard::from_square(square);
         let res = shift_dirs_list.iter()
             .fold(start.clone(), |acc, shift_dirs| {
                 let mut shifted = start.clone();
-                for sd in shift_dirs {
+                for &sd in shift_dirs {
                     shifted.shift(sd);
                 }
                 acc | shifted
@@ -63,15 +64,17 @@ impl BitBoard {
         res & !start
     }
 
-    pub(crate) fn add_piece(&mut self, square: &Square) {
-        self.0 |= 1 << *square as u64
+    pub(crate) fn add_piece(&mut self, square: Square) {
+        self.0 |= 1 << square as u64
     }
 
-    pub(crate) fn is_piece_at(&self, square: &Square) -> bool {
-        self.0 & 1 << (*square as u64) != 0
+    pub(crate) fn is_piece_at(&self, square: Square) -> bool {
+        self.0 & 1 << (square as u64) != 0
     }
 
-    fn shift(&mut self, dir: &Direction) {
+    fn shift(&mut self, dir: Direction) {
+        const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
+        const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
         match dir {
             Direction::North => self.0 <<= 8,
             Direction::South => self.0 >>= 8,
@@ -116,7 +119,7 @@ impl fmt::Debug for BitBoard {
         for rank in (0..8).rev() {
             for file in 0..8 {
                 let square = Square::from_repr(rank * 8 + file).unwrap();
-                let ch = if self.is_piece_at(&square) {
+                let ch = if self.is_piece_at(square) {
                     'X'
                 } else {
                     '.'
@@ -163,11 +166,11 @@ mod tests {
 
         for sq in Square::iter() {
             if piece_squares.contains(&sq) {
-                assert!(bb.is_piece_at(&sq));
-                assert!(!inv_bb.is_piece_at(&sq));
+                assert!(bb.is_piece_at(sq));
+                assert!(!inv_bb.is_piece_at(sq));
             } else {
-                assert!(!bb.is_piece_at(&sq));
-                assert!(inv_bb.is_piece_at(&sq));
+                assert!(!bb.is_piece_at(sq));
+                assert!(inv_bb.is_piece_at(sq));
             }
         }
     }
@@ -179,27 +182,27 @@ mod tests {
         let bb = BitBoard(bin_num);
         for sq in Square::iter() {
             if piece_squares.contains(&sq) {
-                assert!(bb.is_piece_at(&sq));
+                assert!(bb.is_piece_at(sq));
             } else {
-                assert!(!bb.is_piece_at(&sq));
+                assert!(!bb.is_piece_at(sq));
             }
         }
     }
 
-    #[test_case(BitBoard::from_square(&D4), vec![Direction::North], BitBoard::from_square(&D5) ; "n")]
-    #[test_case(BitBoard::from_square(&D4), vec![Direction::South], BitBoard::from_square(&D3) ; "s")]
-    #[test_case(BitBoard::from_square(&D4), vec![Direction::East], BitBoard::from_square(&E4) ; "e")]
-    #[test_case(BitBoard::from_square(&D4), vec![Direction::West], BitBoard::from_square(&C4) ; "w")]
-    #[test_case(BitBoard::from_square(&D4), vec![Direction::East, Direction::East], BitBoard::from_square(&F4) ; "ee")]
-    #[test_case(BitBoard::from_square(&A6), vec![Direction::West], BitBoard(0) ; "overlap")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::North], BitBoard::from_square(D5) ; "n")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::South], BitBoard::from_square(D3) ; "s")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::East], BitBoard::from_square(E4) ; "e")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::West], BitBoard::from_square(C4) ; "w")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::East, Direction::East], BitBoard::from_square(F4) ; "ee")]
+    #[test_case(BitBoard::from_square(A6), vec![Direction::West], BitBoard(0) ; "overlap")]
     fn test_shift(mut inp: BitBoard, shift_dirs: Vec<Direction>, want: BitBoard) {
         for shift_dir in shift_dirs {
-            inp.shift(&shift_dir);
+            inp.shift(shift_dir);
         }
         assert_eq!(inp, want);
     }
 
-    #[test_case(D4, vec![vec![Direction::North]], BitBoard::from_square(&D5) ; "one")]
+    #[test_case(D4, vec![vec![Direction::North]], BitBoard::from_square(D5) ; "one")]
     #[test_case(D4, vec![vec![Direction::North], vec![Direction::South]], BitBoard::from_squares(&[D5, D3]) ; "two")]
     #[test_case(D4, vec![
         vec![Direction::North], 
@@ -207,9 +210,9 @@ mod tests {
         vec![Direction::East],
         vec![Direction::West],
     ], BitBoard::from_squares(&[D5, D3, E4, C4]) ; "all")]
-    #[test_case(D4, vec![vec![Direction::North, Direction::East]], BitBoard::from_square(&E5) ; "multi")]
+    #[test_case(D4, vec![vec![Direction::North, Direction::East]], BitBoard::from_square(E5) ; "multi")]
     fn test_from_square_shifts(inp_square: Square, shift_dirs_list: Vec<Vec<Direction>>, want: BitBoard) {
-        let got = BitBoard::from_square_shifts(&inp_square, &shift_dirs_list);
+        let got = BitBoard::from_square_shifts(inp_square, &shift_dirs_list);
         assert_eq!(got, want);
     }
 }

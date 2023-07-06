@@ -245,7 +245,7 @@ impl Position {
         }
     }
 
-    fn is_piece_at(&self, square: &Square) -> Option<(Piece, Side)> {
+    fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
         for piece in Piece::iter() {
             let sides = &self.pieces[&piece];
             if sides.white.is_piece_at(square) {
@@ -264,7 +264,7 @@ impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut board_str = String::with_capacity(64 + 7);
         for (idx, sq) in Square::iter().enumerate() {
-            let ch = match self.is_piece_at(&sq) {
+            let ch = match self.is_piece_at(sq) {
                 Some((p, Side::White)) => <Piece as Into<char>>::into(p).to_ascii_uppercase(),
                 Some((p, Side::Black)) => <Piece as Into<char>>::into(p),
                 None => '.',

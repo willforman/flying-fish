@@ -142,8 +142,8 @@ fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
             let square = FEN_SQUARE_ORDER[sq_idx];
             let side = if ch.is_uppercase() { Side::White } else { Side::Black }; 
 
-            sides[&side].add_piece(&square);
-            pieces[&piece][&side].add_piece(&square);
+            sides[&side].add_piece(square);
+            pieces[&piece][&side].add_piece(square);
 
             sq_idx += 1;
         } else if let Some(digit) = ch.to_digit(10){
@@ -213,26 +213,26 @@ mod tests {
                 .find(|&&(piece_square, _, _)| square == piece_square);
             if let Some((_, piece, piece_side)) = maybe_piece_here {
                 let opp_piece_side = if piece_side == &Side::White { Side::Black } else { Side::White };
-                assert!(sides[piece_side].is_piece_at(&square));
-                assert!(!sides[&opp_piece_side].is_piece_at(&square));
+                assert!(sides[piece_side].is_piece_at(square));
+                assert!(!sides[&opp_piece_side].is_piece_at(square));
 
                 // Check if the piece is at this square, and make sure other
                 // piece types aren't also at this square. Also make sure 
                 // a piece from the other side isn't there.
                 for check_piece in Piece::iter() {
-                    let is_piece_here = pieces[&check_piece][piece_side].is_piece_at(&square);
+                    let is_piece_here = pieces[&check_piece][piece_side].is_piece_at(square);
                     if piece == &check_piece {
                         assert!(is_piece_here);
                     } else {
                         assert!(!is_piece_here);
                     }
-                    assert!(!pieces[piece][&opp_piece_side].is_piece_at(&square));
+                    assert!(!pieces[piece][&opp_piece_side].is_piece_at(square));
                 }
             } else {
                 for side in Side::iter() {
-                    assert!(!sides[&side].is_piece_at(&square));
+                    assert!(!sides[&side].is_piece_at(square));
                     for piece in Piece::iter() {
-                        assert!(!pieces[&piece][&side].is_piece_at(&square));
+                        assert!(!pieces[&piece][&side].is_piece_at(square));
                     }
                 }
             }

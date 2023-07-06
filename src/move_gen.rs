@@ -6,11 +6,11 @@ use crate::bitboard::{BitBoard, Square, Direction};
 
 struct SquareToMoveDatabase([BitBoard; 64]);
 
-impl Index<&Square> for SquareToMoveDatabase {
+impl Index<Square> for SquareToMoveDatabase {
     type Output = BitBoard;
 
-    fn index(&self, square: &Square) -> &Self::Output {
-        &self.0[*square as usize]
+    fn index(&self, square: Square) -> &Self::Output {
+        &self.0[square as usize]
     }
 }
 
@@ -34,7 +34,7 @@ fn calc_knight_atks() -> SquareToMoveDatabase {
     ];
 
     let bbs: [BitBoard; 64] = Square::iter()
-        .map(|sq| BitBoard::from_square_shifts(&sq, &dirs))
+        .map(|sq| BitBoard::from_square_shifts(sq, &dirs))
         .collect::<Vec<BitBoard>>()
         .try_into()
         .unwrap();
@@ -54,7 +54,7 @@ fn calc_king_atks() -> SquareToMoveDatabase {
     ];
 
     let bbs: [BitBoard; 64] = Square::iter()
-        .map(|sq| BitBoard::from_square_shifts(&sq, &dirs))
+        .map(|sq| BitBoard::from_square_shifts(sq, &dirs))
         .collect::<Vec<BitBoard>>()
         .try_into()
         .unwrap();
@@ -72,7 +72,7 @@ mod tests {
     #[test_case(A4, BitBoard::from_squares(&[B6, C5, C3, B2]) ; "edge")]
     fn test_calc_knight_atks(square: Square, want: BitBoard) {
         let got = calc_knight_atks();
-        let sq_got = &got[&square];
+        let sq_got = &got[square];
         assert_eq!(sq_got, &want);
     }
 
@@ -81,7 +81,7 @@ mod tests {
     #[test_case(C1, BitBoard::from_squares(&[B1, B2, C2, D2, D1]) ; "edge")]
     fn test_calc_king_atks(square: Square, want: BitBoard) {
         let got = calc_king_atks();
-        let sq_got = &got[&square];
+        let sq_got = &got[square];
         assert_eq!(sq_got, &want);
     }
 }
