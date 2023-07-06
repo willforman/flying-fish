@@ -15,13 +15,13 @@ pub enum PositionError {
     FromCharPiece(char),
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy)]
 pub(crate) enum Side {
     White,
     Black
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy)]
 pub(crate) enum Piece {
     Pawn,
     Knight,
@@ -84,22 +84,16 @@ impl Sides {
             ])
         }
     }
-}
 
-impl Index<&Side> for Sides {
-    type Output = BitBoard;
-
-    fn index(&self, index: &Side) -> &Self::Output {
-        match index {
+    fn get_side(&self, side: Side) -> &BitBoard {
+        match side {
             Side::White => &self.white,
             Side::Black => &self.black,
         }
     }
-}
 
-impl IndexMut<&Side> for Sides {
-    fn index_mut(&mut self, index: &Side) -> &mut Self::Output {
-        match index {
+    fn get_side_mut(&mut self, side: Side) -> &mut BitBoard {
+        match side {
             Side::White => &mut self.white,
             Side::Black => &mut self.black,
         }
@@ -154,13 +148,9 @@ impl Pieces {
             },
         }
     }
-}
 
-impl Index<&Piece> for Pieces {
-    type Output = Sides;
-
-    fn index(&self, index: &Piece) -> &Self::Output {
-        match index {
+    fn get_pieces(&self, piece: Piece) -> &Sides {
+        match piece {
             Piece::Pawn => &self.pawns,
             Piece::Knight => &self.knights,
             Piece::Bishop => &self.bishops,
@@ -169,11 +159,9 @@ impl Index<&Piece> for Pieces {
             Piece::King => &self.kings,
         }
     }
-}
 
-impl IndexMut<&Piece> for Pieces {
-    fn index_mut(&mut self, index: &Piece) -> &mut Self::Output {
-        match index {
+    fn get_pieces_mut(&mut self, piece: Piece) -> &mut Sides {
+        match piece {
             Piece::Pawn => &mut self.pawns,
             Piece::Knight => &mut self.knights,
             Piece::Bishop => &mut self.bishops,
@@ -247,7 +235,7 @@ impl Position {
 
     fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
         for piece in Piece::iter() {
-            let sides = &self.pieces[&piece];
+            let sides = &self.pieces.get_pieces(piece);
             if sides.white.is_piece_at(square) {
                 return Some((piece, Side::White));
             }

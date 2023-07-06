@@ -1,5 +1,5 @@
 use crate::position::{Position,Side,Piece,CastlingRights,Sides,Pieces,State};
-use crate::bitboard::Square;
+use crate::bitboard::{BitBoard,Square};
 use crate::bitboard::Square::*;
 use std::str::FromStr;
 
@@ -142,8 +142,8 @@ fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
             let square = FEN_SQUARE_ORDER[sq_idx];
             let side = if ch.is_uppercase() { Side::White } else { Side::Black }; 
 
-            sides[&side].add_piece(square);
-            pieces[&piece][&side].add_piece(square);
+            sides.get_side_mut(side).add_piece(square);
+            pieces.get_pieces_mut(piece).get_side_mut(side).add_piece(square);
 
             sq_idx += 1;
         } else if let Some(digit) = ch.to_digit(10){
@@ -196,47 +196,54 @@ mod tests {
     }
 
     // 1R2k3/2Q5/8/8/7p/8/5P1P/6K1 b - - 7 42
-    #[test_case("1R2k3/2Q5/8/8/7p/8/5P1P/6K1", [
-        (B8, Piece::Rook, Side::White),
-        (E8, Piece::King, Side::Black),
-        (C7, Piece::Queen, Side::White),
-        (H4, Piece::Pawn, Side::Black),
-        (F2, Piece::Pawn, Side::White),
-        (H2, Piece::Pawn, Side::White),
-        (G1, Piece::King, Side::White),
-    ] ; "first")]
-    fn test_pieces_from_fen(inp: &str, expected_pieces: [( Square, Piece, Side ); 7]) -> TestResult {
+    #[test_case("1R2k3/2Q5/8/8/7p/8/5P1P/6K1", Sides {
+        white: BitBoard::from_squares(&[B8, C7, F2, G1, H2]),
+        black: BitBoard::from_squares(&[E8, H4])
+    }, Pieces {
+        pawns: Sides {
+            white: BitBoard::from_squares(&[F2, H2]),
+            black: BitBoard::from_squares(&[H4]),
+        },
+        knights: Sides {
+            white: BitBoard::from_squares(&[]),
+            black: BitBoard::from_squares(&[]),
+        },
+        bishops: Sides {
+            white: BitBoard::from_squares(&[]),
+            black: BitBoard::from_squares(&[]),
+        },
+        rooks: Sides {
+            white: BitBoard::from_squares(&[B8]),
+            black: BitBoard::from_squares(&[]),
+        },
+        queens: Sides {
+            white: BitBoard::from_squares(&[C7]),
+            black: BitBoard::from_squares(&[]),
+        },
+        kings: Sides {
+            white: BitBoard::from_squares(&[G1]),
+            black: BitBoard::from_squares(&[E8]),
+        },
+    } ; "first")]
+    fn test_pieces_from_fen_(inp: &str, sides_want: Sides, pieces_want: Pieces) -> TestResult {
         let (sides, pieces) = pieces_from_fen(inp)?;
 
-        for square in Square::iter() {
-            let maybe_piece_here = expected_pieces.iter()
-                .find(|&&(piece_square, _, _)| square == piece_square);
-            if let Some((_, piece, piece_side)) = maybe_piece_here {
-                let opp_piece_side = if piece_side == &Side::White { Side::Black } else { Side::White };
-                assert!(sides[piece_side].is_piece_at(square));
-                assert!(!sides[&opp_piece_side].is_piece_at(square));
+        assert_eq!(sides.white, sides_want.white);
+        assert_eq!(sides.black, sides_want.black);
 
-                // Check if the piece is at this square, and make sure other
-                // piece types aren't also at this square. Also make sure 
-                // a piece from the other side isn't there.
-                for check_piece in Piece::iter() {
-                    let is_piece_here = pieces[&check_piece][piece_side].is_piece_at(square);
-                    if piece == &check_piece {
-                        assert!(is_piece_here);
-                    } else {
-                        assert!(!is_piece_here);
-                    }
-                    assert!(!pieces[piece][&opp_piece_side].is_piece_at(square));
-                }
-            } else {
-                for side in Side::iter() {
-                    assert!(!sides[&side].is_piece_at(square));
-                    for piece in Piece::iter() {
-                        assert!(!pieces[&piece][&side].is_piece_at(square));
-                    }
-                }
-            }
-        }
+        assert_eq!(pieces.pawns.white, pieces_want.pawns.white);
+        assert_eq!(pieces.knights.white, pieces_want.knights.white);
+        assert_eq!(pieces.bishops.white, pieces_want.bishops.white);
+        assert_eq!(pieces.rooks.white, pieces_want.rooks.white);
+        assert_eq!(pieces.queens.white, pieces_want.queens.white);
+        assert_eq!(pieces.kings.white, pieces_want.kings.white);
+
+        assert_eq!(pieces.pawns.black, pieces_want.pawns.black);
+        assert_eq!(pieces.knights.black, pieces_want.knights.black);
+        assert_eq!(pieces.bishops.black, pieces_want.bishops.black);
+        assert_eq!(pieces.rooks.black, pieces_want.rooks.black);
+        assert_eq!(pieces.queens.black, pieces_want.queens.black);
+        assert_eq!(pieces.kings.black, pieces_want.kings.black);
 
         Ok(())
     }

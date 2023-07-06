@@ -31,7 +31,7 @@ pub(crate) enum Direction {
 const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
 const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub(crate) struct BitBoard(u64);
 
 impl BitBoard {
