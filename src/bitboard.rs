@@ -7,7 +7,7 @@ use strum::IntoEnumIterator;
 #[allow(dead_code)]
 #[rustfmt::skip]
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, EnumString, FromRepr, Display)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, EnumString, FromRepr, Display, PartialOrd, Ord)]
 pub(crate) enum Square {
     A1, B1, C1, D1, E1, F1, G1, H1,
     A2, B2, C2, D2, E2, F2, G2, H2,
