@@ -28,13 +28,14 @@ impl ColoredSquareToMoveDatabase {
 }
 
 pub struct MoveGen {
+    pawn_pushes: ColoredSquareToMoveDatabase,
     pawn_atks: ColoredSquareToMoveDatabase,
     knight_atks: SquareToMoveDatabase,
     bishop_atks: SquareToMoveDatabase,
     king_atks: SquareToMoveDatabase,
 }
 
-fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
+fn calc_pawn_pushes() -> ColoredSquareToMoveDatabase {
     let white_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::North]]; 
     let white_double_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::North], vec![Direction::North, Direction::North]]; 
     let black_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::South]]; 
@@ -68,6 +69,46 @@ fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
                 BitBoard::from_square_shifts(sq, &black_double_push_dirs)
             } else {
                 BitBoard::from_square_shifts(sq, &black_single_push_dirs)
+            }
+        })
+        .collect::<Vec<BitBoard>>()
+        .try_into()
+        .unwrap();
+
+    ColoredSquareToMoveDatabase {
+        white: SquareToMoveDatabase(white_bbs),
+        black: SquareToMoveDatabase(black_bbs),
+    }
+}
+
+fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
+    let white_atk_dirs: Vec<Vec<Direction>> = vec![vec![Direction::North, Direction::East], vec![Direction::North, Direction::West]]; 
+    let black_atk_dirs: Vec<Vec<Direction>> = vec![vec![Direction::South, Direction::East], vec![Direction::South, Direction::West]]; 
+    let edge_push_dirs: Vec<Vec<Direction>> = vec![]; 
+
+    // [A8, H8]: edge
+    // [A7, H7]: black double
+    // [A6, H3]: double
+    // [A2, H2]: white double
+    // [A1, H1]: edge
+    let white_bbs: [BitBoard; 64] = Square::iter()
+        .map(|sq| {
+            if sq >= Square::A8 || sq <= Square::H1 {
+                BitBoard::from_square_shifts(sq, &edge_push_dirs)
+            } else {
+                BitBoard::from_square_shifts(sq, &white_atk_dirs)
+            }
+        })
+        .collect::<Vec<BitBoard>>()
+        .try_into()
+        .unwrap();
+
+    let black_bbs: [BitBoard; 64] = Square::iter()
+        .map(|sq| {
+            if sq >= Square::A8 || sq <= Square::H1 {
+                BitBoard::from_square_shifts(sq, &edge_push_dirs)
+            } else {
+                BitBoard::from_square_shifts(sq, &black_atk_dirs)
             }
         })
         .collect::<Vec<BitBoard>>()
@@ -152,6 +193,16 @@ mod tests {
     #[test_case(B6, Side::Black, BitBoard::from_squares(&[B5]) ; "black single")]
     #[test_case(G2, Side::Black, BitBoard::from_squares(&[G1]) ; "black single edge")]
     #[test_case(G1, Side::Black, BitBoard::from_squares(&[]) ; "black edge")]
+    fn test_calc_pawn_pushes(square: Square, side: Side, want: BitBoard) {
+        let got = calc_pawn_pushes();
+        let sq_got = got.get_square_database(side).get_bitboard(square);
+        assert_eq!(sq_got, &want);
+    }
+
+    #[test_case(D2, Side::White, BitBoard::from_squares(&[C3, E3]) ; "white")]
+    #[test_case(A7, Side::White, BitBoard::from_squares(&[B8]) ; "white edge")]
+    #[test_case(D7, Side::Black, BitBoard::from_squares(&[C6, E6]) ; "black")]
+    #[test_case(A2, Side::Black, BitBoard::from_squares(&[B1]) ; "black edge")]
     fn test_calc_pawn_atks(square: Square, side: Side, want: BitBoard) {
         let got = calc_pawn_atks();
         let sq_got = got.get_square_database(side).get_bitboard(square);
