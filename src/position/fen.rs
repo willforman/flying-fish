@@ -142,8 +142,8 @@ fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
             let square = FEN_SQUARE_ORDER[sq_idx];
             let side = if ch.is_uppercase() { Side::White } else { Side::Black }; 
 
-            sides.get_side_mut(side).add_piece(square);
-            pieces.get_pieces_mut(piece).get_side_mut(side).add_piece(square);
+            sides.get_mut(side).add_piece(square);
+            pieces.get_mut(piece).get_mut(side).add_piece(square);
 
             sq_idx += 1;
         } else if let Some(digit) = ch.to_digit(10){

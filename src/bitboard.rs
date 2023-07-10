@@ -43,6 +43,7 @@ impl BitBoard {
         BitBoard(1 << (square as u8))
     }
 
+    // TODO: convert to From<&[Square]>
     pub(crate) fn from_squares(squares: &[Square]) -> Self {
         BitBoard(
             squares
@@ -62,6 +63,15 @@ impl BitBoard {
                 acc | shifted
             });
         res & !start
+    }
+
+    pub(crate) fn to_squares(mut self) -> Vec<Square> {
+        let mut sqs = Vec::with_capacity(14);
+        while self.0 != 0 {
+            let sq = self.pop_lsb();
+            sqs.push(sq);
+        }
+        sqs
     }
 
     pub(crate) fn add_piece(&mut self, square: Square) {
@@ -85,6 +95,17 @@ impl BitBoard {
                 self.0 = (self.0 & WEST_SHIFT_MASK) >> 1
             },
         }
+    }
+
+    fn get_lsb(&self) -> Square {
+        let idx = self.0.trailing_zeros();
+        Square::from_repr(idx.try_into().unwrap()).unwrap()
+    }
+
+    fn pop_lsb(&mut self) -> Square {
+        let lsb = self.get_lsb();
+        self.0 &= self.0 - 1;
+        lsb
     }
 }
 
@@ -210,9 +231,18 @@ mod tests {
         vec![Direction::East],
         vec![Direction::West],
     ], BitBoard::from_squares(&[D5, D3, E4, C4]) ; "all")]
+
     #[test_case(D4, vec![vec![Direction::North, Direction::East]], BitBoard::from_square(E5) ; "multi")]
     fn test_from_square_shifts(inp_square: Square, shift_dirs_list: Vec<Vec<Direction>>, want: BitBoard) {
         let got = BitBoard::from_square_shifts(inp_square, &shift_dirs_list);
         assert_eq!(got, want);
+    }
+
+    #[test_case(BitBoard(0b1001000), D1, BitBoard(0b1000000) ; "D1")]
+    #[test_case(BitBoard(0b1000000), G1, BitBoard(0b0000000) ; "G1")]
+    fn test_pop_lsb(mut inp: BitBoard, lsb_want: Square, res_want: BitBoard) {
+        let lsb_got = inp.pop_lsb();
+        assert_eq!(lsb_got, lsb_want);
+        assert_eq!(inp, res_want);
     }
 }

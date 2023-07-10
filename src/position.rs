@@ -2,7 +2,7 @@ use std::fmt;
 use std::ops::{Index, IndexMut};
 
 use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
+use strum_macros::{Display,EnumIter};
 
 use crate::bitboard::{BitBoard,Square};
 use crate::bitboard::Square::*;
@@ -15,13 +15,13 @@ pub enum PositionError {
     FromCharPiece(char),
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
 pub(crate) enum Side {
     White,
     Black
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
 pub(crate) enum Piece {
     Pawn,
     Knight,
@@ -85,14 +85,14 @@ impl Sides {
         }
     }
 
-    fn get_side(&self, side: Side) -> &BitBoard {
+    pub(crate) fn get(&self, side: Side) -> &BitBoard {
         match side {
             Side::White => &self.white,
             Side::Black => &self.black,
         }
     }
 
-    fn get_side_mut(&mut self, side: Side) -> &mut BitBoard {
+    fn get_mut(&mut self, side: Side) -> &mut BitBoard {
         match side {
             Side::White => &mut self.white,
             Side::Black => &mut self.black,
@@ -149,7 +149,7 @@ impl Pieces {
         }
     }
 
-    fn get_pieces(&self, piece: Piece) -> &Sides {
+    pub(crate) fn get(&self, piece: Piece) -> &Sides {
         match piece {
             Piece::Pawn => &self.pawns,
             Piece::Knight => &self.knights,
@@ -160,7 +160,7 @@ impl Pieces {
         }
     }
 
-    fn get_pieces_mut(&mut self, piece: Piece) -> &mut Sides {
+    fn get_mut(&mut self, piece: Piece) -> &mut Sides {
         match piece {
             Piece::Pawn => &mut self.pawns,
             Piece::Knight => &mut self.knights,
@@ -235,7 +235,7 @@ impl Position {
 
     fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
         for piece in Piece::iter() {
-            let sides = &self.pieces.get_pieces(piece);
+            let sides = &self.pieces.get(piece);
             if sides.white.is_piece_at(square) {
                 return Some((piece, Side::White));
             }
