@@ -25,11 +25,11 @@ struct Move {
 }
 
 trait GenerateLeapingMoves {
-    fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> BitBoard;
+    fn gen_moves(&self, piece: Piece, square: Square, side: Side) -> BitBoard;
 }
 
 trait GenerateSlidingMoves {
-    fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> BitBoard;
+    fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard;
 }
 
 struct AllPiecesMoveGen {

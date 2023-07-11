@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{BitAnd,BitOr,Not};
+use std::ops::{BitAnd,BitOr,BitXor,Not,Sub, SubAssign, BitXorAssign, BitAndAssign};
 
 use strum_macros::{EnumIter,EnumString,FromRepr,Display};
 use strum::IntoEnumIterator;
@@ -107,6 +107,10 @@ impl BitBoard {
         self.0 &= self.0 - 1;
         lsb
     }
+
+    pub(crate) fn swap_bytes(&self) -> BitBoard {
+        BitBoard(self.0.swap_bytes())
+    }
 }
 
 impl BitOr for BitBoard {
@@ -125,11 +129,45 @@ impl BitAnd for BitBoard {
     }
 }
 
+impl BitAndAssign for BitBoard {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 = self.0 & rhs.0
+    }
+}
+
+impl BitXor for BitBoard {
+    type Output = BitBoard;
+
+    fn bitxor(self, other: BitBoard) -> BitBoard {
+        BitBoard(self.0 ^ other.0)
+    }
+}
+
+impl BitXorAssign for BitBoard {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 = self.0 ^ rhs.0
+    }
+}
+
 impl Not for BitBoard {
     type Output = BitBoard;
 
     fn not(self) -> Self::Output {
         BitBoard(!self.0)
+    }
+}
+
+impl Sub for BitBoard {
+    type Output = BitBoard;
+
+    fn sub(self, other: BitBoard) -> Self::Output {
+        Self(self.0.wrapping_sub(other.0))
+    }
+}
+
+impl SubAssign for BitBoard {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 = self.0.wrapping_sub(rhs.0)
     }
 }
 
