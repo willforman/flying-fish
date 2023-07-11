@@ -48,12 +48,12 @@ impl LeapingPiecesMoveGen {
 }
 
 impl GenerateLeapingMoves for LeapingPiecesMoveGen {
-    fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> Result<BitBoard, MoveGenError> {
+    fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> BitBoard {
         match piece_type {
             Piece::Pawn => Ok(self.pawn_pushes.get_square_database(side).get_bitboard(square) & self.pawn_atks.get_square_database(side).get_bitboard(square)),
             Piece::Knight => Ok(self.knight_atks.get_bitboard(square)),
             Piece::King => Ok(self.king_atks.get_bitboard(square)),
-            _ => Err(MoveGenError::InvalidPieceType("pawn, knight, king".to_string(), piece_type.to_string()))
+            _ => panic!("piece type: want [pawn, knight, king], got {}", piece_type.to_string())
         }
     }
 }

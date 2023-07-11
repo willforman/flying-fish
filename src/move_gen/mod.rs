@@ -12,9 +12,6 @@ mod hyperbola_quintessence;
 
 #[derive(thiserror::Error, Debug)]
 pub enum MoveGenError {
-    #[error("piece type: want {0} got {1}")]
-    InvalidPieceType(String, String),
-
     #[error("no piece at {0}")]
     NoPiece(String),
 
@@ -29,11 +26,11 @@ struct Move {
 
 // TODO: explore updating to panic instead of return result
 trait GenerateLeapingMoves {
-    fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> Result<BitBoard, MoveGenError>;
+    fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> BitBoard;
 }
 
 trait GenerateSlidingMoves {
-    fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> Result<BitBoard, MoveGenError>;
+    fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> BitBoard;
 }
 
 struct AllPiecesMoveGen {
@@ -55,7 +52,7 @@ impl AllPiecesMoveGen {
             .find(|&piece| pieces.get(piece).get(side).is_piece_at(square))
             .ok_or(MoveGenError::InvalidSidesPieces(side.to_string()))?;
 
-        let moves_bb = self.leaping_pieces.gen_moves(piece, square, side)?;
+        let moves_bb = self.leaping_pieces.gen_moves(piece, square, side);
 
         Ok(moves_bb.to_squares())
     }
