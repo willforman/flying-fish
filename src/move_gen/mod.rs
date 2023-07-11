@@ -8,6 +8,7 @@ use self::leaping_pieces::LeapingPiecesMoveGen;
 use strum::IntoEnumIterator;
 
 mod leaping_pieces;
+mod hyperbola_quintessence;
 
 #[derive(thiserror::Error, Debug)]
 pub enum MoveGenError {
