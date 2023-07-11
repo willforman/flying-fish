@@ -24,7 +24,6 @@ struct Move {
     dest: Square,
 }
 
-// TODO: explore updating to panic instead of return result
 trait GenerateLeapingMoves {
     fn gen_moves(&self, piece_type: Piece, square: Square, side: Side) -> BitBoard;
 }
@@ -42,7 +41,7 @@ impl AllPiecesMoveGen {
     fn get_moves(&self, square: Square, sides: &Sides, pieces: &Pieces) -> Result<Vec<Square>, MoveGenError> {
         let side = if sides.get(Side::White).is_piece_at(square) {
             Side::White
-        } else if sides.get(Side::White).is_piece_at(square) {
+        } else if sides.get(Side::Black).is_piece_at(square) {
             Side::Black
         } else {
             Err(MoveGenError::NoPiece(square.to_string()))?
