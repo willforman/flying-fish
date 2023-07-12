@@ -20,12 +20,20 @@ struct SquareMasks {
     anti_diag: BitBoard
 }
 
-pub struct HyperbolaQuintessence {
-    masks_list: [SquareMasks; 64]
+impl SquareMasks {
+    fn get(&self, mask_type: MaskType) -> BitBoard {
+        match mask_type {
+            MaskType::Bit => self.bit,
+            MaskType::File => self.file,
+            MaskType::Diagonal => self.diag,
+            MaskType::AntiDiagonal => self.anti_diag,
+        }
+    }
 }
 
+pub struct MasksList([SquareMasks; 64]);
 
-impl HyperbolaQuintessence {
+impl MasksList {
     fn new() -> Self {
         let mut file_dirs = vec![
             vec![Direction::North; 1],
@@ -73,18 +81,50 @@ impl HyperbolaQuintessence {
                 anti_diag_dirs[7 - rank] = [vec![Direction::South; rank], vec![Direction::West; rank]].concat();
             }
         }
+        MasksList(masks_list.try_into().unwrap())
+    }
 
-        Self {
-            masks_list: masks_list.try_into().unwrap(),
+    fn get(&self, square: Square) -> &SquareMasks {
+        &self.0[square as usize]
+    }
+}
+
+fn calc_rank_atks() -> [u8; 64 * 8] {
+    const ROOK_OPTIONS: [u8; 8] = [
+        0b10000000,
+        0b01000000,
+        0b00100000,
+        0b00010000,
+        0b00001000,
+        0b00000100,
+        0b00000010,
+        0b00000001,
+    ];
+
+    let mut rank_atks_list = Vec::with_capacity(64 * 8);
+
+    for rook in ROOK_OPTIONS {
+        for pieces in 0..64 {
+            let pieces = pieces << 1; // Ignore the first and last bit
+            let occ = pieces | rook;
+            let atks = occ ^ (pieces.wrapping_sub(rook));
+            rank_atks_list.push(atks);
         }
     }
 
-    fn get_mask(&self, square: Square, mask_type: MaskType) -> BitBoard {
-        match mask_type {
-            MaskType::Bit => self.masks_list[square as usize].bit,
-            MaskType::File => self.masks_list[square as usize].file,
-            MaskType::Diagonal => self.masks_list[square as usize].diag,
-            MaskType::AntiDiagonal => self.masks_list[square as usize].anti_diag,
+    rank_atks_list.try_into().unwrap()
+}
+
+pub struct HyperbolaQuintessence {
+    masks_list: MasksList,
+    rank_atks: [u8; 64 * 8],
+}
+
+impl HyperbolaQuintessence {
+    fn new(masks_list: MasksList, rank_atks: [u8; 64 * 8]) -> Self {
+        Self {
+            masks_list,
+            rank_atks,
         }
     }
     
@@ -97,19 +137,33 @@ impl HyperbolaQuintessence {
         forward &= mask;
         forward
     }
+
+    fn get_rank_moves(&self, occupancy: BitBoard, square: Square) -> BitBoard {
+        let occ_val = occupancy.to_val();
+        let sq_idx = square as u8;
+
+        let file = sq_idx & 7;
+        let rank_x8 = sq_idx & 56; // Rank times 8
+
+        let rank_occ_x2 = u8::try_from((occ_val >> rank_x8) & 2 * 63).unwrap(); // 2 times the inner six bit occupancy used as index
+        let atks = self.rank_atks[usize::from(4 * rank_occ_x2 + file)];
+
+        return BitBoard::from_val((atks.wrapping_shr(rank_x8.into())).into());
+    }
 }
 
 impl GenerateSlidingMoves for HyperbolaQuintessence {
     fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard {
-        let bit_mask = self.get_mask(square, MaskType::Bit);
+        let masks = self.masks_list.get(square);
+        let bit_mask = masks.get(MaskType::Bit);
 
         match piece {
             Piece::Bishop => { 
-                self.get_moves(occupancy, self.get_mask(square, MaskType::Diagonal), bit_mask) |
-                self.get_moves(occupancy, self.get_mask(square, MaskType::AntiDiagonal), bit_mask)
+                self.get_moves(occupancy, masks.get(MaskType::Diagonal), bit_mask) |
+                self.get_moves(occupancy, masks.get(MaskType::AntiDiagonal), bit_mask)
             }
             Piece::Rook => {
-                self.get_moves(occupancy, self.get_mask(square, MaskType::File), bit_mask)// |
+                self.get_moves(occupancy, masks.get(MaskType::File), bit_mask)// |
                 // self.get_moves(occupancy, self.get_mask(square, MaskType::AntiDiagonal), bit_mask)
             }
             Piece::Queen => { todo!() }
@@ -134,8 +188,8 @@ mod tests {
     #[test_case(MaskType::AntiDiagonal, D5, BitBoard::from_squares(&[G8, F7, E6, C4, B3, A2]) ; "anti diagonal off main")]
     #[test_case(MaskType::AntiDiagonal, A8, BitBoard::from_squares(&[]) ; "anti diagonal empty")]
     fn test_mask(mask_type: MaskType, check_square: Square, want: BitBoard) {
-        let hq = HyperbolaQuintessence::new();
-        assert_eq!(hq.get_mask(check_square, mask_type), want);
+        let masks_list = MasksList::new();
+        assert_eq!(masks_list.get(check_square).get(mask_type), want);
     }
 
     #[test_case(Piece::Bishop, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A1, B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1]) ; "bishop no blockers")]
@@ -143,8 +197,21 @@ mod tests {
     #[test_case(Piece::Bishop, D4, BitBoard::from_squares(&[B2, A7, E5, A1, B1, F8, G6, C4]), BitBoard::from_squares(&[B2, C3, E5, C5, B6, A7, E3, F2, G1]) ; "bishop irrelevant blockers")]
     #[test_case(Piece::Rook, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[D1, D2, D3, D5, D6, D7, D8]) ; "rook no blockers")]
     fn test_gen_moves(piece: Piece, square: Square, occupancy: BitBoard, want: BitBoard) {
-        let hq = HyperbolaQuintessence::new();
+        let masks_list = MasksList::new();
+        let rank_atks = calc_rank_atks();
+        let hq = HyperbolaQuintessence::new(masks_list, rank_atks);
+
         let got = hq.gen_moves(piece, square, occupancy);
+        assert_eq!(got, want);
+    }
+
+    #[test_case(D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A4, B4, C4, E4, F4, G4, H4]))]
+    fn test_gen_rank_moves(square: Square, occupancy: BitBoard, want: BitBoard) {
+        let masks_list = MasksList::new();
+        let rank_atks = calc_rank_atks();
+        let hq = HyperbolaQuintessence::new(masks_list, rank_atks);
+
+        let got = hq.get_rank_moves(occupancy, square);
         assert_eq!(got, want);
     }
 }

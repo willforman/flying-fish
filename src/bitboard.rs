@@ -52,6 +52,10 @@ impl BitBoard {
         )
     }
 
+    pub(crate) fn from_val(val: u64) -> Self {
+        BitBoard(val)
+    }
+
     pub(crate) fn from_square_shifts(square: Square, shift_dirs_list: &Vec<Vec<Direction>>) -> Self {
         let start = BitBoard::from_square(square);
         let res = shift_dirs_list.iter()
@@ -63,6 +67,10 @@ impl BitBoard {
                 acc | shifted
             });
         res & !start
+    }
+
+    pub(crate) fn to_val(self) -> u64 {
+        self.0
     }
 
     pub(crate) fn to_squares(mut self) -> Vec<Square> {
