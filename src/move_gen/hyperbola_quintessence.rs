@@ -89,25 +89,35 @@ impl MasksList {
     }
 }
 
+// o^(o-2r) trick
+fn calc_left_rank_atk(blocking_pieces: u8, rook: u8) -> u8 {
+    let occ = blocking_pieces | rook;
+    let atks = occ ^ (blocking_pieces.wrapping_sub(rook));
+    atks
+}
+
 fn calc_rank_atks() -> [u8; 64 * 8] {
     const ROOK_OPTIONS: [u8; 8] = [
-        1 << 7,
-        1 << 6,
-        1 << 5,
-        1 << 4,
-        1 << 3,
-        1 << 2,
-        1 << 1,
         1 << 0,
+        1 << 1,
+        1 << 2,
+        1 << 3,
+        1 << 4,
+        1 << 5,
+        1 << 6,
+        1 << 7,
     ];
 
     let mut rank_atks_list = Vec::with_capacity(64 * 8);
 
-    for rook in ROOK_OPTIONS {
-        for pieces in 0..64 {
+    for pieces in 0..64 {
+        for rook in ROOK_OPTIONS {
             let shifted_pieces = pieces << 1; // Ignore the first and last bit
-            let occ = shifted_pieces | rook;
-            let atks = occ ^ (shifted_pieces.wrapping_sub(rook));
+                                              //
+            let left_atks = calc_left_rank_atk(shifted_pieces, rook);
+            let right_atks = calc_left_rank_atk(shifted_pieces.reverse_bits(), rook.reverse_bits()).reverse_bits();
+
+            let atks = left_atks | right_atks;
             rank_atks_list.push(atks);
         }
     }
@@ -142,13 +152,19 @@ impl HyperbolaQuintessence {
         let occ_val = occupancy.to_val();
         let sq_idx = square as u8;
 
-        let file = sq_idx & 7;
+        let file = sq_idx & 7; // sq_idx % 8
         let rank_x8 = sq_idx & 56; // Rank times 8
+        println!("file={}, rank={}", file, rank_x8 / 8);
+        // println!("rank: {:08b}", occ_val >> rank_x8);
+        // println!("and with: {:08b}", 2 * 63);
+        // println!("res: {:08b}", (occ_val >> rank_x8) & (2 * 63));
 
-        let rank_occ_x2 = u8::try_from((occ_val >> rank_x8) & 2 * 63).unwrap(); // 2 times the inner six bit occupancy used as index
-        let atks = self.rank_atks[usize::from(4 * rank_occ_x2 + file)];
+        let rank_occ_x2: u8 = ((occ_val >> rank_x8) & 2 * 63).try_into().unwrap(); // 2 times the inner six bit occupancy used as index
+        // println!("occupancy: {:08b}", rank_occ_x2 / 2);
+        println!("idx={}", 4 * rank_occ_x2 + file);
+        let atks: u64 = self.rank_atks[usize::from(4 * rank_occ_x2 + file)].into();
 
-        return BitBoard::from_val((atks.wrapping_shl(rank_x8.into())).into());
+        BitBoard::from_val((atks << rank_x8).into())
     }
 }
 
@@ -205,22 +221,27 @@ mod tests {
         assert_eq!(got, want);
     }
 
-    #[test_case(0, 0b11111110)]
-    #[test_case(1, 0b00000010)]
-    #[test_case(2, 0b00000110)]
-    #[test_case(3, 0b00000010)]
-    #[test_case(4, 0b00001110)]
-    #[test_case(5, 0b00000010)]
-    #[test_case(6, 0b00000110)]
-    #[test_case(7, 0b00000010)]
-    #[test_case(8, 0b00011110)]
-    fn test_calc_rank_atks(rank_atks_idx: usize, want: u8) {
-        let rank_atks = calc_rank_atks();
-        let got = rank_atks[rank_atks_idx];
-        assert_eq!(got, want);
-    }
+    // #[test_case(0, 0b11111110)]
+    // #[test_case(1, 0b00000010)]
+    // #[test_case(2, 0b00000110)]
+    // #[test_case(3, 0b00000010)]
+    // #[test_case(4, 0b00001110)]
+    // #[test_case(5, 0b00000010)]
+    // #[test_case(6, 0b00000110)]
+    // #[test_case(7, 0b00000010)]
+    // #[test_case(8, 0b00011110)]
+    // fn test_calc_rank_atks(rank_atks_idx: usize, want: u8) {
+    //     let rank_atks = calc_rank_atks();
+    //     let got = rank_atks[rank_atks_idx];
+    //     assert_eq!(got, want);
+    // }
 
-    #[test_case(H4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A4, B4, C4, D4, E4, F4, G4]))]
+    #[test_case(H4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A4, B4, C4, D4, E4, F4, G4]) ; "empty")]
+    #[test_case(D4, BitBoard::from_squares(&[B4]), BitBoard::from_squares(&[B4, C4, E4, F4, G4, H4]) ; "one side")]
+    #[test_case(D4, BitBoard::from_squares(&[A4, B4]), BitBoard::from_squares(&[B4, C4, E4, F4, G4, H4]) ; "one side irrelevant blocker")]
+    #[test_case(B4, BitBoard::from_squares(&[D4, E4, H4]), BitBoard::from_squares(&[A4, C4, D4]) ; "one side multiple irrelevant blocker")]
+    #[test_case(D4, BitBoard::from_squares(&[A4, F4]), BitBoard::from_squares(&[A4, B4, C4, E4, F4]) ; "both sides")]
+    #[test_case(D4, BitBoard::from_squares(&[C4, E4]), BitBoard::from_squares(&[C4, E4]) ; "both sides close")]
     fn test_gen_rank_moves(square: Square, occupancy: BitBoard, want: BitBoard) {
         let masks_list = MasksList::new();
         let rank_atks = calc_rank_atks();
