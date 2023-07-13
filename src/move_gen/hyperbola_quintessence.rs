@@ -154,14 +154,8 @@ impl HyperbolaQuintessence {
 
         let file = sq_idx & 7; // sq_idx % 8
         let rank_x8 = sq_idx & 56; // Rank times 8
-        println!("file={}, rank={}", file, rank_x8 / 8);
-        // println!("rank: {:08b}", occ_val >> rank_x8);
-        // println!("and with: {:08b}", 2 * 63);
-        // println!("res: {:08b}", (occ_val >> rank_x8) & (2 * 63));
 
         let rank_occ_x2: u8 = ((occ_val >> rank_x8) & 2 * 63).try_into().unwrap(); // 2 times the inner six bit occupancy used as index
-        // println!("occupancy: {:08b}", rank_occ_x2 / 2);
-        println!("idx={}", 4 * rank_occ_x2 + file);
         let atks: u64 = self.rank_atks[usize::from(4 * rank_occ_x2 + file)].into();
 
         BitBoard::from_val((atks << rank_x8).into())
@@ -179,10 +173,16 @@ impl GenerateSlidingMoves for HyperbolaQuintessence {
                 self.get_moves(occupancy, masks.get(MaskType::AntiDiagonal), bit_mask)
             }
             Piece::Rook => {
-                self.get_moves(occupancy, masks.get(MaskType::File), bit_mask)// |
-                // self.get_moves(occupancy, self.get_mask(square, MaskType::AntiDiagonal), bit_mask)
+                self.get_moves(occupancy, masks.get(MaskType::File), bit_mask) |
+                self.get_rank_moves(occupancy, square)
             }
-            Piece::Queen => { todo!() }
+            Piece::Queen => { 
+                self.get_moves(occupancy, masks.get(MaskType::File), bit_mask) |
+                self.get_rank_moves(occupancy, square) |
+                self.get_moves(occupancy, masks.get(MaskType::Diagonal), bit_mask) |
+                self.get_moves(occupancy, masks.get(MaskType::AntiDiagonal), bit_mask)
+
+            }
             _ => panic!("piece type: want [bishop, rook, queen], got {}", piece.to_string())
         }
     }
@@ -208,34 +208,6 @@ mod tests {
         assert_eq!(masks_list.get(check_square).get(mask_type), want);
     }
 
-    #[test_case(Piece::Bishop, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A1, B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1]) ; "bishop no blockers")]
-    #[test_case(Piece::Bishop, D4, BitBoard::from_squares(&[B2, A7, E5]), BitBoard::from_squares(&[B2, C3, E5, C5, B6, A7, E3, F2, G1]) ; "bishop many blockers")]
-    #[test_case(Piece::Bishop, D4, BitBoard::from_squares(&[B2, A7, E5, A1, B1, F8, G6, C4]), BitBoard::from_squares(&[B2, C3, E5, C5, B6, A7, E3, F2, G1]) ; "bishop irrelevant blockers")]
-    #[test_case(Piece::Rook, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[D1, D2, D3, D5, D6, D7, D8]) ; "rook no blockers")]
-    fn test_gen_moves(piece: Piece, square: Square, occupancy: BitBoard, want: BitBoard) {
-        let masks_list = MasksList::new();
-        let rank_atks = calc_rank_atks();
-        let hq = HyperbolaQuintessence::new(masks_list, rank_atks);
-
-        let got = hq.gen_moves(piece, square, occupancy);
-        assert_eq!(got, want);
-    }
-
-    // #[test_case(0, 0b11111110)]
-    // #[test_case(1, 0b00000010)]
-    // #[test_case(2, 0b00000110)]
-    // #[test_case(3, 0b00000010)]
-    // #[test_case(4, 0b00001110)]
-    // #[test_case(5, 0b00000010)]
-    // #[test_case(6, 0b00000110)]
-    // #[test_case(7, 0b00000010)]
-    // #[test_case(8, 0b00011110)]
-    // fn test_calc_rank_atks(rank_atks_idx: usize, want: u8) {
-    //     let rank_atks = calc_rank_atks();
-    //     let got = rank_atks[rank_atks_idx];
-    //     assert_eq!(got, want);
-    // }
-
     #[test_case(H4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A4, B4, C4, D4, E4, F4, G4]) ; "empty")]
     #[test_case(D4, BitBoard::from_squares(&[B4]), BitBoard::from_squares(&[B4, C4, E4, F4, G4, H4]) ; "one side")]
     #[test_case(D4, BitBoard::from_squares(&[A4, B4]), BitBoard::from_squares(&[B4, C4, E4, F4, G4, H4]) ; "one side irrelevant blocker")]
@@ -248,6 +220,23 @@ mod tests {
         let hq = HyperbolaQuintessence::new(masks_list, rank_atks);
 
         let got = hq.get_rank_moves(occupancy, square);
+        assert_eq!(got, want);
+    }
+
+    #[test_case(Piece::Bishop, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A1, B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1]) ; "bishop no blockers")]
+    #[test_case(Piece::Bishop, D4, BitBoard::from_squares(&[B2, A7, E5]), BitBoard::from_squares(&[B2, C3, E5, C5, B6, A7, E3, F2, G1]) ; "bishop many blockers")]
+    #[test_case(Piece::Bishop, D4, BitBoard::from_squares(&[B2, A7, E5, A1, B1, F8, G6, C4]), BitBoard::from_squares(&[B2, C3, E5, C5, B6, A7, E3, F2, G1]) ; "bishop irrelevant blockers")]
+    #[test_case(Piece::Rook, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[D1, D2, D3, D5, D6, D7, D8, A4, B4, C4, E4, F4, G4, H4]) ; "rook no blockers")]
+    #[test_case(Piece::Rook, D4, BitBoard::from_squares(&[A4, D7, F4, D3]), BitBoard::from_squares(&[D3, D5, D6, D7, A4, B4, C4, E4, F4]) ; "rook blockers")]
+    #[test_case(Piece::Rook, D4, BitBoard::from_squares(&[A4, D7, D8, F4, D3, D2, D1]), BitBoard::from_squares(&[D3, D5, D6, D7, A4, B4, C4, E4, F4]) ; "rook irrelevant blockers")]
+    #[test_case(Piece::Queen, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A1, B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1, D1, D2, D3, D5, D6, D7, D8, A4, B4, C4, E4, F4, G4, H4]) ; "queen no blockers")]
+    #[test_case(Piece::Queen, D4, BitBoard::from_squares(&[D5, B2, H4]), BitBoard::from_squares(&[B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1, D1, D2, D3, D5, A4, B4, C4, E4, F4, G4, H4]) ; "queen blockers")]
+    fn test_gen_moves(piece: Piece, square: Square, occupancy: BitBoard, want: BitBoard) {
+        let masks_list = MasksList::new();
+        let rank_atks = calc_rank_atks();
+        let hq = HyperbolaQuintessence::new(masks_list, rank_atks);
+
+        let got = hq.gen_moves(piece, square, occupancy);
         assert_eq!(got, want);
     }
 }
