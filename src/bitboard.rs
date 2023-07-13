@@ -19,6 +19,18 @@ pub(crate) enum Square {
     A8, B8, C8, D8, E8, F8, G8, H8,
 }
 
+impl Square {
+    pub(crate) fn abs_diff(self, other: Square) -> u8 {
+        (self as u8).abs_diff(other as u8)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct Move {
+    pub(crate) src: Square,
+    pub(crate) dest: Square,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Direction {
     North,
@@ -82,8 +94,17 @@ impl BitBoard {
         sqs
     }
 
-    pub(crate) fn add_piece(&mut self, square: Square) {
+    pub(crate) fn move_piece(&mut self, mve: Move) {
+        self.clear_square(mve.src);
+        self.set_square(mve.dest);
+    }
+
+    pub(crate) fn set_square(&mut self, square: Square) {
         self.0 |= 1 << square as u64
+    }
+
+    pub(crate) fn clear_square(&mut self, square: Square) {
+        self.0 &= !(1 << square as u64)
     }
 
     pub(crate) fn is_piece_at(&self, square: Square) -> bool {

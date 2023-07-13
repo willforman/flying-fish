@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 use strum::IntoEnumIterator;
 use strum_macros::{Display,EnumIter};
 
-use crate::bitboard::{BitBoard,Square};
+use crate::bitboard::{BitBoard,Square,Move};
 use crate::bitboard::Square::*;
 
 mod fen;
@@ -13,12 +13,24 @@ mod fen;
 pub enum PositionError {
     #[error("char -> piece: got {0}")]
     FromCharPiece(char),
+
+    #[error("no piece at {0}")]
+    MoveNoPiece(String),
+
+    #[error("cannot move piece because to_move is the other side: {0}")]
+    MoveNotToMove(String),
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
 pub(crate) enum Side {
     White,
     Black
+}
+
+impl Side {
+    fn opposite_side(self) -> Side {
+        if self == Side::White { Side::Black } else { Side::White }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
@@ -246,6 +258,61 @@ impl Position {
 
         None
     }
+
+    fn make_move(&mut self, mve: Move) -> Result<(), PositionError> {
+        if let Some((piece, side)) = self.is_piece_at(mve.src) {
+            if side != self.state.to_move {
+                Err(PositionError::MoveNotToMove(side.to_string()))
+            } else {
+                self.state.to_move = side.opposite_side();
+
+                if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
+                    self.state.half_move_clock = 0;
+                } else {
+                    self.state.half_move_clock += 1;
+                }
+
+                if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
+                    self.state.en_passant_target = Some(mve.dest);
+                } else {
+                    self.state.en_passant_target = None;
+                }
+
+                if piece == Piece::King {
+                    if side == Side::White {
+                        self.state.castling_rights.white_king_side = false;
+                        self.state.castling_rights.white_queen_side = false;
+                    } else {
+                        self.state.castling_rights.black_king_side = false;
+                        self.state.castling_rights.black_queen_side = false;
+                    }
+                }
+
+                if piece == Piece::Rook {
+                    if mve.src == A1 {
+                        self.state.castling_rights.white_queen_side = false;
+                    } else if mve.src == H1 {
+                        self.state.castling_rights.white_king_side = false;
+                    }
+                    if mve.src == A8 {
+                        self.state.castling_rights.black_queen_side = false;
+                    }
+                    if mve.src == H8 {
+                        self.state.castling_rights.black_king_side = false;
+                    }
+                }
+
+                self.sides.get_mut(side).move_piece(mve);
+                self.pieces.get_mut(piece).get_mut(side).move_piece(mve);
+
+
+
+                Ok(())
+            }
+        } else {
+            Err(PositionError::MoveNoPiece(mve.src.to_string()))
+        }
+    }
 }
 
 impl fmt::Display for Position {
@@ -271,7 +338,9 @@ impl fmt::Display for Position {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bitboard::Square::*;
     use testresult::TestResult;
+    use test_case::test_case;
 
     #[test]
     fn test_display() {
@@ -295,4 +364,22 @@ mod tests {
         assert_eq!(pos.state.to_move, Side::White);
     }
 
+    #[test_case(Position::start(), Move { src: D2, dest: D4 })]
+    fn test_make_move(mut position: Position, mve: Move) {
+        assert!(position.is_piece_at(mve.src).is_some());
+        assert!(position.is_piece_at(mve.dest).is_none());
+
+        let res = position.make_move(mve);
+
+        assert!(res.is_ok());
+
+        assert!(position.is_piece_at(mve.src).is_none());
+        assert!(position.is_piece_at(mve.dest).is_some());
+    }
+
+    #[test_case(Position::start(), Move { src: D7, dest: D5 })]
+    fn test_make_move_err(mut position: Position, mve: Move) {
+        let res = position.make_move(mve);
+        assert!(res.is_err());
+    }
 }
