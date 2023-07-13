@@ -91,23 +91,23 @@ impl MasksList {
 
 fn calc_rank_atks() -> [u8; 64 * 8] {
     const ROOK_OPTIONS: [u8; 8] = [
-        0b10000000,
-        0b01000000,
-        0b00100000,
-        0b00010000,
-        0b00001000,
-        0b00000100,
-        0b00000010,
-        0b00000001,
+        1 << 7,
+        1 << 6,
+        1 << 5,
+        1 << 4,
+        1 << 3,
+        1 << 2,
+        1 << 1,
+        1 << 0,
     ];
 
     let mut rank_atks_list = Vec::with_capacity(64 * 8);
 
     for rook in ROOK_OPTIONS {
         for pieces in 0..64 {
-            let pieces = pieces << 1; // Ignore the first and last bit
-            let occ = pieces | rook;
-            let atks = occ ^ (pieces.wrapping_sub(rook));
+            let shifted_pieces = pieces << 1; // Ignore the first and last bit
+            let occ = shifted_pieces | rook;
+            let atks = occ ^ (shifted_pieces.wrapping_sub(rook));
             rank_atks_list.push(atks);
         }
     }
@@ -148,7 +148,7 @@ impl HyperbolaQuintessence {
         let rank_occ_x2 = u8::try_from((occ_val >> rank_x8) & 2 * 63).unwrap(); // 2 times the inner six bit occupancy used as index
         let atks = self.rank_atks[usize::from(4 * rank_occ_x2 + file)];
 
-        return BitBoard::from_val((atks.wrapping_shr(rank_x8.into())).into());
+        return BitBoard::from_val((atks.wrapping_shl(rank_x8.into())).into());
     }
 }
 
@@ -205,7 +205,22 @@ mod tests {
         assert_eq!(got, want);
     }
 
-    #[test_case(D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A4, B4, C4, E4, F4, G4, H4]))]
+    #[test_case(0, 0b11111110)]
+    #[test_case(1, 0b00000010)]
+    #[test_case(2, 0b00000110)]
+    #[test_case(3, 0b00000010)]
+    #[test_case(4, 0b00001110)]
+    #[test_case(5, 0b00000010)]
+    #[test_case(6, 0b00000110)]
+    #[test_case(7, 0b00000010)]
+    #[test_case(8, 0b00011110)]
+    fn test_calc_rank_atks(rank_atks_idx: usize, want: u8) {
+        let rank_atks = calc_rank_atks();
+        let got = rank_atks[rank_atks_idx];
+        assert_eq!(got, want);
+    }
+
+    #[test_case(H4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A4, B4, C4, D4, E4, F4, G4]))]
     fn test_gen_rank_moves(square: Square, occupancy: BitBoard, want: BitBoard) {
         let masks_list = MasksList::new();
         let rank_atks = calc_rank_atks();
