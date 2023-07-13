@@ -13,7 +13,6 @@
             cargo
             rustc
             rust-analyzer
-            evcxr
             lldb
           ];
           RUST_LOG = 1;
