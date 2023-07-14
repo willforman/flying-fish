@@ -22,19 +22,19 @@ pub enum PositionError {
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
-pub(crate) enum Side {
+pub enum Side {
     White,
     Black
 }
 
 impl Side {
-    fn opposite_side(self) -> Side {
+    pub(crate) fn opposite_side(self) -> Side {
         if self == Side::White { Side::Black } else { Side::White }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
-pub(crate) enum Piece {
+pub enum Piece {
     Pawn,
     Knight,
     Bishop,
@@ -97,10 +97,10 @@ impl Sides {
         }
     }
 
-    pub(crate) fn get(&self, side: Side) -> &BitBoard {
+    pub(crate) fn get(&self, side: Side) -> BitBoard {
         match side {
-            Side::White => &self.white,
-            Side::Black => &self.black,
+            Side::White => self.white,
+            Side::Black => self.black,
         }
     }
 
@@ -213,10 +213,10 @@ impl CastlingRights {
 }
 
 pub(crate) struct State {
-    to_move: Side,
-    half_move_clock: u8,
-    en_passant_target: Option<Square>,
-    castling_rights: CastlingRights,
+    pub(crate) to_move: Side,
+    pub(crate) half_move_clock: u8,
+    pub(crate) en_passant_target: Option<Square>,
+    pub(crate) castling_rights: CastlingRights,
 }
 
 impl State {
@@ -231,13 +231,13 @@ impl State {
 }
 
 pub struct Position {
-    state: State,
-    sides: Sides,
-    pieces: Pieces,
+    pub(crate) state: State,
+    pub(crate) sides: Sides,
+    pub(crate) pieces: Pieces,
 }
 
 impl Position {
-    pub(crate) fn start() -> Self {
+    pub fn start() -> Self {
         Self {
             state: State::start(),
             sides: Sides::start(),

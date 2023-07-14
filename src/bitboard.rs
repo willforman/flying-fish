@@ -7,8 +7,8 @@ use strum::IntoEnumIterator;
 #[allow(dead_code)]
 #[rustfmt::skip]
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, EnumString, FromRepr, Display, PartialOrd, Ord)]
-pub(crate) enum Square {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, EnumString, FromRepr, Display, PartialOrd, Ord, Hash)]
+pub enum Square {
     A1, B1, C1, D1, E1, F1, G1, H1,
     A2, B2, C2, D2, E2, F2, G2, H2,
     A3, B3, C3, D3, E3, F3, G3, H3,
@@ -25,10 +25,10 @@ impl Square {
     }
 }
 
-#[derive(Clone, Copy)]
-pub(crate) struct Move {
-    pub(crate) src: Square,
-    pub(crate) dest: Square,
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Move {
+    pub src: Square,
+    pub dest: Square,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -44,7 +44,7 @@ const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
 const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
-pub(crate) struct BitBoard(u64);
+pub struct BitBoard(u64);
 
 impl BitBoard {
     pub(crate) fn empty() -> Self {
@@ -109,6 +109,10 @@ impl BitBoard {
 
     pub(crate) fn is_piece_at(&self, square: Square) -> bool {
         self.0 & 1 << (square as u64) != 0
+    }
+
+    pub(crate) fn is_empty(self) -> bool {
+        self.0 == 0
     }
 
     fn shift(&mut self, dir: Direction) {

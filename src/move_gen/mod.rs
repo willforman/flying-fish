@@ -1,14 +1,12 @@
-use crate::position::{Piece,Side, Sides, Pieces};
-use crate::bitboard::{BitBoard,Square};
+use crate::position::{Piece,Side, Sides, Pieces,Position};
+use crate::bitboard::{BitBoard,Square, Move};
 
-use std::string::ToString;
-
-use self::leaping_pieces::LeapingPiecesMoveGen;
+use std::collections::HashSet;
 
 use strum::IntoEnumIterator;
 
-mod leaping_pieces;
-mod hyperbola_quintessence;
+pub mod leaping_pieces;
+pub mod hyperbola_quintessence;
 
 #[derive(thiserror::Error, Debug)]
 pub enum MoveGenError {
@@ -19,40 +17,53 @@ pub enum MoveGenError {
     InvalidSidesPieces(String)
 }
 
-struct Move {
-    src: Square,
-    dest: Square,
+pub trait GenerateLeapingMoves {
+    fn gen_moves(&self, piece: Piece, square: Square, side: Side, opp_pieces: BitBoard, en_passant_target: Option<Square>) -> BitBoard;
 }
 
-trait GenerateLeapingMoves {
-    fn gen_moves(&self, piece: Piece, square: Square, side: Side) -> BitBoard;
-}
-
-trait GenerateSlidingMoves {
+pub trait GenerateSlidingMoves {
     fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard;
 }
 
-struct AllPiecesMoveGen {
+pub struct AllPiecesMoveGen {
     leaping_pieces: Box<dyn GenerateLeapingMoves>,
     sliding_pieces: Box<dyn GenerateSlidingMoves>
 }
 
 impl AllPiecesMoveGen {
-    fn get_moves(&self, square: Square, sides: &Sides, pieces: &Pieces) -> Result<Vec<Square>, MoveGenError> {
-        let side = if sides.get(Side::White).is_piece_at(square) {
-            Side::White
-        } else if sides.get(Side::Black).is_piece_at(square) {
-            Side::Black
-        } else {
-            Err(MoveGenError::NoPiece(square.to_string()))?
-        };
+    pub fn new(leaping_pieces: Box<dyn GenerateLeapingMoves>, sliding_pieces: Box<dyn GenerateSlidingMoves>) -> Self {
+        AllPiecesMoveGen { leaping_pieces, sliding_pieces }
+    }
 
-        let piece = Piece::iter()
-            .find(|&piece| pieces.get(piece).get(side).is_piece_at(square))
-            .ok_or(MoveGenError::InvalidSidesPieces(side.to_string()))?;
+    pub fn gen_moves(&self, position: &Position) -> HashSet<Move> {
+        let mut moves = HashSet::new();
 
-        let moves_bb = self.leaping_pieces.gen_moves(piece, square, side);
+        let side = position.state.to_move;
 
-        Ok(moves_bb.to_squares())
+        let friendly_pieces = position.sides.get(side);
+        let opp_pieces = position.sides.get(side.opposite_side());
+
+        let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black);
+
+        for piece_type in Piece::iter() {
+            let pieces = position.pieces.get(piece_type).get(side);
+
+            for piece_square in pieces.to_squares() {
+                let moves_bb = match piece_type {
+                    Piece::Pawn | Piece::Knight | Piece::King => self.leaping_pieces.gen_moves(piece_type, piece_square, side, opp_pieces, position.state.en_passant_target),
+                    Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy)
+                };
+
+                let moves_bb = moves_bb & !friendly_pieces; // Don't let capture pieces on their own team
+
+                let moves_list: Vec<Move> = moves_bb.to_squares().iter()
+                    .map(|&sq| Move { src: piece_square, dest: sq })
+                    .collect();
+
+                moves.extend(moves_list);
+            }
+        }
+
+        moves
     }
 }

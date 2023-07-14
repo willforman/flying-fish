@@ -21,7 +21,7 @@ struct ColoredSquareToMoveDatabase {
 }
 
 impl ColoredSquareToMoveDatabase {
-    fn get_square_database(&self, side: Side) -> &SquareToMoveDatabase {
+    fn get_square_db(&self, side: Side) -> &SquareToMoveDatabase {
         match side {
             Side::White => &self.white,
             Side::Black => &self.black,
@@ -37,7 +37,7 @@ pub struct LeapingPiecesMoveGen {
 }
 
 impl LeapingPiecesMoveGen {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             pawn_pushes: calc_pawn_pushes(),
             pawn_atks: calc_pawn_atks(),
@@ -48,9 +48,17 @@ impl LeapingPiecesMoveGen {
 }
 
 impl GenerateLeapingMoves for LeapingPiecesMoveGen {
-    fn gen_moves(&self, piece: Piece, square: Square, side: Side) -> BitBoard {
+    fn gen_moves(&self, piece: Piece, square: Square, side: Side, opp_pieces: BitBoard, maybe_en_passant_target: Option<Square>) -> BitBoard {
         match piece {
-            Piece::Pawn => self.pawn_pushes.get_square_database(side).get_bitboard(square) & self.pawn_atks.get_square_database(side).get_bitboard(square),
+            Piece::Pawn => {
+                let pushes = self.pawn_pushes.get_square_db(side).get_bitboard(square) & !opp_pieces;
+                let atks = if let Some(ep_target) = maybe_en_passant_target {
+                    self.pawn_atks.get_square_db(side).get_bitboard(square) & opp_pieces & BitBoard::from_square(ep_target)
+                } else {
+                    self.pawn_atks.get_square_db(side).get_bitboard(square) & opp_pieces
+                };
+                pushes | atks
+            },
             Piece::Knight => self.knight_atks.get_bitboard(square),
             Piece::King => self.king_atks.get_bitboard(square),
             _ => panic!("piece type: want [pawn, knight, king], got {}", piece.to_string())
@@ -208,7 +216,7 @@ mod tests {
     #[test_case(G1, Side::Black, BitBoard::from_squares(&[]) ; "black edge")]
     fn test_calc_pawn_pushes(square: Square, side: Side, want: BitBoard) {
         let got = calc_pawn_pushes();
-        let sq_got = got.get_square_database(side).get_bitboard(square);
+        let sq_got = got.get_square_db(side).get_bitboard(square);
         assert_eq!(sq_got, want);
     }
 
@@ -218,7 +226,7 @@ mod tests {
     #[test_case(A2, Side::Black, BitBoard::from_squares(&[B1]) ; "black edge")]
     fn test_calc_pawn_atks(square: Square, side: Side, want: BitBoard) {
         let got = calc_pawn_atks();
-        let sq_got = got.get_square_database(side).get_bitboard(square);
+        let sq_got = got.get_square_db(side).get_bitboard(square);
         assert_eq!(sq_got, want);
     }
 }
