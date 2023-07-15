@@ -17,8 +17,8 @@ pub enum PositionError {
     #[error("no piece at {0}")]
     MoveNoPiece(String),
 
-    #[error("cannot move piece because to_move is the other side: {0}")]
-    MoveNotToMove(String),
+    #[error("to_move is the other side, for move: {0} {1} -> {2}")]
+    MoveNotToMove(String, String, String),
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
@@ -72,6 +72,7 @@ impl TryFrom<char> for Piece {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Sides {
     white: BitBoard,
     black: BitBoard
@@ -112,6 +113,7 @@ impl Sides {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Pieces {
     pawns: Sides,
     knights: Sides,
@@ -184,7 +186,7 @@ impl Pieces {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct CastlingRights {
     pub(crate) white_king_side: bool,
     pub(crate) white_queen_side: bool,
@@ -212,6 +214,7 @@ impl CastlingRights {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct State {
     pub(crate) to_move: Side,
     pub(crate) half_move_clock: u8,
@@ -230,6 +233,7 @@ impl State {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Position {
     pub(crate) state: State,
     pub(crate) sides: Sides,
@@ -259,10 +263,10 @@ impl Position {
         None
     }
 
-    fn make_move(&mut self, mve: Move) -> Result<(), PositionError> {
+    pub fn make_move(&mut self, mve: Move) -> Result<(), PositionError> {
         if let Some((piece, side)) = self.is_piece_at(mve.src) {
             if side != self.state.to_move {
-                Err(PositionError::MoveNotToMove(side.to_string()))
+                Err(PositionError::MoveNotToMove(side.to_string(), mve.src.to_string(), mve.dest.to_string()))
             } else {
                 self.state.to_move = side.opposite_side();
 
@@ -302,10 +306,13 @@ impl Position {
                     }
                 }
 
+                if let Some((opp_piece, opp_side)) = self.is_piece_at(mve.dest) {
+                    self.sides.get_mut(opp_side).clear_square(mve.dest);
+                    self.pieces.get_mut(opp_piece).get_mut(opp_side).clear_square(mve.dest);
+                }
+
                 self.sides.get_mut(side).move_piece(mve);
                 self.pieces.get_mut(piece).get_mut(side).move_piece(mve);
-
-
 
                 Ok(())
             }
