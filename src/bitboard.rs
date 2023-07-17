@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{BitAnd,BitOr,BitXor,Not,Sub, SubAssign, BitXorAssign, BitAndAssign};
+use std::ops::{BitAnd,BitOr,BitXor,Not,Sub, SubAssign, BitXorAssign, BitAndAssign, BitOrAssign};
 
 use strum_macros::{EnumIter,EnumString,FromRepr,Display};
 use strum::IntoEnumIterator;
@@ -49,6 +49,10 @@ pub struct BitBoard(u64);
 impl BitBoard {
     pub(crate) fn empty() -> Self {
         BitBoard(0)
+    }
+
+    pub(crate) fn full() -> Self {
+        BitBoard(u64::max_value())
     }
 
     pub(crate) fn from_square(square: Square) -> Self {
@@ -151,6 +155,12 @@ impl BitOr for BitBoard {
 
     fn bitor(self, other: BitBoard) -> BitBoard {
         BitBoard(self.0 | other.0)
+    }
+}
+
+impl BitOrAssign for BitBoard {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 = self.0 | rhs.0
     }
 }
 
