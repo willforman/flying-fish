@@ -20,9 +20,9 @@ pub enum MoveGenError {
 pub trait GenerateLeapingMoves {
     fn gen_knight_king_moves(&self, piece: Piece, square: Square) -> BitBoard;
 
-    fn gen_pawn_pushes(&self, square: Square, side: Side, opp_pieces: BitBoard) -> BitBoard;
+    fn gen_pawn_pushes(&self, square: Square, side: Side) -> BitBoard;
 
-    fn gen_pawn_atks(&self, square: Square, side: Side, opp_pieces: BitBoard, maybe_en_passant_target: Option<Square>) -> BitBoard;
+    fn gen_pawn_atks(&self, square: Square, side: Side) -> BitBoard;
 }
 
 pub trait GenerateSlidingMoves {
@@ -55,11 +55,23 @@ impl AllPiecesMoveGen {
 
             for piece_square in pieces.to_squares() {
                 let moves_bb = match piece_type {
-                    Piece::Knight | Piece::King => self.leaping_pieces.gen_knight_king_moves(piece_type, piece_square),
+                    Piece::Knight => self.leaping_pieces.gen_knight_king_moves(Piece::Knight, piece_square),
+                    Piece::King => {
+                        let king_moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, piece_square);
+                        let king_danger_squares = self.gen_attacked_squares(position, side.opposite_side());
+                        king_moves & !king_danger_squares
+                    },
                     Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
                     Piece::Pawn => {
-                        self.leaping_pieces.gen_pawn_pushes(piece_square, side, opp_pieces) |
-                        self.leaping_pieces.gen_pawn_atks(piece_square, side, opp_pieces, position.state.en_passant_target)
+                        let pushes = self.leaping_pieces.gen_pawn_pushes(piece_square, side) & !opp_pieces;
+                        let possible_atks = if let Some(ep_target) = position.state.en_passant_target {
+                            opp_pieces | BitBoard::from_square(ep_target)
+                        } else {
+                            opp_pieces
+                        };
+
+                        let atks = self.leaping_pieces.gen_pawn_atks(piece_square, side) & possible_atks;
+                        pushes | atks
                     },
                 };
 
@@ -92,7 +104,7 @@ impl AllPiecesMoveGen {
                 let moves_bb = match piece_type {
                     Piece::Knight | Piece::King => self.leaping_pieces.gen_knight_king_moves(piece_type, piece_square),
                     Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
-                    Piece::Pawn => self.leaping_pieces.gen_pawn_atks(piece_square, side, BitBoard::full(), None),
+                    Piece::Pawn => self.leaping_pieces.gen_pawn_atks(piece_square, side),
                 };
 
                 let moves_bb = moves_bb & !friendly_pieces; // Don't let capture pieces on their own team
@@ -127,6 +139,11 @@ mod tests {
     ]))]
     #[test_case(Position::from_fen("8/8/p7/1p1p4/1P6/P1P3kp/5p2/1b5K w - - 0 51").unwrap(), HashSet::from_iter([
         Move { src: C3, dest: C4 }, Move { src: A3, dest: A4 },
+    ]))]
+    #[test_case(Position::from_fen("8/8/4k3/8/8/4R3/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E6, dest: D7 }, Move { src: E6, dest: F7 },
+        Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
+        Move { src: E6, dest: D5 }, Move { src: E6, dest: F5 },
     ]))]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());

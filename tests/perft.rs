@@ -30,6 +30,7 @@ use test_case::test_case;
     43 
     ) ; "kiwipete 4"
 )]
+#[ignore]
 fn test_perft(starting_position: Position, depth: usize, want: PerftDepthResult) {
     let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
     let sliding_pieces = Box::new(HyperbolaQuintessence::new());

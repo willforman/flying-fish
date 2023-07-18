@@ -56,16 +56,12 @@ impl GenerateLeapingMoves for LeapingPiecesMoveGen {
         }
     }
 
-    fn gen_pawn_pushes(&self, square: Square, side: Side, opp_pieces: BitBoard) -> BitBoard {
-        self.pawn_pushes.get_square_db(side).get_bitboard(square) & !opp_pieces
+    fn gen_pawn_pushes(&self, square: Square, side: Side) -> BitBoard {
+        self.pawn_pushes.get_square_db(side).get_bitboard(square)
     }
 
-    fn gen_pawn_atks(&self, square: Square, side: Side, opp_pieces: BitBoard, maybe_en_passant_target: Option<Square>) -> BitBoard {
-        if let Some(ep_target) = maybe_en_passant_target {
-            self.pawn_atks.get_square_db(side).get_bitboard(square) & opp_pieces & BitBoard::from_square(ep_target)
-        } else {
-            self.pawn_atks.get_square_db(side).get_bitboard(square) & opp_pieces
-        }
+    fn gen_pawn_atks(&self, square: Square, side: Side) -> BitBoard {
+        self.pawn_atks.get_square_db(side).get_bitboard(square)
     }
 }
 
