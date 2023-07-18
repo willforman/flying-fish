@@ -1,4 +1,4 @@
-use crate::position::{Piece,Side,Sides,Pieces,Position};
+use crate::position::{Piece,Side,Sides,Pieces,Position, SLIDING_PIECES};
 use crate::bitboard::{BitBoard,Square,Move, Direction};
 
 use std::collections::HashSet;
@@ -175,8 +175,6 @@ impl AllPiecesMoveGen {
     }
     
     fn get_pinned(&self, position: &Position, side: Side) -> BitBoard {
-        const NON_DIAG_PIECES: [Piece; 2] = [Piece::Rook, Piece::Queen];
-
         let opp_side = side.opposite_side();
         let occupancy = BitBoard::empty();
 
@@ -187,18 +185,18 @@ impl AllPiecesMoveGen {
 
         let mut pinned = BitBoard::empty();
 
-        for piece_type in NON_DIAG_PIECES {
+        for piece_type in SLIDING_PIECES {
             let pieces = position.pieces.get(piece_type).get(opp_side);
             
             for piece_square in pieces.to_squares() {
                 let moves = match piece_type {
                     Piece::Rook => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
                     Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
-                    _ => panic!("want: [Rook, Queen], got: {}", piece_type),
+                    Piece::Bishop => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
+                    _ => panic!("want: [Bishop, Rook, Queen], got: {}", piece_type),
                 };
 
                 let overlap = moves & king_rays;
-                println!("{:?}", overlap);
                 pinned |= possible_pieces_pinned & overlap;
             }
         }

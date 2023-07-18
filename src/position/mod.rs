@@ -43,6 +43,8 @@ pub enum Piece {
     King
 }
 
+pub(crate) const SLIDING_PIECES: [Piece; 3] = [Piece::Bishop, Piece::Rook, Piece::Queen];
+
 impl Piece {
     pub(crate) fn is_slider(&self) -> bool {
         match self {
