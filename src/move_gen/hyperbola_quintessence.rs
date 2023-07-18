@@ -1,7 +1,7 @@
 use strum::IntoEnumIterator;
 
 use crate::bitboard::{BitBoard, Square, Direction};
-use crate::position::{Piece};
+use crate::position::Piece;
 
 use super::GenerateSlidingMoves;
 
@@ -149,7 +149,8 @@ impl HyperbolaQuintessence {
     }
 
     fn get_rank_moves(&self, occupancy: BitBoard, square: Square) -> BitBoard {
-        let occ_val = occupancy.to_val();
+        let occupancy_without_self = occupancy & !BitBoard::from_square(square);
+        let occ_val = occupancy_without_self.to_val();
         let sq_idx = square as u8;
 
         let file: usize = (sq_idx & 7).into(); // sq_idx % 8
@@ -227,6 +228,7 @@ mod tests {
     #[test_case(Piece::Rook, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[D1, D2, D3, D5, D6, D7, D8, A4, B4, C4, E4, F4, G4, H4]) ; "rook no blockers")]
     #[test_case(Piece::Rook, D4, BitBoard::from_squares(&[A4, D7, F4, D3]), BitBoard::from_squares(&[D3, D5, D6, D7, A4, B4, C4, E4, F4]) ; "rook blockers")]
     #[test_case(Piece::Rook, D4, BitBoard::from_squares(&[A4, D7, D8, F4, D3, D2, D1]), BitBoard::from_squares(&[D3, D5, D6, D7, A4, B4, C4, E4, F4]) ; "rook irrelevant blockers")]
+    #[test_case(Piece::Rook, E3, BitBoard::from_squares(&[E3]), BitBoard::from_squares(&[E1, E2, E4, E5, E6, E7, E8, A3, B3, C3, D3, F3, G3, H3]) ; "rook irrelevant blockers 2")]
     #[test_case(Piece::Queen, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A1, B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1, D1, D2, D3, D5, D6, D7, D8, A4, B4, C4, E4, F4, G4, H4]) ; "queen no blockers")]
     #[test_case(Piece::Queen, D4, BitBoard::from_squares(&[D5, B2, H4]), BitBoard::from_squares(&[B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1, D1, D2, D3, D5, A4, B4, C4, E4, F4, G4, H4]) ; "queen blockers")]
     fn test_gen_moves(piece: Piece, square: Square, occupancy: BitBoard, want: BitBoard) {

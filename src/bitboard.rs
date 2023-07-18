@@ -139,7 +139,7 @@ impl BitBoard {
         Square::from_repr(idx.try_into().unwrap()).unwrap()
     }
 
-    fn pop_lsb(&mut self) -> Square {
+    pub(crate) fn pop_lsb(&mut self) -> Square {
         let lsb = self.get_lsb();
         self.0 &= self.0 - 1;
         lsb

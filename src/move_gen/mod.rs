@@ -50,7 +50,14 @@ impl AllPiecesMoveGen {
 
         let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black);
 
+        let checkers = self.get_checkers(position);
+        let num_checkers = checkers.to_squares().len();
+
         for piece_type in Piece::iter() {
+            if num_checkers > 1 && piece_type != Piece::King {
+                continue;
+            } 
+
             let pieces = position.pieces.get(piece_type).get(side);
 
             for piece_square in pieces.to_squares() {
@@ -93,7 +100,8 @@ impl AllPiecesMoveGen {
         let friendly_pieces = position.sides.get(side);
 
         // Get occupancy but exclude king to handle kings moving away from checking sliding piece
-        let occupancy = position.sides.get(side) & !position.pieces.get(Piece::King).get(opp_side);
+        let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black) &
+            !position.pieces.get(Piece::King).get(opp_side);
 
         let mut attacked_squares = BitBoard::empty();
 
@@ -113,6 +121,29 @@ impl AllPiecesMoveGen {
             }
         }
         attacked_squares
+    }
+
+    fn get_checkers(&self, position: &Position) -> BitBoard {
+        let side = position.state.to_move;
+        let opp_side = side.opposite_side();
+
+        let king_square = position.pieces.get(Piece::King).get(side).pop_lsb();
+        let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black);
+
+        let mut checkers = BitBoard::empty();
+
+        for piece_type in Piece::iter() {
+            let moves = match piece_type {
+                Piece::Knight => self.leaping_pieces.gen_knight_king_moves(piece_type, king_square),
+                Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, king_square, occupancy),
+                Piece::Pawn => self.leaping_pieces.gen_pawn_atks(king_square, side),
+                Piece::King => BitBoard::empty() // Pass
+            };
+            let pieces = position.pieces.get(piece_type).get(opp_side);
+            checkers |= moves & pieces;
+        }
+
+        checkers
     }
 }
 
@@ -159,7 +190,7 @@ mod tests {
     ]) ; "king must be out of check after move")]
     #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
         Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
-        Move { src: E6, dest: F5 }, Move { src: E6, dest: F5 },
+        Move { src: E6, dest: D5 }, Move { src: E6, dest: F5 },
         Move { src: E6, dest: D7 },
     ]) ; "double check")]
     #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
