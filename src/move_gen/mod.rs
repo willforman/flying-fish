@@ -108,7 +108,7 @@ impl AllPiecesMoveGen {
                 moves_bb &= !friendly_pieces; // Don't let capture pieces on their own team
 
                 // If in check, make sure only capturing moves or blocking moves
-                if num_checkers == 1 && piece_type != Piece::King {
+                if piece_type != Piece::King {
                     moves_bb &= capture_mask | push_mask;
                 }
 
@@ -172,6 +172,37 @@ impl AllPiecesMoveGen {
         }
 
         checkers
+    }
+    
+    fn get_pinned(&self, position: &Position, side: Side) -> BitBoard {
+        const NON_DIAG_PIECES: [Piece; 2] = [Piece::Rook, Piece::Queen];
+
+        let opp_side = side.opposite_side();
+        let occupancy = BitBoard::empty();
+
+        let possible_pieces_pinned = position.sides.get(side);
+
+        let king_square = position.pieces.get(Piece::King).get(side).pop_lsb();
+        let king_rays = self.sliding_pieces.gen_moves(Piece::Queen, king_square, occupancy);
+
+        let mut pinned = BitBoard::empty();
+
+        for piece_type in NON_DIAG_PIECES {
+            let pieces = position.pieces.get(piece_type).get(opp_side);
+            
+            for piece_square in pieces.to_squares() {
+                let moves = match piece_type {
+                    Piece::Rook => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
+                    Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
+                    _ => panic!("want: [Rook, Queen], got: {}", piece_type),
+                };
+
+                let overlap = moves & king_rays;
+                println!("{:?}", overlap);
+                pinned |= possible_pieces_pinned & overlap;
+            }
+        }
+        pinned
     }
 }
 
@@ -266,6 +297,17 @@ mod tests {
 
         let got = move_gen.gen_attacked_squares(&position, side);
 
+        assert_eq!(got, want);
+    }
+
+    #[test_case(Position::from_fen("4k3/8/4r3/8/4Q3/8/8/7K b - - 0 1").unwrap(), BitBoard::from_squares(&[E6]))]
+    #[test_case(Position::from_fen("k7/1r6/8/3Q4/8/8/8/7K b - - 0 1").unwrap(), BitBoard::from_squares(&[B7]))]
+    fn test_get_pinned_pieces(position: Position, want: BitBoard) {
+        let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
+        let sliding_pieces = Box::new(HyperbolaQuintessence::new());
+        let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
+
+        let got = move_gen.get_pinned(&position, Side::Black);
         assert_eq!(got, want);
     }
 }
