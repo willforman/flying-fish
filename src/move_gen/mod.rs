@@ -139,12 +139,52 @@ mod tests {
     ]))]
     #[test_case(Position::from_fen("8/8/p7/1p1p4/1P6/P1P3kp/5p2/1b5K w - - 0 51").unwrap(), HashSet::from_iter([
         Move { src: C3, dest: C4 }, Move { src: A3, dest: A4 },
-    ]))]
+    ]) ; "random position from my game")]
+    #[test_case(Position::from_fen("8/8/8/8/k2Pp3/8/8/7K b - d3 0 1").unwrap(), HashSet::from_iter([
+        Move { src: A4, dest: A5 }, Move { src: A4, dest: B5 },
+        Move { src: A4, dest: A3 }, Move { src: A4, dest: B3 },
+        Move { src: A4, dest: B4 },
+        Move { src: E4, dest: E3 }, Move { src: E4, dest: D3 },
+    ]) ; "en passant")]
     #[test_case(Position::from_fen("8/8/4k3/8/8/4R3/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
         Move { src: E6, dest: D7 }, Move { src: E6, dest: F7 },
         Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
         Move { src: E6, dest: D5 }, Move { src: E6, dest: F5 },
-    ]))]
+    ]) ; "king cant move into check")]
+    #[test_case(Position::from_fen("8/8/4k3/8/5N2/8/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E6, dest: E7 }, Move { src: E6, dest: E5 },
+        Move { src: E6, dest: D7 }, Move { src: E6, dest: F7 },
+        Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
+        Move { src: E6, dest: F5 }, Move { src: D2, dest: F4 },
+    ]) ; "king must be out of check after move")]
+    #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
+        Move { src: E6, dest: F5 }, Move { src: E6, dest: F5 },
+        Move { src: E6, dest: D7 },
+    ]) ; "double check")]
+    #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: C5, dest: B6 }, Move { src: C5, dest: D6 },
+        Move { src: C5, dest: B5 }, Move { src: C5, dest: D5 },
+        Move { src: C5, dest: B4 }, Move { src: C5, dest: D4 },
+        Move { src: C5, dest: C6 }, Move { src: C5, dest: C4 },
+        Move { src: E4, dest: D3 },
+    ]) ; "en passant capture to end check")]
+    #[test_case(Position::from_fen("4k3/8/4r3/8/4Q3/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E6, dest: E5 }, Move { src: E6, dest: E4 },
+        Move { src: E6, dest: E4 },
+        Move { src: E8, dest: D8 }, Move { src: E8, dest: F8 },
+        Move { src: E8, dest: D7 }, Move { src: E8, dest: F7 },
+        Move { src: E8, dest: E7},
+    ]) ; "cant move out of pin file")]
+    #[test_case(Position::from_fen("k7/1r6/8/3Q4/8/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: A8, dest: B8 }, Move { src: A8, dest: A7 },
+    ]) ; "cant move out of pin diagonal")]
+    #[test_case(Position::from_fen("8/8/8/8/k2Pp2R/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: A4, dest: A5 }, Move { src: A4, dest: B5 },
+        Move { src: A4, dest: A3 }, Move { src: A4, dest: B3 },
+        Move { src: A4, dest: B4 },
+        Move { src: E4, dest: E3 },
+    ]) ; "prevent en passant discovered check")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
