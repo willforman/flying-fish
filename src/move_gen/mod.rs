@@ -1,5 +1,5 @@
 use crate::position::{Piece,Side,Sides,Pieces,Position};
-use crate::bitboard::{BitBoard,Square,Move};
+use crate::bitboard::{BitBoard,Square,Move, Direction};
 
 use std::collections::HashSet;
 
@@ -53,11 +53,19 @@ impl AllPiecesMoveGen {
         let mut checkers = self.get_checkers(position);
         let num_checkers = checkers.to_squares().len();
 
+        // In the case of check, what squares are allowed to be captured and blocked
         let mut capture_mask = BitBoard::full();
         let mut push_mask = BitBoard::full();
 
         if num_checkers == 1 {
             capture_mask = checkers;
+            if let Some(ep_target) = position.state.en_passant_target {
+                let ep_dir = if side.opposite_side() == Side::White { Direction::North } else { Direction::South };
+                let ep_src_bb = BitBoard::from_square_shifts(ep_target, &vec![vec![ep_dir]]);
+                if ep_src_bb == checkers.clone() {
+                    capture_mask |= BitBoard::from_square(ep_target);
+                }
+            }
 
             let checker_square = checkers.pop_lsb();
             let (checker_piece_type, _) = position.is_piece_at(checker_square).unwrap();
@@ -217,7 +225,7 @@ mod tests {
         Move { src: E6, dest: D5 }, Move { src: E6, dest: F5 },
         Move { src: E6, dest: D7 },
     ]) ; "double check")]
-    #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("8/8/8/2k5/3Pp3/8/8/7K b - d3 0 1").unwrap(), HashSet::from_iter([
         Move { src: C5, dest: B6 }, Move { src: C5, dest: D6 },
         Move { src: C5, dest: B5 }, Move { src: C5, dest: D5 },
         Move { src: C5, dest: B4 }, Move { src: C5, dest: D4 },
