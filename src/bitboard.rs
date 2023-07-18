@@ -85,6 +85,37 @@ impl BitBoard {
         res & !start
     }
 
+    pub(crate) fn from_ray_excl(start: Square, end: Square) -> Self {
+        let diff = start.abs_diff(end);
+        let dir = if diff % 8 == 0 {
+            if start > end {
+                Direction::South
+            } else {
+                Direction::North
+            }
+        } else {
+            if start > end {
+                Direction::West
+            } else {
+                Direction::East
+            }
+        };
+        let iterations = if diff % 8 == 0 {
+            diff / 8
+        } else {
+            diff
+        } - 1;
+
+        let mut curr_bb = BitBoard::from_square(start);
+        let mut ray = BitBoard::empty();
+
+        for _ in 0..iterations {
+            curr_bb.shift(dir);
+            ray |= curr_bb;
+        }
+        ray
+    }
+
     pub(crate) fn to_val(self) -> u64 {
         self.0
     }
@@ -325,5 +356,12 @@ mod tests {
         let lsb_got = inp.pop_lsb();
         assert_eq!(lsb_got, lsb_want);
         assert_eq!(inp, res_want);
+    }
+
+    #[test_case(A8, A3, BitBoard::from_squares(&[A4, A5, A6, A7]))]
+    #[test_case(A8, D8, BitBoard::from_squares(&[B8, C8]))]
+    fn test_from_ray_excl(start: Square, end: Square, want: BitBoard) {
+        let got = BitBoard::from_ray_excl(start, end);
+        assert_eq!(got, want);
     }
 }

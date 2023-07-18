@@ -43,6 +43,15 @@ pub enum Piece {
     King
 }
 
+impl Piece {
+    pub(crate) fn is_slider(&self) -> bool {
+        match self {
+            Piece::Pawn | Piece::Knight | Piece::King => false,
+            Piece::Bishop | Piece::Rook | Piece::Queen => true,
+        }
+    }
+}
+
 impl Into<char> for Piece {
     fn into(self) -> char {
         match self {
@@ -249,7 +258,7 @@ impl Position {
         }
     }
 
-    fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
+    pub(crate) fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
         for piece in Piece::iter() {
             let sides = &self.pieces.get(piece);
             if sides.white.is_piece_at(square) {

@@ -50,8 +50,23 @@ impl AllPiecesMoveGen {
 
         let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black);
 
-        let checkers = self.get_checkers(position);
+        let mut checkers = self.get_checkers(position);
         let num_checkers = checkers.to_squares().len();
+
+        let mut capture_mask = BitBoard::full();
+        let mut push_mask = BitBoard::full();
+
+        if num_checkers == 1 {
+            capture_mask = checkers;
+
+            let checker_square = checkers.pop_lsb();
+            let (checker_piece_type, _) = position.is_piece_at(checker_square).unwrap();
+            push_mask = if checker_piece_type.is_slider() {
+                BitBoard::from_ray_excl(checker_square, position.pieces.get(Piece::King).get(side).pop_lsb())
+            } else {
+                BitBoard::empty()
+            }
+        }
 
         for piece_type in Piece::iter() {
             if num_checkers > 1 && piece_type != Piece::King {
@@ -61,7 +76,7 @@ impl AllPiecesMoveGen {
             let pieces = position.pieces.get(piece_type).get(side);
 
             for piece_square in pieces.to_squares() {
-                let moves_bb = match piece_type {
+                let mut moves_bb = match piece_type {
                     Piece::Knight => self.leaping_pieces.gen_knight_king_moves(Piece::Knight, piece_square),
                     Piece::King => {
                         let king_moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, piece_square);
@@ -82,7 +97,12 @@ impl AllPiecesMoveGen {
                     },
                 };
 
-                let moves_bb = moves_bb & !friendly_pieces; // Don't let capture pieces on their own team
+                moves_bb &= !friendly_pieces; // Don't let capture pieces on their own team
+
+                // If in check, make sure only capturing moves or blocking moves
+                if num_checkers == 1 && piece_type != Piece::King {
+                    moves_bb &= capture_mask | push_mask;
+                }
 
                 let moves_list: Vec<Move> = moves_bb.to_squares().iter()
                     .map(|&sq| Move { src: piece_square, dest: sq })
@@ -187,7 +207,11 @@ mod tests {
         Move { src: E6, dest: D7 }, Move { src: E6, dest: F7 },
         Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
         Move { src: E6, dest: F5 }, Move { src: D2, dest: F4 },
-    ]) ; "king must be out of check after move")]
+    ]) ; "capture checker")]
+    #[test_case(Position::from_fen("k7/6r1/8/8/8/R7/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: A8, dest: B8 }, Move { src: A8, dest: B7 },
+        Move { src: G7, dest: A7 },
+    ]) ; "block checker")]
     #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
         Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
         Move { src: E6, dest: D5 }, Move { src: E6, dest: F5 },
