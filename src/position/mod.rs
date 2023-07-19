@@ -301,6 +301,19 @@ impl Position {
                         self.state.castling_rights.black_king_side = false;
                         self.state.castling_rights.black_queen_side = false;
                     }
+
+                    if mve.src.abs_diff(mve.dest) == 2 { // Castled
+                        let rook_move = match mve.dest {
+                            C1 => Move { src: A1, dest: D1 },
+                            G1 => Move { src: H1, dest: F1 },
+                            C8 => Move { src: A8, dest: D8 },
+                            G8 => Move { src: H8, dest: F8 },
+                            _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
+                        };
+
+                        self.sides.get_mut(side).move_piece(rook_move);
+                        self.pieces.get_mut(Piece::Rook).get_mut(side).move_piece(rook_move);
+                    }
                 }
 
                 if piece == Piece::Rook {
