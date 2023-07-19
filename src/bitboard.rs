@@ -165,7 +165,7 @@ impl BitBoard {
         }
     }
 
-    fn get_lsb(&self) -> Square {
+    pub(crate) fn get_lsb(&self) -> Square {
         let idx = self.0.trailing_zeros();
         Square::from_repr(idx.try_into().unwrap()).unwrap()
     }

@@ -44,6 +44,7 @@ impl AllPiecesMoveGen {
         let mut moves = HashSet::new();
 
         let side = position.state.to_move;
+        let opp_side = side.opposite_side();
 
         let friendly_pieces = position.sides.get(side);
         let opp_pieces = position.sides.get(side.opposite_side());
@@ -56,6 +57,8 @@ impl AllPiecesMoveGen {
         // In the case of check, what squares are allowed to be captured and blocked
         let mut capture_mask = BitBoard::full();
         let mut push_mask = BitBoard::full();
+
+        let pin_rays = self.get_pin_rays(position, side);
 
         if num_checkers == 1 {
             capture_mask = checkers;
@@ -110,6 +113,10 @@ impl AllPiecesMoveGen {
                 // If in check, make sure only capturing moves or blocking moves
                 if piece_type != Piece::King {
                     moves_bb &= capture_mask | push_mask;
+                }
+
+                if !(pin_rays & BitBoard::from_square(piece_square)).is_empty() {
+                    moves_bb &= pin_rays;
                 }
 
                 let moves_list: Vec<Move> = moves_bb.to_squares().iter()
@@ -173,34 +180,32 @@ impl AllPiecesMoveGen {
 
         checkers
     }
-    
-    fn get_pinned(&self, position: &Position, side: Side) -> BitBoard {
+
+    fn get_pin_rays(&self, position: &Position, side: Side) -> BitBoard {
+        const PIN_RAY_PIECE_CHECKS: [Piece; 2] = [Piece::Bishop, Piece::Rook];
+
+        let mut pin_rays = BitBoard::empty();
         let opp_side = side.opposite_side();
-        let occupancy = BitBoard::empty();
 
-        let possible_pieces_pinned = position.sides.get(side);
+        let pinner_occupancy = position.pieces.get(Piece::King).get(side);
+        let king_square = pinner_occupancy.get_lsb();
+        let king_ray_occupancy = position.sides.get(opp_side);
 
-        let king_square = position.pieces.get(Piece::King).get(side).pop_lsb();
-        let king_rays = self.sliding_pieces.gen_moves(Piece::Queen, king_square, occupancy);
+        for pin_ray_piece in PIN_RAY_PIECE_CHECKS {
+            let king_ray = self.sliding_pieces.gen_moves(pin_ray_piece, king_square, king_ray_occupancy);
 
-        let mut pinned = BitBoard::empty();
+            let possible_pinners = position.pieces.get(pin_ray_piece).get(opp_side) |
+                position.pieces.get(Piece::Queen).get(opp_side);
+            let pinners = king_ray & possible_pinners;
 
-        for piece_type in SLIDING_PIECES {
-            let pieces = position.pieces.get(piece_type).get(opp_side);
-            
-            for piece_square in pieces.to_squares() {
-                let moves = match piece_type {
-                    Piece::Rook => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
-                    Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
-                    Piece::Bishop => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
-                    _ => panic!("want: [Bishop, Rook, Queen], got: {}", piece_type),
-                };
-
-                let overlap = moves & king_rays;
-                pinned |= possible_pieces_pinned & overlap;
+            for pinner_square in pinners.to_squares() {
+                let mut moves = self.sliding_pieces.gen_moves(pin_ray_piece, pinner_square, pinner_occupancy);
+                moves.set_square(pinner_square); // Want to include capturing pinner in ray
+                pin_rays |= moves & king_ray;
             }
         }
-        pinned
+
+        pin_rays
     }
 }
 
@@ -261,12 +266,11 @@ mod tests {
         Move { src: C5, dest: C6 }, Move { src: C5, dest: C4 },
         Move { src: E4, dest: D3 },
     ]) ; "en passant capture to end check")]
-    #[test_case(Position::from_fen("4k3/8/4r3/8/4Q3/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E6, dest: E5 }, Move { src: E6, dest: E4 },
-        Move { src: E6, dest: E4 },
-        Move { src: E8, dest: D8 }, Move { src: E8, dest: F8 },
-        Move { src: E8, dest: D7 }, Move { src: E8, dest: F7 },
-        Move { src: E8, dest: E7},
+    #[test_case(Position::from_fen("7k/8/7r/8/7Q/8/8/K7 b - - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: H8, dest: G7 }, Move { src: H8, dest: H7 },
+        Move { src: H8, dest: G8 },
+        Move { src: H6, dest: H7}, Move { src: H6, dest: H5 },
+        Move { src: H6, dest: H4},
     ]) ; "cant move out of pin file")]
     #[test_case(Position::from_fen("k7/1r6/8/3Q4/8/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
         Move { src: A8, dest: B8 }, Move { src: A8, dest: A7 },
@@ -298,14 +302,15 @@ mod tests {
         assert_eq!(got, want);
     }
 
-    #[test_case(Position::from_fen("4k3/8/4r3/8/4Q3/8/8/7K b - - 0 1").unwrap(), BitBoard::from_squares(&[E6]))]
-    #[test_case(Position::from_fen("k7/1r6/8/3Q4/8/8/8/7K b - - 0 1").unwrap(), BitBoard::from_squares(&[B7]))]
-    fn test_get_pinned_pieces(position: Position, want: BitBoard) {
+    #[test_case(Position::from_fen("6B1/8/4r3/3k4/2r5/1Q6/8/7K w - - 0 1").unwrap(), BitBoard::from_squares(&[B3, C4, E6, F7, G8]) ; "bishop")]
+    #[test_case(Position::from_fen("8/8/8/3k1n1R/3n4/3Q4/8/7K w - - 0 1").unwrap(), BitBoard::from_squares(&[D3, D4, E5, F5, G5, H5]) ; "rook")]
+    #[test_case(Position::from_fen("6B1/5N2/4r3/3k4/2r5/1Q6/8/7K w - - 0 1").unwrap(), BitBoard::from_squares(&[B3, C4]) ; "bishop block pin")]
+    fn test_get_pin_rays(position: Position, want: BitBoard) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
-        let got = move_gen.get_pinned(&position, Side::Black);
+        let got = move_gen.get_pin_rays(&position, Side::Black);
         assert_eq!(got, want);
     }
 }
