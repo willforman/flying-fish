@@ -244,7 +244,7 @@ impl State {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Position {
     pub(crate) state: State,
     pub(crate) sides: Sides,
@@ -293,6 +293,20 @@ impl Position {
                     self.state.en_passant_target = None;
                 }
 
+                if let Some((opp_piece, opp_side)) = self.is_piece_at(mve.dest) {
+                    self.sides.get_mut(opp_side).clear_square(mve.dest);
+                    self.pieces.get_mut(opp_piece).get_mut(opp_side).clear_square(mve.dest);
+                }
+
+                if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) { // Promotion
+                    self.sides.get_mut(side).move_piece(mve);
+
+                    self.pieces.get_mut(Piece::Pawn).get_mut(side).clear_square(mve.src);
+                    self.pieces.get_mut(Piece::Queen).get_mut(side).set_square(mve.dest);
+
+                    return Ok(());
+                }
+
                 if piece == Piece::King {
                     if side == Side::White {
                         self.state.castling_rights.white_king_side = false;
@@ -330,10 +344,6 @@ impl Position {
                     }
                 }
 
-                if let Some((opp_piece, opp_side)) = self.is_piece_at(mve.dest) {
-                    self.sides.get_mut(opp_side).clear_square(mve.dest);
-                    self.pieces.get_mut(opp_piece).get_mut(opp_side).clear_square(mve.dest);
-                }
 
                 self.sides.get_mut(side).move_piece(mve);
                 self.pieces.get_mut(piece).get_mut(side).move_piece(mve);
@@ -349,16 +359,20 @@ impl Position {
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut board_str = String::with_capacity(64 + 7);
-        for (idx, sq) in Square::iter().enumerate() {
-            let ch = match self.is_piece_at(sq) {
-                Some((p, Side::White)) => <Piece as Into<char>>::into(p).to_ascii_uppercase(),
-                Some((p, Side::Black)) => <Piece as Into<char>>::into(p),
-                None => '.',
-            };
+        for rank in (0..8).rev() {
+            for file in 0..8 {
+                let square = Square::from_repr(rank * 8 + file).unwrap();
 
-            board_str.push(ch);
+                let ch = match self.is_piece_at(square) {
+                    Some((p, Side::White)) => <Piece as Into<char>>::into(p).to_ascii_uppercase(),
+                    Some((p, Side::Black)) => <Piece as Into<char>>::into(p),
+                    None => '.',
+                };
 
-            if (idx + 1) % 8 == 0 && (idx + 1) != 64 {
+                board_str.push(ch);
+
+            }
+            if rank != 0 {
                 board_str.push('\n');
             }
         }
@@ -366,17 +380,21 @@ impl fmt::Display for Position {
     }
 }
 
+impl fmt::Debug for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitboard::Square::*;
-    use testresult::TestResult;
     use test_case::test_case;
 
     #[test]
     fn test_display() {
         let got = Position::start();
-        let want = "RNBQKBNR\nPPPPPPPP\n........\n........\n........\n........\npppppppp\nrnbqkbnr";
+        let want = "rnbqkbnr\npppppppp\n........\n........\n........\n........\nPPPPPPPP\nRNBQKBNR";
 
         assert_eq!(format!("{}", got), want);
     }
