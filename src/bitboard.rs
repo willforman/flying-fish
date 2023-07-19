@@ -142,7 +142,7 @@ impl BitBoard {
         self.0 &= !(1 << square as u64)
     }
 
-    pub(crate) fn is_piece_at(&self, square: Square) -> bool {
+    pub(crate) fn is_square_set(&self, square: Square) -> bool {
         self.0 & 1 << (square as u64) != 0
     }
 
@@ -252,7 +252,7 @@ impl fmt::Debug for BitBoard {
         for rank in (0..8).rev() {
             for file in 0..8 {
                 let square = Square::from_repr(rank * 8 + file).unwrap();
-                let ch = if self.is_piece_at(square) {
+                let ch = if self.is_square_set(square) {
                     'X'
                 } else {
                     '.'
@@ -299,11 +299,11 @@ mod tests {
 
         for sq in Square::iter() {
             if piece_squares.contains(&sq) {
-                assert!(bb.is_piece_at(sq));
-                assert!(!inv_bb.is_piece_at(sq));
+                assert!(bb.is_square_set(sq));
+                assert!(!inv_bb.is_square_set(sq));
             } else {
-                assert!(!bb.is_piece_at(sq));
-                assert!(inv_bb.is_piece_at(sq));
+                assert!(!bb.is_square_set(sq));
+                assert!(inv_bb.is_square_set(sq));
             }
         }
     }
@@ -315,9 +315,9 @@ mod tests {
         let bb = BitBoard(bin_num);
         for sq in Square::iter() {
             if piece_squares.contains(&sq) {
-                assert!(bb.is_piece_at(sq));
+                assert!(bb.is_square_set(sq));
             } else {
-                assert!(!bb.is_piece_at(sq));
+                assert!(!bb.is_square_set(sq));
             }
         }
     }

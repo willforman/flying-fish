@@ -1,5 +1,6 @@
 use crate::position::{Piece,Side,Sides,Pieces,Position, SLIDING_PIECES};
 use crate::bitboard::{BitBoard,Square,Move, Direction};
+use crate::bitboard::Square::*;
 
 use std::collections::HashSet;
 
@@ -44,7 +45,6 @@ impl AllPiecesMoveGen {
         let mut moves = HashSet::new();
 
         let side = position.state.to_move;
-        let opp_side = side.opposite_side();
 
         let friendly_pieces = position.sides.get(side);
         let opp_pieces = position.sides.get(side.opposite_side());
@@ -65,7 +65,7 @@ impl AllPiecesMoveGen {
             if let Some(ep_target) = position.state.en_passant_target {
                 let ep_dir = if side.opposite_side() == Side::White { Direction::North } else { Direction::South };
                 let ep_src_bb = BitBoard::from_square_shifts(ep_target, &vec![vec![ep_dir]]);
-                if ep_src_bb == checkers.clone() {
+                if ep_src_bb == checkers {
                     capture_mask |= BitBoard::from_square(ep_target);
                 }
             }
@@ -90,9 +90,46 @@ impl AllPiecesMoveGen {
                 let mut moves_bb = match piece_type {
                     Piece::Knight => self.leaping_pieces.gen_knight_king_moves(Piece::Knight, piece_square),
                     Piece::King => {
-                        let king_moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, piece_square);
+                        let mut moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, piece_square);
                         let king_danger_squares = self.gen_attacked_squares(position, side.opposite_side());
-                        king_moves & !king_danger_squares
+                        moves &= !king_danger_squares;
+                        if piece_square == E1 { // White castling
+                            if position.state.castling_rights.white_king_side &&
+                                !friendly_pieces.is_square_set(F1) && 
+                                !friendly_pieces.is_square_set(G1) &&
+                                !king_danger_squares.is_square_set(F1) &&
+                                !king_danger_squares.is_square_set(G1) 
+                            {
+                                moves.set_square(G1)
+                            }
+                            if position.state.castling_rights.white_queen_side &&
+                                !friendly_pieces.is_square_set(D1) && 
+                                !friendly_pieces.is_square_set(C1) &&
+                                !king_danger_squares.is_square_set(D1) &&
+                                !king_danger_squares.is_square_set(C1)
+                            {
+                                moves.set_square(C1)
+                            }
+                        }
+                        if piece_square == E8 { // Black castling
+                            if position.state.castling_rights.black_king_side &&
+                                !friendly_pieces.is_square_set(F8) && 
+                                !friendly_pieces.is_square_set(G8) &&
+                                !king_danger_squares.is_square_set(F8) &&
+                                !king_danger_squares.is_square_set(G8) 
+                            {
+                                moves.set_square(G8)
+                            }
+                            if position.state.castling_rights.black_queen_side &&
+                                !friendly_pieces.is_square_set(D8) && 
+                                !friendly_pieces.is_square_set(C8) &&
+                                !king_danger_squares.is_square_set(D8) &&
+                                !king_danger_squares.is_square_set(C8)
+                            {
+                                moves.set_square(C8)
+                            }
+                        }
+                        moves
                     },
                     Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
                     Piece::Pawn => {
@@ -115,7 +152,7 @@ impl AllPiecesMoveGen {
                     moves_bb &= capture_mask | push_mask;
                 }
 
-                if !(pin_rays & BitBoard::from_square(piece_square)).is_empty() {
+                if pin_rays.is_square_set(piece_square) {
                     moves_bb &= pin_rays;
                 }
 
@@ -212,7 +249,6 @@ impl AllPiecesMoveGen {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::Square::*;
     use test_case::test_case;
 
     use crate::move_gen::leaping_pieces::LeapingPiecesMoveGen;
@@ -281,6 +317,51 @@ mod tests {
         Move { src: A4, dest: B4 },
         Move { src: E4, dest: E3 },
     ]) ; "prevent en passant discovered check")]
+    #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E1, dest: F1 }, Move { src: E1, dest: D1 },
+        Move { src: E1, dest: F2 }, Move { src: E1, dest: D2 },
+        Move { src: E1, dest: E2 },
+        Move { src: E1, dest: G1 }, Move { src: E1, dest: C1 }, // Castling
+        Move { src: A1, dest: B1 }, Move { src: A1, dest: C1 },
+        Move { src: A1, dest: D1 }, Move { src: H1, dest: G1 },
+        Move { src: H1, dest: F1 },
+        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
+        Move { src: H2, dest: H3 }, Move { src: H2, dest: H4 },
+    ]) ; "white castling")]
+    #[test_case(Position::from_fen("4k3/8/8/8/8/3bb3/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E1, dest: D1 },
+        Move { src: A1, dest: B1 }, Move { src: A1, dest: C1 },
+        Move { src: A1, dest: D1 }, Move { src: H1, dest: G1 },
+        Move { src: H1, dest: F1 },
+        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
+        Move { src: H2, dest: H3 }, Move { src: H2, dest: H4 },
+    ]) ; "white castling cant through check")]
+    #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R1N1KB1R w KQ - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E1, dest: D1 },
+        Move { src: E1, dest: F2 }, Move { src: E1, dest: D2 },
+        Move { src: E1, dest: E2 },
+        Move { src: A1, dest: B1 },
+        Move { src: H1, dest: G1 },
+        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
+        Move { src: H2, dest: H3 }, Move { src: H2, dest: H4 },
+        Move { src: F1, dest: G2 }, Move { src: F1, dest: H3 },
+        Move { src: F1, dest: E2 }, Move { src: F1, dest: D3 },
+        Move { src: F1, dest: C4 }, Move { src: F1, dest: B5 },
+        Move { src: F1, dest: A6 },
+        Move { src: C1, dest: B3 }, Move { src: C1, dest: D3 },
+        Move { src: C1, dest: E2 }
+    ]) ; "white castling cant through pieces")]
+    #[test_case(Position::from_fen("r3k2r/p6p/8/8/8/8/8/4K3 b kq - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E8, dest: F8 }, Move { src: E8, dest: D8 },
+        Move { src: E8, dest: F7 }, Move { src: E8, dest: D7 },
+        Move { src: E8, dest: E7 },
+        Move { src: E8, dest: G8 }, Move { src: E8, dest: C8 }, // Castling
+        Move { src: A8, dest: B8 }, Move { src: A8, dest: C8 },
+        Move { src: A8, dest: D8 }, Move { src: H8, dest: G8 },
+        Move { src: H8, dest: F8 },
+        Move { src: A7, dest: A6 }, Move { src: A7, dest: A5 },
+        Move { src: H7, dest: H6 }, Move { src: H7, dest: H5 },
+    ]) ; "black castling")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
