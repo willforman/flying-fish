@@ -23,6 +23,10 @@ impl Square {
     pub(crate) fn abs_diff(self, other: Square) -> u8 {
         (self as u8).abs_diff(other as u8)
     }
+
+    pub(crate) fn to_rank_file(self) -> (u8, u8) {
+        (self as u8 / 8, self as u8 % 8)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -31,17 +35,18 @@ pub struct Move {
     pub dest: Square,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[repr(isize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Direction {
-    North,
-    East,
-    South,
-    West
+    North = 8,
+    East = 1,
+    South = -8,
+    West = -1,
+    NorthEast = 9,
+    NorthWest = 7,
+    SouthEast = -7,
+    SouthWest = -9,
 }
-
-// Need to clear MSB/LSB from bb to prevent overlap
-const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
-const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct BitBoard(u64);
@@ -85,35 +90,45 @@ impl BitBoard {
         res & !start
     }
 
-    pub(crate) fn from_ray_excl(start: Square, end: Square) -> Self {
-        let diff = start.abs_diff(end);
-        let dir = if diff % 8 == 0 {
-            if start > end {
-                Direction::South
-            } else {
+    pub(crate) fn from_ray_excl(sq1: Square, sq2: Square) -> Self {
+        let (sq1_rank, sq1_file) = sq1.to_rank_file();
+        let (sq2_rank, sq2_file) = sq2.to_rank_file();
+
+        let dir = if sq1_file == sq2_file {
+            if sq1_rank < sq2_rank {
                 Direction::North
+            } else {
+                Direction::South
+            }
+        } else if sq1_rank == sq2_rank {
+            if sq1_file < sq2_file {
+                Direction::East
+            } else {
+                Direction::West
+            }
+        } else if sq1_file < sq2_file {
+            if sq1_rank < sq2_rank {
+                Direction::NorthEast
+            } else {
+                Direction::SouthEast
             }
         } else {
-            if start > end {
-                Direction::West
+            if sq1_rank < sq2_rank {
+                Direction::NorthWest
             } else {
-                Direction::East
+                Direction::SouthWest
             }
         };
-        let iterations = if diff % 8 == 0 {
-            diff / 8
-        } else {
-            diff
-        } - 1;
+        let mut curr_bb = BitBoard::from_square(sq1);
+        let end_bb = BitBoard::from_square(sq2);
 
-        let mut curr_bb = BitBoard::from_square(start);
         let mut ray = BitBoard::empty();
 
-        for _ in 0..iterations {
+        while curr_bb != end_bb {
             curr_bb.shift(dir);
             ray |= curr_bb;
         }
-        ray
+        ray & !end_bb
     }
 
     pub(crate) fn to_val(self) -> u64 {
@@ -153,15 +168,16 @@ impl BitBoard {
     fn shift(&mut self, dir: Direction) {
         const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
         const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
-        match dir {
-            Direction::North => self.0 <<= 8,
-            Direction::South => self.0 >>= 8,
-            Direction::East => {
-                self.0 = (self.0 & EAST_SHIFT_MASK) << 1
-            },
-            Direction::West => {
-                self.0 = (self.0 & WEST_SHIFT_MASK) >> 1
-            },
+        if dir == Direction::East {
+            self.0 &= EAST_SHIFT_MASK;
+        } else if dir == Direction::West {
+            self.0 &= WEST_SHIFT_MASK;
+        }
+        let shift_amt = dir as isize;
+        if shift_amt >= 0 {
+            self.0 <<= shift_amt
+        } else {
+            self.0 >>= -shift_amt
         }
     }
 
@@ -327,7 +343,14 @@ mod tests {
     #[test_case(BitBoard::from_square(D4), vec![Direction::East], BitBoard::from_square(E4) ; "e")]
     #[test_case(BitBoard::from_square(D4), vec![Direction::West], BitBoard::from_square(C4) ; "w")]
     #[test_case(BitBoard::from_square(D4), vec![Direction::East, Direction::East], BitBoard::from_square(F4) ; "ee")]
-    #[test_case(BitBoard::from_square(A6), vec![Direction::West], BitBoard(0) ; "overlap")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::NorthEast], BitBoard::from_square(E5) ; "ne")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::NorthWest], BitBoard::from_square(C5) ; "nw")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::SouthEast], BitBoard::from_square(E3) ; "se")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::SouthWest], BitBoard::from_square(C3) ; "sw")]
+    #[test_case(BitBoard::from_square(A6), vec![Direction::West], BitBoard(0) ; "overlap w")]
+    #[test_case(BitBoard::from_square(H3), vec![Direction::East], BitBoard(0) ; "overlap e")]
+    #[test_case(BitBoard::from_square(A2), vec![Direction::SouthWest], BitBoard(0) ; "overlap sw")]
+    #[test_case(BitBoard::from_square(H7), vec![Direction::NorthEast], BitBoard(0) ; "overlap ne")]
     fn test_shift(mut inp: BitBoard, shift_dirs: Vec<Direction>, want: BitBoard) {
         for shift_dir in shift_dirs {
             inp.shift(shift_dir);
@@ -358,9 +381,10 @@ mod tests {
         assert_eq!(inp, res_want);
     }
 
-    #[test_case(A8, A3, BitBoard::from_squares(&[A4, A5, A6, A7]))]
-    #[test_case(A8, D8, BitBoard::from_squares(&[B8, C8]))]
-    #[test_case(B4, E1, BitBoard::from_squares(&[C3, D2]))]
+    #[test_case(A8, A3, BitBoard::from_squares(&[A4, A5, A6, A7]) ; "s")]
+    #[test_case(A8, D8, BitBoard::from_squares(&[B8, C8]) ; "e")]
+    #[test_case(B4, E1, BitBoard::from_squares(&[C3, D2]) ; "se")]
+    #[test_case(E1, B4, BitBoard::from_squares(&[C3, D2]) ; "nw")]
     fn test_from_ray_excl(start: Square, end: Square, want: BitBoard) {
         let got = BitBoard::from_ray_excl(start, end);
         assert_eq!(got, want);

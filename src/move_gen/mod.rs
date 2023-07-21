@@ -59,6 +59,17 @@ impl AllPiecesMoveGen {
 
         let pin_rays = self.get_pin_rays(position, side);
 
+        // If the king has more than one checker, than the only legal moves are to move the king
+        if num_checkers > 1 {
+            let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
+            let mut moves_bb = self.gen_king_moves(position, side, king_square, friendly_pieces);
+            moves_bb &= !friendly_pieces;
+            let moves: HashSet<Move> = moves_bb.to_squares().iter()
+                .map(|&sq| Move { src: king_square, dest: sq} )
+                .collect();
+            return moves;
+        }
+
         if num_checkers == 1 {
             capture_mask = checkers;
             if let Some(ep_target) = position.state.en_passant_target {
@@ -77,21 +88,6 @@ impl AllPiecesMoveGen {
             } else {
                 BitBoard::empty()
             }
-        }
-
-        println!("{:?}", capture_mask);
-        println!("\n");
-        println!("{:?}", push_mask);
-
-        // If the king has more than one checker, than the only legal moves are to move the king
-        if num_checkers > 1 {
-            let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
-            let mut moves_bb = self.gen_king_moves(position, side, king_square, friendly_pieces);
-            moves_bb &= !friendly_pieces;
-            let moves: HashSet<Move> = moves_bb.to_squares().iter()
-                .map(|&sq| Move { src: king_square, dest: sq} )
-                .collect();
-            return moves;
         }
 
         let mut moves = HashSet::new();
@@ -373,7 +369,7 @@ mod tests {
     #[test_case(Position::from_fen("4k3/8/8/8/1b6/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
         Move { src: E1, dest: F1 }, Move { src: E1, dest: D1 },
         Move { src: E1, dest: F2 }, Move { src: E1, dest: E2 },
-    ]) ; "white cant in check")]
+    ]) ; "white cant castle while in check")]
     #[test_case(Position::from_fen("r3k2r/p6p/8/8/8/8/8/4K3 b kq - 0 1").unwrap(), HashSet::from_iter([
         Move { src: E8, dest: F8 }, Move { src: E8, dest: D8 },
         Move { src: E8, dest: F7 }, Move { src: E8, dest: D7 },
