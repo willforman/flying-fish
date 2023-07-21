@@ -42,14 +42,13 @@ impl AllPiecesMoveGen {
     }
 
     pub fn gen_moves(&self, position: &Position) -> HashSet<Move> {
-        let mut moves = HashSet::new();
 
         let side = position.state.to_move;
 
         let friendly_pieces = position.sides.get(side);
         let opp_pieces = position.sides.get(side.opposite_side());
 
-        let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black);
+        let occupancy = friendly_pieces | opp_pieces;
 
         let mut checkers = self.get_checkers(position);
         let num_checkers = checkers.to_squares().len();
@@ -70,75 +69,44 @@ impl AllPiecesMoveGen {
                 }
             }
 
-            let checker_square = checkers.pop_lsb();
+            let checker_square = checkers.get_lsb();
             let (checker_piece_type, _) = position.is_piece_at(checker_square).unwrap();
             push_mask = if checker_piece_type.is_slider() {
-                BitBoard::from_ray_excl(checker_square, position.pieces.get(Piece::King).get(side).pop_lsb())
+                let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
+                BitBoard::from_ray_excl(checker_square, king_square)
             } else {
                 BitBoard::empty()
             }
         }
 
-        for piece_type in Piece::iter() {
-            if num_checkers > 1 && piece_type != Piece::King {
-                continue;
-            } 
+        // If the king has more than one checker, than the only legal moves are to move the king
+        if num_checkers > 1 {
+            let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
+            let mut moves_bb = self.gen_king_moves(position, side, king_square, friendly_pieces);
+            moves_bb &= !friendly_pieces;
+            let moves: HashSet<Move> = moves_bb.to_squares().iter()
+                .map(|&sq| Move { src: king_square, dest: sq} )
+                .collect();
+            return moves;
+        }
 
+        let mut moves = HashSet::new();
+
+        for piece_type in Piece::iter() {
             let pieces = position.pieces.get(piece_type).get(side);
 
             for piece_square in pieces.to_squares() {
                 let mut moves_bb = match piece_type {
                     Piece::Knight => self.leaping_pieces.gen_knight_king_moves(Piece::Knight, piece_square),
-                    Piece::King => {
-                        let mut moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, piece_square);
-                        let king_danger_squares = self.gen_attacked_squares(position, side.opposite_side());
-                        moves &= !king_danger_squares;
-                        if piece_square == E1 { // White castling
-                            if position.state.castling_rights.white_king_side &&
-                                !friendly_pieces.is_square_set(F1) && 
-                                !friendly_pieces.is_square_set(G1) &&
-                                !king_danger_squares.is_square_set(F1) &&
-                                !king_danger_squares.is_square_set(G1) 
-                            {
-                                moves.set_square(G1)
-                            }
-                            if position.state.castling_rights.white_queen_side &&
-                                !friendly_pieces.is_square_set(D1) && 
-                                !friendly_pieces.is_square_set(C1) &&
-                                !king_danger_squares.is_square_set(D1) &&
-                                !king_danger_squares.is_square_set(C1)
-                            {
-                                moves.set_square(C1)
-                            }
-                        }
-                        if piece_square == E8 { // Black castling
-                            if position.state.castling_rights.black_king_side &&
-                                !friendly_pieces.is_square_set(F8) && 
-                                !friendly_pieces.is_square_set(G8) &&
-                                !king_danger_squares.is_square_set(F8) &&
-                                !king_danger_squares.is_square_set(G8) 
-                            {
-                                moves.set_square(G8)
-                            }
-                            if position.state.castling_rights.black_queen_side &&
-                                !friendly_pieces.is_square_set(D8) && 
-                                !friendly_pieces.is_square_set(C8) &&
-                                !king_danger_squares.is_square_set(D8) &&
-                                !king_danger_squares.is_square_set(C8)
-                            {
-                                moves.set_square(C8)
-                            }
-                        }
-                        moves
-                    },
+                    Piece::King => self.gen_king_moves(position, side, piece_square, friendly_pieces),
                     Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
                     Piece::Pawn => {
                         let pushes = self.leaping_pieces.gen_pawn_pushes(piece_square, side) & !opp_pieces;
-                        let possible_atks = if let Some(ep_target) = position.state.en_passant_target {
-                            opp_pieces | BitBoard::from_square(ep_target)
-                        } else {
-                            opp_pieces
-                        };
+
+                        let mut possible_atks = opp_pieces;
+                        if let Some(ep_target) = position.state.en_passant_target {
+                            possible_atks |= BitBoard::from_square(ep_target)
+                        }
 
                         let atks = self.leaping_pieces.gen_pawn_atks(piece_square, side) & possible_atks;
                         pushes | atks
@@ -164,6 +132,49 @@ impl AllPiecesMoveGen {
             }
         }
 
+        moves
+    }
+
+    fn gen_king_moves(&self, position: &Position, side: Side, piece_square: Square, friendly_pieces: BitBoard) -> BitBoard {
+        let mut moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, piece_square);
+        let king_danger_squares = self.gen_attacked_squares(position, side.opposite_side());
+        moves &= !king_danger_squares;
+        if piece_square == E1 { // White castling
+            if position.state.castling_rights.white_king_side &&
+                !friendly_pieces.is_square_set(F1) && 
+                !friendly_pieces.is_square_set(G1) &&
+                !king_danger_squares.is_square_set(F1) &&
+                !king_danger_squares.is_square_set(G1) 
+            {
+                moves.set_square(G1)
+            }
+            if position.state.castling_rights.white_queen_side &&
+                !friendly_pieces.is_square_set(D1) && 
+                !friendly_pieces.is_square_set(C1) &&
+                !king_danger_squares.is_square_set(D1) &&
+                !king_danger_squares.is_square_set(C1)
+            {
+                moves.set_square(C1)
+            }
+        }
+        if piece_square == E8 { // Black castling
+            if position.state.castling_rights.black_king_side &&
+                !friendly_pieces.is_square_set(F8) && 
+                !friendly_pieces.is_square_set(G8) &&
+                !king_danger_squares.is_square_set(F8) &&
+                !king_danger_squares.is_square_set(G8) 
+            {
+                moves.set_square(G8)
+            }
+            if position.state.castling_rights.black_queen_side &&
+                !friendly_pieces.is_square_set(D8) && 
+                !friendly_pieces.is_square_set(C8) &&
+                !king_danger_squares.is_square_set(D8) &&
+                !king_danger_squares.is_square_set(C8)
+            {
+                moves.set_square(C8)
+            }
+        }
         moves
     }
 
