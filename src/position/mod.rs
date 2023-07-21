@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 use strum::IntoEnumIterator;
 use strum_macros::{Display,EnumIter};
 
-use crate::bitboard::{BitBoard,Square,Move};
+use crate::bitboard::{BitBoard,Square,Move,Direction};
 use crate::bitboard::Square::*;
 
 mod fen;
@@ -288,7 +288,9 @@ impl Position {
                 }
 
                 if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
-                    self.state.en_passant_target = Some(mve.dest);
+                    let ep_dir = if side.opposite_side() == Side::White { Direction::North } else { Direction::South };
+                    let ep_target = Square::from_square_with_dir(mve.src, ep_dir);
+                    self.state.en_passant_target = Some(ep_target);
                 } else {
                     self.state.en_passant_target = None;
                 }

@@ -27,6 +27,16 @@ impl Square {
     pub(crate) fn to_rank_file(self) -> (u8, u8) {
         (self as u8 / 8, self as u8 % 8)
     }
+
+    pub(crate) fn from_square_with_dir(src: Square, dir: Direction) -> Square {
+        let shift = dir as isize;
+        let idx = if shift > 0 {
+            src as u8 + u8::try_from(shift).unwrap()
+        } else {
+            src as u8 - u8::try_from(-shift).unwrap()
+        };
+        Square::from_repr(idx).unwrap()
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
