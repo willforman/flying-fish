@@ -79,6 +79,10 @@ impl AllPiecesMoveGen {
             }
         }
 
+        println!("{:?}", capture_mask);
+        println!("\n");
+        println!("{:?}", push_mask);
+
         // If the king has more than one checker, than the only legal moves are to move the king
         if num_checkers > 1 {
             let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
@@ -135,44 +139,48 @@ impl AllPiecesMoveGen {
         moves
     }
 
-    fn gen_king_moves(&self, position: &Position, side: Side, piece_square: Square, friendly_pieces: BitBoard) -> BitBoard {
-        let mut moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, piece_square);
+    fn gen_king_moves(&self, position: &Position, side: Side, king_square: Square, friendly_pieces: BitBoard) -> BitBoard {
+        let mut moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, king_square);
         let king_danger_squares = self.gen_attacked_squares(position, side.opposite_side());
         moves &= !king_danger_squares;
-        if piece_square == E1 { // White castling
-            if position.state.castling_rights.white_king_side &&
-                !friendly_pieces.is_square_set(F1) && 
-                !friendly_pieces.is_square_set(G1) &&
-                !king_danger_squares.is_square_set(F1) &&
-                !king_danger_squares.is_square_set(G1) 
-            {
-                moves.set_square(G1)
+
+        // Castling
+        if !king_danger_squares.is_square_set(king_square) {
+            if king_square == E1 { // White castling
+                if position.state.castling_rights.white_king_side &&
+                    !friendly_pieces.is_square_set(F1) && 
+                    !friendly_pieces.is_square_set(G1) &&
+                    !king_danger_squares.is_square_set(F1) &&
+                    !king_danger_squares.is_square_set(G1) 
+                {
+                    moves.set_square(G1)
+                }
+                if position.state.castling_rights.white_queen_side &&
+                    !friendly_pieces.is_square_set(D1) && 
+                    !friendly_pieces.is_square_set(C1) &&
+                    !king_danger_squares.is_square_set(D1) &&
+                    !king_danger_squares.is_square_set(C1)
+                {
+                    moves.set_square(C1)
+                }
             }
-            if position.state.castling_rights.white_queen_side &&
-                !friendly_pieces.is_square_set(D1) && 
-                !friendly_pieces.is_square_set(C1) &&
-                !king_danger_squares.is_square_set(D1) &&
-                !king_danger_squares.is_square_set(C1)
-            {
-                moves.set_square(C1)
-            }
-        }
-        if piece_square == E8 { // Black castling
-            if position.state.castling_rights.black_king_side &&
-                !friendly_pieces.is_square_set(F8) && 
-                !friendly_pieces.is_square_set(G8) &&
-                !king_danger_squares.is_square_set(F8) &&
-                !king_danger_squares.is_square_set(G8) 
-            {
-                moves.set_square(G8)
-            }
-            if position.state.castling_rights.black_queen_side &&
-                !friendly_pieces.is_square_set(D8) && 
-                !friendly_pieces.is_square_set(C8) &&
-                !king_danger_squares.is_square_set(D8) &&
-                !king_danger_squares.is_square_set(C8)
-            {
-                moves.set_square(C8)
+            if king_square == E8 { // Black castling
+                if position.state.castling_rights.black_king_side &&
+                    !friendly_pieces.is_square_set(F8) && 
+                    !friendly_pieces.is_square_set(G8) &&
+                    !king_danger_squares.is_square_set(F8) &&
+                    !king_danger_squares.is_square_set(G8) 
+                {
+                    moves.set_square(G8)
+                }
+                if position.state.castling_rights.black_queen_side &&
+                    !friendly_pieces.is_square_set(D8) && 
+                    !friendly_pieces.is_square_set(C8) &&
+                    !king_danger_squares.is_square_set(D8) &&
+                    !king_danger_squares.is_square_set(C8)
+                {
+                    moves.set_square(C8)
+                }
             }
         }
         moves
@@ -362,6 +370,10 @@ mod tests {
         Move { src: C1, dest: B3 }, Move { src: C1, dest: D3 },
         Move { src: C1, dest: E2 }
     ]) ; "white castling cant through pieces")]
+    #[test_case(Position::from_fen("4k3/8/8/8/1b6/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: E1, dest: F1 }, Move { src: E1, dest: D1 },
+        Move { src: E1, dest: F2 }, Move { src: E1, dest: E2 },
+    ]) ; "white cant in check")]
     #[test_case(Position::from_fen("r3k2r/p6p/8/8/8/8/8/4K3 b kq - 0 1").unwrap(), HashSet::from_iter([
         Move { src: E8, dest: F8 }, Move { src: E8, dest: D8 },
         Move { src: E8, dest: F7 }, Move { src: E8, dest: D7 },

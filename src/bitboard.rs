@@ -360,6 +360,7 @@ mod tests {
 
     #[test_case(A8, A3, BitBoard::from_squares(&[A4, A5, A6, A7]))]
     #[test_case(A8, D8, BitBoard::from_squares(&[B8, C8]))]
+    #[test_case(B4, E1, BitBoard::from_squares(&[C3, D2]))]
     fn test_from_ray_excl(start: Square, end: Square, want: BitBoard) {
         let got = BitBoard::from_ray_excl(start, end);
         assert_eq!(got, want);
