@@ -1,6 +1,8 @@
-use crate::position::{Piece,Side,Sides,Pieces,Position, SLIDING_PIECES};
+use crate::position::{Piece,Side,Position};
 use crate::bitboard::{BitBoard,Square,Move, Direction};
 use crate::bitboard::Square::*;
+
+use tabled::Tabled;
 
 use std::collections::HashSet;
 
@@ -16,6 +18,49 @@ pub enum MoveGenError {
 
     #[error("internal state error: set in sides {0} but not in pieces")]
     InvalidSidesPieces(String)
+}
+
+#[derive(Clone,Copy,Debug,PartialEq, Eq, Tabled)]
+pub struct MoveCounts {
+    pub tot: u64,
+    pub captures: u64,
+    pub en_passants: u64,
+    pub castles: u64,
+    pub promotions: u64,
+    pub checks: u64,
+    pub discovery_checks: u64,
+    pub double_checks: u64,
+    pub checkmates: u64
+}
+
+impl MoveCounts {
+    pub fn new(
+        tot: u64, 
+        captures: u64, 
+        en_passants: u64, 
+        castles: u64, 
+        promotions: u64, 
+        checks: u64, 
+        discovery_checks: u64, 
+        double_checks: u64, 
+        checkmates: u64
+    ) -> Self {
+        MoveCounts {
+            tot,
+            captures,
+            en_passants,
+            castles,
+            promotions,
+            checks,
+            discovery_checks,
+            double_checks,
+            checkmates
+        }
+
+    }
+    pub fn empty() -> Self {
+        MoveCounts::new(0, 0, 0, 0, 0, 0, 0, 0, 0)
+    }
 }
 
 pub trait GenerateLeapingMoves {
@@ -41,8 +86,7 @@ impl AllPiecesMoveGen {
         AllPiecesMoveGen { leaping_pieces, sliding_pieces }
     }
 
-    pub fn gen_moves(&self, position: &Position) -> HashSet<Move> {
-
+    pub fn gen_moves(&self, position: &Position, move_counts: &mut MoveCounts) -> HashSet<Move> {
         let side = position.state.to_move;
 
         let friendly_pieces = position.sides.get(side);
@@ -50,7 +94,7 @@ impl AllPiecesMoveGen {
 
         let occupancy = friendly_pieces | opp_pieces;
 
-        let mut checkers = self.get_checkers(position);
+        let checkers = self.get_checkers(position);
         let num_checkers = checkers.to_squares().len();
 
         // In the case of check, what squares are allowed to be captured and blocked
@@ -67,6 +111,9 @@ impl AllPiecesMoveGen {
             let moves: HashSet<Move> = moves_bb.to_squares().iter()
                 .map(|&sq| Move { src: king_square, dest: sq} )
                 .collect();
+
+            move_counts.tot += moves.len() as u64;
+
             return moves;
         }
 
@@ -131,6 +178,7 @@ impl AllPiecesMoveGen {
                 moves.extend(moves_list);
             }
         }
+        move_counts.tot += moves.len() as u64;
 
         moves
     }
@@ -386,7 +434,9 @@ mod tests {
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
-        let got = move_gen.gen_moves(&position);
+        let mut move_counts = MoveCounts::empty();
+
+        let got = move_gen.gen_moves(&position, &mut move_counts);
 
         assert_eq!(got, want);
     }
