@@ -205,6 +205,17 @@ impl BitBoard {
     pub(crate) fn swap_bytes(&self) -> BitBoard {
         BitBoard(self.0.swap_bytes())
     }
+
+    pub(crate) fn num_squares_set(mut self) -> u8 {
+        let mut count = 0;
+
+        while self.0 != 0 {
+            count += 1;
+            self.0 &= self.0 - 1;
+        }
+
+        count
+    }
 }
 
 impl BitOr for BitBoard {

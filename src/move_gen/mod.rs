@@ -210,7 +210,7 @@ impl AllPiecesMoveGen {
         attacked_squares
     }
 
-    fn get_checkers(&self, position: &Position) -> BitBoard {
+    pub(crate) fn get_checkers(&self, position: &Position) -> BitBoard {
         let side = position.state.to_move;
         let opp_side = side.opposite_side();
 

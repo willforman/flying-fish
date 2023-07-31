@@ -99,6 +99,9 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
     let side = position.state.to_move;
     let opp_pieces = position.sides.get(side.opposite_side());
 
+    let checkers = move_gen.get_checkers(position);
+
+
     curr_res.tot += u64::try_from(moves.len()).unwrap();
 
     let captures = moves.iter()
@@ -108,12 +111,16 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
 
     if let Some(ep_target) = position.state.en_passant_target {
         for pawn_square in position.pieces.get(Piece::Pawn).get(side).to_squares() {
-            let en_passants = moves.iter()
-                .filter(|&mve| mve.src == pawn_square && mve.dest == ep_target)
-                .count();
-            curr_res.en_passants += u64::try_from(en_passants).unwrap();
+            let has_en_passant = moves.iter()
+                .any(|&mve| mve.src == pawn_square && mve.dest == ep_target);
+            if has_en_passant {
+                curr_res.en_passants += 1;
+            }
         }
     }
+
+    let checks = checkers.num_squares_set();
+    curr_res.checks += u64::try_from(checks).unwrap();
 
     for mve in moves {
         let mut move_position = position.clone();
