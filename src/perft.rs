@@ -2,8 +2,9 @@ use std::{time::{Duration, Instant}, fmt::Display};
 
 use tabled::{Tabled,Table};
 
-use crate::{position::{Position, Piece}, move_gen::AllPiecesMoveGen};
+use crate::{position::{Position, Piece,Side}, move_gen::AllPiecesMoveGen};
 use crate::bitboard::BitBoard;
+use crate::bitboard::Square::*;
 
 #[derive(Clone,Copy,Debug,PartialEq, Eq, Tabled)]
 pub struct PerftDepthResult {
@@ -118,6 +119,25 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
             }
         }
     }
+
+    let promotions: u64 = moves.iter()
+        .filter(|&mve| {
+            let (p, s) = position.is_piece_at(mve.src).unwrap();
+            if p == Piece::Pawn {
+                if s == Side::White {
+                    mve.dest >= A8
+                } else {
+                    mve.dest <= H1
+                }
+            } else {
+                false
+            }
+        })
+        .count()
+        .try_into()
+        .unwrap();
+
+    curr_res.promotions += promotions;
 
     let checks = checkers.num_squares_set();
     curr_res.checks += u64::try_from(checks).unwrap();
