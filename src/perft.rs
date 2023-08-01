@@ -97,6 +97,11 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
 
     let moves = move_gen.gen_moves(position);
 
+    if moves.is_empty() {
+        curr_res.checkmates += 1;
+        return;
+    }
+
     let side = position.state.to_move;
     let opp_pieces = position.sides.get(side.opposite_side());
 

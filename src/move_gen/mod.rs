@@ -183,12 +183,9 @@ impl AllPiecesMoveGen {
     }
 
     pub fn gen_attacked_squares(&self, position: &Position, side: Side) -> BitBoard {
-        let opp_side = side.opposite_side();
-        let friendly_pieces = position.sides.get(side);
-
         // Get occupancy but exclude king to handle kings moving away from checking sliding piece
         let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black) &
-            !position.pieces.get(Piece::King).get(opp_side);
+            !position.pieces.get(Piece::King).get(side.opposite_side());
 
         let mut attacked_squares = BitBoard::empty();
 
@@ -201,8 +198,6 @@ impl AllPiecesMoveGen {
                     Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
                     Piece::Pawn => self.leaping_pieces.gen_pawn_atks(piece_square, side),
                 };
-
-                let moves_bb = moves_bb & !friendly_pieces; // Don't let capture pieces on their own team
 
                 attacked_squares |= moves_bb;
             }
@@ -381,6 +376,7 @@ mod tests {
         Move { src: A7, dest: A6 }, Move { src: A7, dest: A5 },
         Move { src: H7, dest: H6 }, Move { src: H7, dest: H5 },
     ]) ; "black castling")]
+    #[test_case(Position::from_fen("r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4").unwrap(), HashSet::from_iter([]) ; "checkmate")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
@@ -391,7 +387,10 @@ mod tests {
         assert_eq!(got, want);
     }
 
-    #[test_case(Position::start(), Side::White, BitBoard::from_squares(&[A3, B3, C3, D3, E3, F3, G3, H3]))]
+    #[test_case(Position::start(), Side::White, BitBoard::from_squares(&[
+        B1, C1, D1, E1, F1, G1,
+        A2, B2, C2, D2, E2, F2, G2, H2,
+        A3, B3, C3, D3, E3, F3, G3, H3]))]
     fn test_gen_attacked_squares(position: Position, side: Side, want: BitBoard) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());

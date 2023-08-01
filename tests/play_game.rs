@@ -45,6 +45,15 @@ use testresult::TestResult;
     Move { src: D7, dest: D5 },
     Move { src: C7, dest: D8 },
 ], Position::from_fen("rnbQkbnr/pp3ppp/8/3p4/8/8/PPP1PKPP/RNBQ1BNR b kq - 0 6").unwrap() ; "promotion")]
+#[test_case(Position::start(), vec![
+    Move { src: E2, dest: E4 },
+    Move { src: E7, dest: E5 },
+    Move { src: D1, dest: H5 },
+    Move { src: B8, dest: C6 },
+    Move { src: F1, dest: C4 },
+    Move { src: G8, dest: F6 },
+    Move { src: H5, dest: F7 },
+], Position::from_fen("r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4").unwrap() ; "scholars mate")]
 fn test_play_game(mut starting_position: Position, moves: Vec<Move>, want: Position) -> TestResult {
     for mve in moves {
         starting_position.make_move(mve)?;
