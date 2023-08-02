@@ -50,7 +50,7 @@ impl AllPiecesMoveGen {
 
         let occupancy = friendly_pieces | opp_pieces;
 
-        let mut checkers = self.get_checkers(position);
+        let checkers = self.get_checkers(position);
         let num_checkers = checkers.to_squares().len();
 
         // In the case of check, what squares are allowed to be captured and blocked
@@ -377,6 +377,32 @@ mod tests {
         Move { src: H7, dest: H6 }, Move { src: H7, dest: H5 },
     ]) ; "black castling")]
     #[test_case(Position::from_fen("r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4").unwrap(), HashSet::from_iter([]) ; "checkmate")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), HashSet::from_iter([
+        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
+        Move { src: B2, dest: B3 }, Move { src: G2, dest: G3 },
+        Move { src: D5, dest: D6 }, Move { src: D5, dest: E6 },
+        Move { src: G2, dest: G4 }, Move { src: G2, dest: H3 },
+        Move { src: C3, dest: A4 }, Move { src: C3, dest: B5 },
+        Move { src: C3, dest: B1 }, Move { src: C3, dest: D1 },
+        Move { src: E5, dest: C6 }, Move { src: E5, dest: G6 },
+        Move { src: E5, dest: D7 }, Move { src: E5, dest: F7 },
+        Move { src: E5, dest: C4 }, Move { src: E5, dest: G4 },
+        Move { src: E5, dest: D3 }, Move { src: D2, dest: C1 },
+        Move { src: D2, dest: E3 }, Move { src: D2, dest: F4 },
+        Move { src: D2, dest: G5 }, Move { src: D2, dest: H6 },
+        Move { src: E2, dest: D1 }, Move { src: E2, dest: F1 },
+        Move { src: E2, dest: D3 }, Move { src: E2, dest: C4 },
+        Move { src: E2, dest: B5 }, Move { src: E2, dest: A6 },
+        Move { src: A1, dest: B1 }, Move { src: A1, dest: C1 },
+        Move { src: A1, dest: D1 }, Move { src: H1, dest: G1 },
+        Move { src: H1, dest: F1 }, Move { src: F3, dest: E3 },
+        Move { src: F3, dest: D3 }, Move { src: F3, dest: G3 },
+        Move { src: F3, dest: H3 }, Move { src: F3, dest: F4 },
+        Move { src: F3, dest: F5 }, Move { src: F3, dest: F6 },
+        Move { src: F3, dest: G4 }, Move { src: F3, dest: H5 },
+        Move { src: E1, dest: D1 }, Move { src: E1, dest: C1 },
+        Move { src: E1, dest: F1 }, Move { src: E1, dest: G1 },
+    ]) ; "kiwipete")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
@@ -384,7 +410,11 @@ mod tests {
 
         let got = move_gen.gen_moves(&position);
 
-        assert_eq!(got, want);
+        let in_got_not_want: HashSet<_> = got.difference(&want).collect();
+        assert_eq!(in_got_not_want, HashSet::new());
+
+        let in_want_not_got: HashSet<_> = want.difference(&got).collect();
+        assert_eq!(in_want_not_got, HashSet::new());
     }
 
     #[test_case(Position::start(), Side::White, BitBoard::from_squares(&[

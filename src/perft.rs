@@ -107,7 +107,6 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
 
     let checkers = move_gen.get_checkers(position);
 
-
     curr_res.tot += u64::try_from(moves.len()).unwrap();
 
     let captures = moves.iter()
@@ -124,6 +123,20 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
             }
         }
     }
+
+    let castles: u64 = moves.iter()
+        .filter(|&mve| {
+            let (p, _) = position.is_piece_at(mve.src).unwrap();
+            if p == Piece::King {
+                mve.src.abs_diff(mve.dest) == 2
+            } else {
+                false
+            }
+        })
+        .count()
+        .try_into()
+        .unwrap();
+    curr_res.castles += castles;
 
     let promotions: u64 = moves.iter()
         .filter(|&mve| {
