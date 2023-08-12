@@ -22,7 +22,6 @@ pub trait GenerateLeapingMoves {
     fn gen_knight_king_moves(&self, piece: Piece, square: Square) -> BitBoard;
 
     fn gen_pawn_pushes(&self, square: Square, side: Side) -> BitBoard;
-
     fn gen_pawn_atks(&self, square: Square, side: Side) -> BitBoard;
 }
 
@@ -42,7 +41,6 @@ impl AllPiecesMoveGen {
     }
 
     pub fn gen_moves(&self, position: &Position) -> HashSet<Move> {
-
         let side = position.state.to_move;
 
         let friendly_pieces = position.sides.get(side);
@@ -101,7 +99,16 @@ impl AllPiecesMoveGen {
                     Piece::King => self.gen_king_moves(position, side, piece_square, friendly_pieces),
                     Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
                     Piece::Pawn => {
-                        let pushes = self.leaping_pieces.gen_pawn_pushes(piece_square, side) & !opp_pieces;
+                        let mut pushes = self.leaping_pieces.gen_pawn_pushes(piece_square, side);
+                        pushes &= !opp_pieces; // Can't push into opposing piece
+
+                        // This ensures that if a single push is blocked, then a double push isn't
+                        // possible too
+                        let mut all_pieces_except_self = opp_pieces | friendly_pieces;
+                        all_pieces_except_self.clear_square(piece_square);
+                        let shift_dir = if side == Side::White { Direction::North } else { Direction::South };
+                        all_pieces_except_self.shift(shift_dir);
+                        pushes &= !all_pieces_except_self;
 
                         let mut possible_atks = opp_pieces;
                         if let Some(ep_target) = position.state.en_passant_target {

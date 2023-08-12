@@ -175,7 +175,7 @@ impl BitBoard {
         self.0 == 0
     }
 
-    fn shift(&mut self, dir: Direction) {
+    pub(crate) fn shift(&mut self, dir: Direction) {
         const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
         const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
         if dir == Direction::East {
