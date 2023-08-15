@@ -2,7 +2,7 @@ use std::{time::{Duration, Instant}, fmt::Display};
 
 use tabled::{Tabled,Table};
 
-use crate::{position::{Position, Piece,Side}, move_gen::AllPiecesMoveGen};
+use crate::{position::{Position, Piece,Side}, move_gen::GenerateAllMoves};
 use crate::bitboard::BitBoard;
 use crate::bitboard::Square::*;
 
@@ -66,7 +66,7 @@ impl Display for PerftResult {
     }
 }
 
-pub fn perft(position: &Position, move_gen: &AllPiecesMoveGen, depth: usize) -> PerftResult {
+pub fn perft(position: &Position, move_gen: &impl GenerateAllMoves, depth: usize) -> PerftResult {
     let mut depth_results = vec![PerftDepthResult::empty(); depth];
 
     let start = Instant::now();
@@ -88,7 +88,7 @@ pub fn perft(position: &Position, move_gen: &AllPiecesMoveGen, depth: usize) -> 
     }
 }
 
-fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, move_gen: &AllPiecesMoveGen, max_depth: usize, curr_depth: usize) {
+fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, move_gen: &impl GenerateAllMoves, max_depth: usize, curr_depth: usize) {
     if curr_depth == max_depth {
         return;
     }
@@ -165,5 +165,41 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
         move_position.make_move(mve).unwrap();
 
         perft_helper(depth_results, &move_position, move_gen, max_depth, curr_depth + 1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    use test_case::test_case;
+
+    use crate::bitboard::Move;
+    
+    struct AllPiecesMoveGenStub {
+        moves: HashSet<Move>
+    }
+
+    impl GenerateAllMoves for AllPiecesMoveGenStub {
+        fn gen_moves(&self, _position: &Position) -> HashSet<Move> {
+            self.moves.clone()
+        }
+
+        fn get_checkers(&self, _position: &Position) -> BitBoard {
+            BitBoard::empty()
+        }
+    }
+
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1").unwrap(), 1)]
+    fn test_count_en_passant(start_position: Position, want: u64) {
+        let move_gen = AllPiecesMoveGenStub{
+            moves: HashSet::from([
+                Move { src: B4, dest: A3 }
+            ])
+        };
+
+        let res = perft(&start_position, &move_gen, 1);
+        assert_eq!(res.depth_results[0].en_passants, want);
     }
 }

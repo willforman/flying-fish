@@ -288,7 +288,7 @@ impl Position {
                 }
 
                 if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
-                    let ep_dir = if side.opposite_side() == Side::White { Direction::North } else { Direction::South };
+                    let ep_dir = if side == Side::White { Direction::North } else { Direction::South };
                     let ep_target = Square::from_square_with_dir(mve.src, ep_dir);
                     self.state.en_passant_target = Some(ep_target);
                 } else {
@@ -432,5 +432,13 @@ mod tests {
     fn test_make_move_err(mut position: Position, mve: Move) {
         let res = position.make_move(mve);
         assert!(res.is_err());
+    }
+
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 
+        Move { src: A2, dest: A4 },A3 ; "kiwipete")]
+    fn test_make_move_ep_target(mut position: Position, mve: Move, want_en_passant_target: Square) {
+        let _ = position.make_move(mve);
+        assert!(position.state.en_passant_target.is_some());
+        assert_eq!(position.state.en_passant_target.unwrap(), want_en_passant_target);
     }
 }

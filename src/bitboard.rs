@@ -394,6 +394,13 @@ mod tests {
         assert_eq!(got, want);
     }
 
+    #[test_case(A2, Direction::North, A3 ; "north")]
+    #[test_case(A2, Direction::East, B2 ; "east")]
+    fn test_from_square_with_dir(start: Square, dir: Direction, want: Square) {
+        let got = Square::from_square_with_dir(start, dir);
+        assert_eq!(got, want);
+    }
+
     #[test_case(BitBoard(0b1001000), D1, BitBoard(0b1000000) ; "D1")]
     #[test_case(BitBoard(0b1000000), G1, BitBoard(0b0000000) ; "G1")]
     fn test_pop_lsb(mut inp: BitBoard, lsb_want: Square, res_want: BitBoard) {

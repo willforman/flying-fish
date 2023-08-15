@@ -29,18 +29,122 @@ pub trait GenerateSlidingMoves {
     fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard;
 }
 
+pub trait GenerateAllMoves {
+    fn gen_moves(&self, position: &Position) -> HashSet<Move>;
+    fn get_checkers(&self, position: &Position) -> BitBoard;
+}
+
 pub struct AllPiecesMoveGen {
     leaping_pieces: Box<dyn GenerateLeapingMoves>,
     sliding_pieces: Box<dyn GenerateSlidingMoves>
 }
 
 impl AllPiecesMoveGen {
-    // TODO: explore passing in as unboxed
     pub fn new(leaping_pieces: Box<dyn GenerateLeapingMoves>, sliding_pieces: Box<dyn GenerateSlidingMoves>) -> Self {
         AllPiecesMoveGen { leaping_pieces, sliding_pieces }
     }
 
-    pub fn gen_moves(&self, position: &Position) -> HashSet<Move> {
+    fn gen_king_moves(&self, position: &Position, side: Side, king_square: Square, friendly_pieces: BitBoard) -> BitBoard {
+        let mut moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, king_square);
+        let king_danger_squares = self.gen_attacked_squares(position, side.opposite_side());
+        moves &= !king_danger_squares;
+
+        // Castling
+        if !king_danger_squares.is_square_set(king_square) {
+            if king_square == E1 { // White castling
+                if position.state.castling_rights.white_king_side &&
+                    !friendly_pieces.is_square_set(F1) && 
+                    !friendly_pieces.is_square_set(G1) &&
+                    !king_danger_squares.is_square_set(F1) &&
+                    !king_danger_squares.is_square_set(G1) 
+                {
+                    moves.set_square(G1)
+                }
+                if position.state.castling_rights.white_queen_side &&
+                    !friendly_pieces.is_square_set(D1) && 
+                    !friendly_pieces.is_square_set(C1) &&
+                    !king_danger_squares.is_square_set(D1) &&
+                    !king_danger_squares.is_square_set(C1)
+                {
+                    moves.set_square(C1)
+                }
+            }
+            if king_square == E8 { // Black castling
+                if position.state.castling_rights.black_king_side &&
+                    !friendly_pieces.is_square_set(F8) && 
+                    !friendly_pieces.is_square_set(G8) &&
+                    !king_danger_squares.is_square_set(F8) &&
+                    !king_danger_squares.is_square_set(G8) 
+                {
+                    moves.set_square(G8)
+                }
+                if position.state.castling_rights.black_queen_side &&
+                    !friendly_pieces.is_square_set(D8) && 
+                    !friendly_pieces.is_square_set(C8) &&
+                    !king_danger_squares.is_square_set(D8) &&
+                    !king_danger_squares.is_square_set(C8)
+                {
+                    moves.set_square(C8)
+                }
+            }
+        }
+        moves
+    }
+
+    pub fn gen_attacked_squares(&self, position: &Position, side: Side) -> BitBoard {
+        // Get occupancy but exclude king to handle kings moving away from checking sliding piece
+        let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black) &
+            !position.pieces.get(Piece::King).get(side.opposite_side());
+
+        let mut attacked_squares = BitBoard::empty();
+
+        for piece_type in Piece::iter() {
+            let pieces = position.pieces.get(piece_type).get(side);
+            
+            for piece_square in pieces.to_squares() {
+                let moves_bb = match piece_type {
+                    Piece::Knight | Piece::King => self.leaping_pieces.gen_knight_king_moves(piece_type, piece_square),
+                    Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
+                    Piece::Pawn => self.leaping_pieces.gen_pawn_atks(piece_square, side),
+                };
+
+                attacked_squares |= moves_bb;
+            }
+        }
+        attacked_squares
+    }
+
+
+    fn get_pin_rays(&self, position: &Position, side: Side) -> BitBoard {
+        const PIN_RAY_PIECE_CHECKS: [Piece; 2] = [Piece::Bishop, Piece::Rook];
+
+        let mut pin_rays = BitBoard::empty();
+        let opp_side = side.opposite_side();
+
+        let pinner_occupancy = position.pieces.get(Piece::King).get(side);
+        let king_square = pinner_occupancy.get_lsb();
+        let king_ray_occupancy = position.sides.get(opp_side);
+
+        for pin_ray_piece in PIN_RAY_PIECE_CHECKS {
+            let king_ray = self.sliding_pieces.gen_moves(pin_ray_piece, king_square, king_ray_occupancy);
+
+            let possible_pinners = position.pieces.get(pin_ray_piece).get(opp_side) |
+                position.pieces.get(Piece::Queen).get(opp_side);
+            let pinners = king_ray & possible_pinners;
+
+            for pinner_square in pinners.to_squares() {
+                let mut moves = self.sliding_pieces.gen_moves(pin_ray_piece, pinner_square, pinner_occupancy);
+                moves.set_square(pinner_square); // Want to include capturing pinner in ray
+                pin_rays |= moves & king_ray;
+            }
+        }
+
+        pin_rays
+    }
+}
+
+impl GenerateAllMoves for AllPiecesMoveGen {
+    fn gen_moves(&self, position: &Position) -> HashSet<Move> {
         let side = position.state.to_move;
 
         let friendly_pieces = position.sides.get(side);
@@ -142,77 +246,7 @@ impl AllPiecesMoveGen {
         moves
     }
 
-    fn gen_king_moves(&self, position: &Position, side: Side, king_square: Square, friendly_pieces: BitBoard) -> BitBoard {
-        let mut moves = self.leaping_pieces.gen_knight_king_moves(Piece::King, king_square);
-        let king_danger_squares = self.gen_attacked_squares(position, side.opposite_side());
-        moves &= !king_danger_squares;
-
-        // Castling
-        if !king_danger_squares.is_square_set(king_square) {
-            if king_square == E1 { // White castling
-                if position.state.castling_rights.white_king_side &&
-                    !friendly_pieces.is_square_set(F1) && 
-                    !friendly_pieces.is_square_set(G1) &&
-                    !king_danger_squares.is_square_set(F1) &&
-                    !king_danger_squares.is_square_set(G1) 
-                {
-                    moves.set_square(G1)
-                }
-                if position.state.castling_rights.white_queen_side &&
-                    !friendly_pieces.is_square_set(D1) && 
-                    !friendly_pieces.is_square_set(C1) &&
-                    !king_danger_squares.is_square_set(D1) &&
-                    !king_danger_squares.is_square_set(C1)
-                {
-                    moves.set_square(C1)
-                }
-            }
-            if king_square == E8 { // Black castling
-                if position.state.castling_rights.black_king_side &&
-                    !friendly_pieces.is_square_set(F8) && 
-                    !friendly_pieces.is_square_set(G8) &&
-                    !king_danger_squares.is_square_set(F8) &&
-                    !king_danger_squares.is_square_set(G8) 
-                {
-                    moves.set_square(G8)
-                }
-                if position.state.castling_rights.black_queen_side &&
-                    !friendly_pieces.is_square_set(D8) && 
-                    !friendly_pieces.is_square_set(C8) &&
-                    !king_danger_squares.is_square_set(D8) &&
-                    !king_danger_squares.is_square_set(C8)
-                {
-                    moves.set_square(C8)
-                }
-            }
-        }
-        moves
-    }
-
-    pub fn gen_attacked_squares(&self, position: &Position, side: Side) -> BitBoard {
-        // Get occupancy but exclude king to handle kings moving away from checking sliding piece
-        let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black) &
-            !position.pieces.get(Piece::King).get(side.opposite_side());
-
-        let mut attacked_squares = BitBoard::empty();
-
-        for piece_type in Piece::iter() {
-            let pieces = position.pieces.get(piece_type).get(side);
-            
-            for piece_square in pieces.to_squares() {
-                let moves_bb = match piece_type {
-                    Piece::Knight | Piece::King => self.leaping_pieces.gen_knight_king_moves(piece_type, piece_square),
-                    Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, piece_square, occupancy),
-                    Piece::Pawn => self.leaping_pieces.gen_pawn_atks(piece_square, side),
-                };
-
-                attacked_squares |= moves_bb;
-            }
-        }
-        attacked_squares
-    }
-
-    pub(crate) fn get_checkers(&self, position: &Position) -> BitBoard {
+    fn get_checkers(&self, position: &Position) -> BitBoard {
         let side = position.state.to_move;
         let opp_side = side.opposite_side();
 
@@ -234,33 +268,6 @@ impl AllPiecesMoveGen {
 
         checkers
     }
-
-    fn get_pin_rays(&self, position: &Position, side: Side) -> BitBoard {
-        const PIN_RAY_PIECE_CHECKS: [Piece; 2] = [Piece::Bishop, Piece::Rook];
-
-        let mut pin_rays = BitBoard::empty();
-        let opp_side = side.opposite_side();
-
-        let pinner_occupancy = position.pieces.get(Piece::King).get(side);
-        let king_square = pinner_occupancy.get_lsb();
-        let king_ray_occupancy = position.sides.get(opp_side);
-
-        for pin_ray_piece in PIN_RAY_PIECE_CHECKS {
-            let king_ray = self.sliding_pieces.gen_moves(pin_ray_piece, king_square, king_ray_occupancy);
-
-            let possible_pinners = position.pieces.get(pin_ray_piece).get(opp_side) |
-                position.pieces.get(Piece::Queen).get(opp_side);
-            let pinners = king_ray & possible_pinners;
-
-            for pinner_square in pinners.to_squares() {
-                let mut moves = self.sliding_pieces.gen_moves(pin_ray_piece, pinner_square, pinner_occupancy);
-                moves.set_square(pinner_square); // Want to include capturing pinner in ray
-                pin_rays |= moves & king_ray;
-            }
-        }
-
-        pin_rays
-    }
 }
 
 #[cfg(test)]
@@ -270,6 +277,14 @@ mod tests {
 
     use crate::move_gen::leaping_pieces::LeapingPiecesMoveGen;
     use crate::move_gen::hyperbola_quintessence::HyperbolaQuintessence;
+
+    macro_rules! assert_empty {
+        ($container:expr) => {
+            if !$container.is_empty() {
+                panic!("expected {} to be empty, but got: {:?}", stringify!($container), $container);
+            }
+        };
+    }
 
     #[test_case(Position::start(), HashSet::from_iter([
         Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
@@ -410,6 +425,30 @@ mod tests {
         Move { src: E1, dest: D1 }, Move { src: E1, dest: C1 },
         Move { src: E1, dest: F1 }, Move { src: E1, dest: G1 },
     ]) ; "kiwipete")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1").unwrap(), HashSet::from_iter([
+        Move { src: A8, dest: B8 }, Move { src: A8, dest: C8 },
+        Move { src: A8, dest: D8 }, Move { src: E8, dest: C8 },
+        Move { src: E8, dest: D8 }, Move { src: E8, dest: F8 },
+        Move { src: E8, dest: G8 }, Move { src: H8, dest: G8 },
+        Move { src: H8, dest: F8 }, Move { src: C7, dest: C6 },
+        Move { src: C7, dest: C5 }, Move { src: D7, dest: D6 },
+        Move { src: E7, dest: D8 }, Move { src: E7, dest: F8 },
+        Move { src: E7, dest: D6 }, Move { src: E7, dest: C5 },
+        Move { src: G7, dest: F8 }, Move { src: G7, dest: H6 },
+        Move { src: A6, dest: C8 }, Move { src: A6, dest: B7 },
+        Move { src: A6, dest: B5 }, Move { src: A6, dest: C4 },
+        Move { src: A6, dest: D3 }, Move { src: A6, dest: E2 },
+        Move { src: B6, dest: A4 }, Move { src: B6, dest: C4 },
+        Move { src: B6, dest: C8 }, Move { src: B6, dest: D5 },
+        Move { src: E6, dest: D5 }, Move { src: F6, dest: G8 },
+        Move { src: F6, dest: H7 }, Move { src: F6, dest: D5 },
+        Move { src: F6, dest: H5 }, Move { src: F6, dest: E4 },
+        Move { src: F6, dest: G4 }, Move { src: G6, dest: G5 },
+        Move { src: B4, dest: A3 }, Move { src: B4, dest: B3 },
+        Move { src: B4, dest: C3 }, Move { src: H3, dest: G2 },
+        Move { src: H8, dest: H7 }, Move { src: H8, dest: H6 },
+        Move { src: H8, dest: H5 }, Move { src: H8, dest: H4 },
+    ]) ; "kiwipete depth 2")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
@@ -418,10 +457,10 @@ mod tests {
         let got = move_gen.gen_moves(&position);
 
         let in_got_not_want: HashSet<_> = got.difference(&want).collect();
-        assert_eq!(in_got_not_want, HashSet::new());
+        assert_empty!(in_got_not_want);
 
         let in_want_not_got: HashSet<_> = want.difference(&got).collect();
-        assert_eq!(in_want_not_got, HashSet::new());
+        assert_empty!(in_want_not_got);
     }
 
     #[test_case(Position::start(), Side::White, BitBoard::from_squares(&[
