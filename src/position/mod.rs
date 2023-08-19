@@ -1,10 +1,9 @@
 use std::fmt;
-use std::ops::{Index, IndexMut};
 
 use strum::IntoEnumIterator;
 use strum_macros::{Display,EnumIter};
 
-use crate::bitboard::{BitBoard,Square,Move,Direction};
+use crate::bitboard::{BitBoard,Square,Direction};
 use crate::bitboard::Square::*;
 
 mod fen;
@@ -33,7 +32,7 @@ impl Side {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Hash)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -42,8 +41,6 @@ pub enum Piece {
     Queen,
     King
 }
-
-pub(crate) const SLIDING_PIECES: [Piece; 3] = [Piece::Bishop, Piece::Rook, Piece::Queen];
 
 impl Piece {
     pub(crate) fn is_slider(&self) -> bool {
@@ -81,6 +78,13 @@ impl TryFrom<char> for Piece {
             _ => Err(PositionError::FromCharPiece(value))
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Move {
+    pub src: Square,
+    pub dest: Square,
+    pub promotion: Option<Piece>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -274,7 +278,7 @@ impl Position {
         None
     }
 
-    pub fn make_move(&mut self, mve: Move) -> Result<(), PositionError> {
+    pub fn make_move(&mut self, mve: &Move) -> Result<(), PositionError> {
         if let Some((piece, side)) = self.is_piece_at(mve.src) {
             if side != self.state.to_move {
                 Err(PositionError::MoveNotToMove(side.to_string(), mve.src.to_string(), mve.dest.to_string()))
@@ -301,7 +305,7 @@ impl Position {
                 }
 
                 if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) { // Promotion
-                    self.sides.get_mut(side).move_piece(mve);
+                    self.sides.get_mut(side).move_piece(mve.src, mve.dest);
 
                     self.pieces.get_mut(Piece::Pawn).get_mut(side).clear_square(mve.src);
                     self.pieces.get_mut(Piece::Queen).get_mut(side).set_square(mve.dest);
@@ -320,15 +324,15 @@ impl Position {
 
                     if mve.src.abs_diff(mve.dest) == 2 { // Castled
                         let rook_move = match mve.dest {
-                            C1 => Move { src: A1, dest: D1 },
-                            G1 => Move { src: H1, dest: F1 },
-                            C8 => Move { src: A8, dest: D8 },
-                            G8 => Move { src: H8, dest: F8 },
+                            C1 => Move { src: A1, dest: D1, promotion: None },
+                            G1 => Move { src: H1, dest: F1, promotion: None },
+                            C8 => Move { src: A8, dest: D8, promotion: None },
+                            G8 => Move { src: H8, dest: F8, promotion: None },
                             _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
                         };
 
-                        self.sides.get_mut(side).move_piece(rook_move);
-                        self.pieces.get_mut(Piece::Rook).get_mut(side).move_piece(rook_move);
+                        self.sides.get_mut(side).move_piece(rook_move.src, rook_move.dest);
+                        self.pieces.get_mut(Piece::Rook).get_mut(side).move_piece(rook_move.src, rook_move.dest);
                     }
                 }
 
@@ -347,8 +351,8 @@ impl Position {
                 }
 
 
-                self.sides.get_mut(side).move_piece(mve);
-                self.pieces.get_mut(piece).get_mut(side).move_piece(mve);
+                self.sides.get_mut(side).move_piece(mve.src, mve.dest);
+                self.pieces.get_mut(piece).get_mut(side).move_piece(mve.src, mve.dest);
 
                 Ok(())
             }
@@ -415,12 +419,12 @@ mod tests {
         assert_eq!(pos.state.to_move, Side::White);
     }
 
-    #[test_case(Position::start(), Move { src: D2, dest: D4 })]
+    #[test_case(Position::start(), Move { src: D2, dest: D4, promotion: None })]
     fn test_make_move(mut position: Position, mve: Move) {
         assert!(position.is_piece_at(mve.src).is_some());
         assert!(position.is_piece_at(mve.dest).is_none());
 
-        let res = position.make_move(mve);
+        let res = position.make_move(&mve);
 
         assert!(res.is_ok());
 
@@ -428,16 +432,16 @@ mod tests {
         assert!(position.is_piece_at(mve.dest).is_some());
     }
 
-    #[test_case(Position::start(), Move { src: D7, dest: D5 })]
+    #[test_case(Position::start(), Move { src: D7, dest: D5, promotion: None })]
     fn test_make_move_err(mut position: Position, mve: Move) {
-        let res = position.make_move(mve);
+        let res = position.make_move(&mve);
         assert!(res.is_err());
     }
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 
-        Move { src: A2, dest: A4 },A3 ; "kiwipete")]
+        Move { src: A2, dest: A4, promotion: None },A3 ; "kiwipete")]
     fn test_make_move_ep_target(mut position: Position, mve: Move, want_en_passant_target: Square) {
-        let _ = position.make_move(mve);
+        let _ = position.make_move(&mve);
         assert!(position.state.en_passant_target.is_some());
         assert_eq!(position.state.en_passant_target.unwrap(), want_en_passant_target);
     }

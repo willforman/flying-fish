@@ -39,12 +39,6 @@ impl Square {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Move {
-    pub src: Square,
-    pub dest: Square,
-}
-
 #[repr(isize)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Direction {
@@ -154,9 +148,9 @@ impl BitBoard {
         sqs
     }
 
-    pub(crate) fn move_piece(&mut self, mve: Move) {
-        self.clear_square(mve.src);
-        self.set_square(mve.dest);
+    pub(crate) fn move_piece(&mut self, src: Square, dest: Square) {
+        self.clear_square(src);
+        self.set_square(dest);
     }
 
     pub(crate) fn set_square(&mut self, square: Square) {

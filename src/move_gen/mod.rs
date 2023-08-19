@@ -1,5 +1,5 @@
-use crate::position::{Piece,Side,Sides,Pieces,Position, SLIDING_PIECES};
-use crate::bitboard::{BitBoard,Square,Move, Direction};
+use crate::position::{Piece,Side,Position,Move};
+use crate::bitboard::{BitBoard,Square,Direction};
 use crate::bitboard::Square::*;
 
 use std::collections::HashSet;
@@ -167,7 +167,7 @@ impl GenerateAllMoves for AllPiecesMoveGen {
             let mut moves_bb = self.gen_king_moves(position, side, king_square, friendly_pieces);
             moves_bb &= !friendly_pieces;
             let moves: HashSet<Move> = moves_bb.to_squares().iter()
-                .map(|&sq| Move { src: king_square, dest: sq} )
+                .map(|&sq| Move { src: king_square, dest: sq, promotion: None } )
                 .collect();
             return moves;
         }
@@ -236,7 +236,7 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                 }
 
                 let moves_list: Vec<Move> = moves_bb.to_squares().iter()
-                    .map(|&sq| Move { src: piece_square, dest: sq })
+                    .map(|&sq| Move { src: piece_square, dest: sq, promotion: None })
                     .collect();
 
                 moves.extend(moves_list);
@@ -287,167 +287,167 @@ mod tests {
     }
 
     #[test_case(Position::start(), HashSet::from_iter([
-        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
-        Move { src: B2, dest: B3 }, Move { src: B2, dest: B4 },
-        Move { src: C2, dest: C3 }, Move { src: C2, dest: C4 },
-        Move { src: D2, dest: D3 }, Move { src: D2, dest: D4 },
-        Move { src: E2, dest: E3 }, Move { src: E2, dest: E4 },
-        Move { src: F2, dest: F3 }, Move { src: F2, dest: F4 },
-        Move { src: G2, dest: G3 }, Move { src: G2, dest: G4 },
-        Move { src: H2, dest: H3 }, Move { src: H2, dest: H4 },
-        Move { src: B1, dest: A3 }, Move { src: B1, dest: C3 },
-        Move { src: G1, dest: F3 }, Move { src: G1, dest: H3 }
+        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
+        Move { src: B2, dest: B3, promotion: None }, Move { src: B2, dest: B4, promotion: None },
+        Move { src: C2, dest: C3, promotion: None }, Move { src: C2, dest: C4, promotion: None },
+        Move { src: D2, dest: D3, promotion: None }, Move { src: D2, dest: D4, promotion: None },
+        Move { src: E2, dest: E3, promotion: None }, Move { src: E2, dest: E4, promotion: None },
+        Move { src: F2, dest: F3, promotion: None }, Move { src: F2, dest: F4, promotion: None },
+        Move { src: G2, dest: G3, promotion: None }, Move { src: G2, dest: G4, promotion: None },
+        Move { src: H2, dest: H3, promotion: None }, Move { src: H2, dest: H4, promotion: None },
+        Move { src: B1, dest: A3, promotion: None }, Move { src: B1, dest: C3, promotion: None },
+        Move { src: G1, dest: F3, promotion: None }, Move { src: G1, dest: H3, promotion: None }
     ]))]
     #[test_case(Position::from_fen("8/8/p7/1p1p4/1P6/P1P3kp/5p2/1b5K w - - 0 51").unwrap(), HashSet::from_iter([
-        Move { src: C3, dest: C4 }, Move { src: A3, dest: A4 },
+        Move { src: C3, dest: C4, promotion: None }, Move { src: A3, dest: A4, promotion: None },
     ]) ; "random position from my game")]
     #[test_case(Position::from_fen("8/8/8/8/k2Pp3/8/8/7K b - d3 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A4, dest: A5 }, Move { src: A4, dest: B5 },
-        Move { src: A4, dest: A3 }, Move { src: A4, dest: B3 },
-        Move { src: A4, dest: B4 },
-        Move { src: E4, dest: E3 }, Move { src: E4, dest: D3 },
+        Move { src: A4, dest: A5, promotion: None }, Move { src: A4, dest: B5, promotion: None },
+        Move { src: A4, dest: A3, promotion: None }, Move { src: A4, dest: B3, promotion: None },
+        Move { src: A4, dest: B4, promotion: None },
+        Move { src: E4, dest: E3, promotion: None }, Move { src: E4, dest: D3, promotion: None },
     ]) ; "en passant")]
     #[test_case(Position::from_fen("8/8/4k3/8/8/4R3/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E6, dest: D7 }, Move { src: E6, dest: F7 },
-        Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
-        Move { src: E6, dest: D5 }, Move { src: E6, dest: F5 },
+        Move { src: E6, dest: D7, promotion: None }, Move { src: E6, dest: F7, promotion: None },
+        Move { src: E6, dest: D6, promotion: None }, Move { src: E6, dest: F6, promotion: None },
+        Move { src: E6, dest: D5, promotion: None }, Move { src: E6, dest: F5, promotion: None },
     ]) ; "king cant move into check")]
     #[test_case(Position::from_fen("8/8/4k3/8/5N2/8/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E6, dest: E7 }, Move { src: E6, dest: E5 },
-        Move { src: E6, dest: D7 }, Move { src: E6, dest: F7 },
-        Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
-        Move { src: E6, dest: F5 }, Move { src: D2, dest: F4 },
+        Move { src: E6, dest: E7, promotion: None }, Move { src: E6, dest: E5, promotion: None },
+        Move { src: E6, dest: D7, promotion: None }, Move { src: E6, dest: F7, promotion: None },
+        Move { src: E6, dest: D6, promotion: None }, Move { src: E6, dest: F6, promotion: None },
+        Move { src: E6, dest: F5, promotion: None }, Move { src: D2, dest: F4, promotion: None },
     ]) ; "capture checker")]
     #[test_case(Position::from_fen("k7/6r1/8/8/8/R7/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A8, dest: B8 }, Move { src: A8, dest: B7 },
-        Move { src: G7, dest: A7 },
+        Move { src: A8, dest: B8, promotion: None }, Move { src: A8, dest: B7, promotion: None },
+        Move { src: G7, dest: A7, promotion: None },
     ]) ; "block checker")]
     #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E6, dest: D6 }, Move { src: E6, dest: F6 },
-        Move { src: E6, dest: D5 }, Move { src: E6, dest: F5 },
-        Move { src: E6, dest: D7 },
+        Move { src: E6, dest: D6, promotion: None }, Move { src: E6, dest: F6, promotion: None },
+        Move { src: E6, dest: D5, promotion: None }, Move { src: E6, dest: F5, promotion: None },
+        Move { src: E6, dest: D7, promotion: None },
     ]) ; "double check")]
     #[test_case(Position::from_fen("8/8/8/2k5/3Pp3/8/8/7K b - d3 0 1").unwrap(), HashSet::from_iter([
-        Move { src: C5, dest: B6 }, Move { src: C5, dest: D6 },
-        Move { src: C5, dest: B5 }, Move { src: C5, dest: D5 },
-        Move { src: C5, dest: B4 }, Move { src: C5, dest: D4 },
-        Move { src: C5, dest: C6 }, Move { src: C5, dest: C4 },
-        Move { src: E4, dest: D3 },
+        Move { src: C5, dest: B6, promotion: None }, Move { src: C5, dest: D6, promotion: None },
+        Move { src: C5, dest: B5, promotion: None }, Move { src: C5, dest: D5, promotion: None },
+        Move { src: C5, dest: B4, promotion: None }, Move { src: C5, dest: D4, promotion: None },
+        Move { src: C5, dest: C6, promotion: None }, Move { src: C5, dest: C4, promotion: None },
+        Move { src: E4, dest: D3, promotion: None },
     ]) ; "en passant capture to end check")]
     #[test_case(Position::from_fen("7k/8/7r/8/7Q/8/8/K7 b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: H8, dest: G7 }, Move { src: H8, dest: H7 },
-        Move { src: H8, dest: G8 },
-        Move { src: H6, dest: H7}, Move { src: H6, dest: H5 },
-        Move { src: H6, dest: H4},
+        Move { src: H8, dest: G7, promotion: None }, Move { src: H8, dest: H7, promotion: None },
+        Move { src: H8, dest: G8, promotion: None },
+        Move { src: H6, dest: H7, promotion: None }, Move { src: H6, dest: H5, promotion: None },
+        Move { src: H6, dest: H4, promotion: None },
     ]) ; "cant move out of pin file")]
     #[test_case(Position::from_fen("k7/1r6/8/3Q4/8/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A8, dest: B8 }, Move { src: A8, dest: A7 },
+        Move { src: A8, dest: B8, promotion: None }, Move { src: A8, dest: A7, promotion: None },
     ]) ; "cant move out of pin diagonal")]
     #[test_case(Position::from_fen("8/8/8/8/k2Pp2R/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A4, dest: A5 }, Move { src: A4, dest: B5 },
-        Move { src: A4, dest: A3 }, Move { src: A4, dest: B3 },
-        Move { src: A4, dest: B4 },
-        Move { src: E4, dest: E3 },
+        Move { src: A4, dest: A5, promotion: None }, Move { src: A4, dest: B5, promotion: None },
+        Move { src: A4, dest: A3, promotion: None }, Move { src: A4, dest: B3, promotion: None },
+        Move { src: A4, dest: B4, promotion: None },
+        Move { src: E4, dest: E3, promotion: None },
     ]) ; "prevent en passant discovered check")]
     #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E1, dest: F1 }, Move { src: E1, dest: D1 },
-        Move { src: E1, dest: F2 }, Move { src: E1, dest: D2 },
-        Move { src: E1, dest: E2 },
-        Move { src: E1, dest: G1 }, Move { src: E1, dest: C1 }, // Castling
-        Move { src: A1, dest: B1 }, Move { src: A1, dest: C1 },
-        Move { src: A1, dest: D1 }, Move { src: H1, dest: G1 },
-        Move { src: H1, dest: F1 },
-        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
-        Move { src: H2, dest: H3 }, Move { src: H2, dest: H4 },
+        Move { src: E1, dest: F1, promotion: None }, Move { src: E1, dest: D1, promotion: None },
+        Move { src: E1, dest: F2, promotion: None }, Move { src: E1, dest: D2, promotion: None },
+        Move { src: E1, dest: E2, promotion: None },
+        Move { src: E1, dest: G1, promotion: None }, Move { src: E1, dest: C1, promotion: None }, // Castling
+        Move { src: A1, dest: B1, promotion: None }, Move { src: A1, dest: C1, promotion: None },
+        Move { src: A1, dest: D1, promotion: None }, Move { src: H1, dest: G1, promotion: None },
+        Move { src: H1, dest: F1, promotion: None },
+        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
+        Move { src: H2, dest: H3, promotion: None }, Move { src: H2, dest: H4, promotion: None },
     ]) ; "white castling")]
     #[test_case(Position::from_fen("4k3/8/8/8/8/3bb3/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E1, dest: D1 },
-        Move { src: A1, dest: B1 }, Move { src: A1, dest: C1 },
-        Move { src: A1, dest: D1 }, Move { src: H1, dest: G1 },
-        Move { src: H1, dest: F1 },
-        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
-        Move { src: H2, dest: H3 }, Move { src: H2, dest: H4 },
+        Move { src: E1, dest: D1, promotion: None },
+        Move { src: A1, dest: B1, promotion: None }, Move { src: A1, dest: C1, promotion: None },
+        Move { src: A1, dest: D1, promotion: None }, Move { src: H1, dest: G1, promotion: None },
+        Move { src: H1, dest: F1, promotion: None },
+        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
+        Move { src: H2, dest: H3, promotion: None }, Move { src: H2, dest: H4, promotion: None },
     ]) ; "white castling cant through check")]
     #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R1N1KB1R w KQ - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E1, dest: D1 },
-        Move { src: E1, dest: F2 }, Move { src: E1, dest: D2 },
-        Move { src: E1, dest: E2 },
-        Move { src: A1, dest: B1 },
-        Move { src: H1, dest: G1 },
-        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
-        Move { src: H2, dest: H3 }, Move { src: H2, dest: H4 },
-        Move { src: F1, dest: G2 }, Move { src: F1, dest: H3 },
-        Move { src: F1, dest: E2 }, Move { src: F1, dest: D3 },
-        Move { src: F1, dest: C4 }, Move { src: F1, dest: B5 },
-        Move { src: F1, dest: A6 },
-        Move { src: C1, dest: B3 }, Move { src: C1, dest: D3 },
-        Move { src: C1, dest: E2 }
+        Move { src: E1, dest: D1, promotion: None },
+        Move { src: E1, dest: F2, promotion: None }, Move { src: E1, dest: D2, promotion: None },
+        Move { src: E1, dest: E2, promotion: None },
+        Move { src: A1, dest: B1, promotion: None },
+        Move { src: H1, dest: G1, promotion: None },
+        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
+        Move { src: H2, dest: H3, promotion: None }, Move { src: H2, dest: H4, promotion: None },
+        Move { src: F1, dest: G2, promotion: None }, Move { src: F1, dest: H3, promotion: None },
+        Move { src: F1, dest: E2, promotion: None }, Move { src: F1, dest: D3, promotion: None },
+        Move { src: F1, dest: C4, promotion: None }, Move { src: F1, dest: B5, promotion: None },
+        Move { src: F1, dest: A6, promotion: None },
+        Move { src: C1, dest: B3, promotion: None }, Move { src: C1, dest: D3, promotion: None },
+        Move { src: C1, dest: E2, promotion: None }
     ]) ; "white castling cant through pieces")]
     #[test_case(Position::from_fen("4k3/8/8/8/1b6/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E1, dest: F1 }, Move { src: E1, dest: D1 },
-        Move { src: E1, dest: F2 }, Move { src: E1, dest: E2 },
+        Move { src: E1, dest: F1, promotion: None }, Move { src: E1, dest: D1, promotion: None },
+        Move { src: E1, dest: F2, promotion: None }, Move { src: E1, dest: E2, promotion: None },
     ]) ; "white cant castle while in check")]
     #[test_case(Position::from_fen("r3k2r/p6p/8/8/8/8/8/4K3 b kq - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E8, dest: F8 }, Move { src: E8, dest: D8 },
-        Move { src: E8, dest: F7 }, Move { src: E8, dest: D7 },
-        Move { src: E8, dest: E7 },
-        Move { src: E8, dest: G8 }, Move { src: E8, dest: C8 }, // Castling
-        Move { src: A8, dest: B8 }, Move { src: A8, dest: C8 },
-        Move { src: A8, dest: D8 }, Move { src: H8, dest: G8 },
-        Move { src: H8, dest: F8 },
-        Move { src: A7, dest: A6 }, Move { src: A7, dest: A5 },
-        Move { src: H7, dest: H6 }, Move { src: H7, dest: H5 },
+        Move { src: E8, dest: F8, promotion: None }, Move { src: E8, dest: D8, promotion: None },
+        Move { src: E8, dest: F7, promotion: None }, Move { src: E8, dest: D7, promotion: None },
+        Move { src: E8, dest: E7, promotion: None },
+        Move { src: E8, dest: G8, promotion: None }, Move { src: E8, dest: C8, promotion: None }, // Castling
+        Move { src: A8, dest: B8, promotion: None }, Move { src: A8, dest: C8, promotion: None },
+        Move { src: A8, dest: D8, promotion: None }, Move { src: H8, dest: G8, promotion: None },
+        Move { src: H8, dest: F8, promotion: None },
+        Move { src: A7, dest: A6, promotion: None }, Move { src: A7, dest: A5, promotion: None },
+        Move { src: H7, dest: H6, promotion: None }, Move { src: H7, dest: H5, promotion: None },
     ]) ; "black castling")]
     #[test_case(Position::from_fen("r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4").unwrap(), HashSet::from_iter([]) ; "checkmate")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), HashSet::from_iter([
-        Move { src: A2, dest: A3 }, Move { src: A2, dest: A4 },
-        Move { src: B2, dest: B3 }, Move { src: G2, dest: G3 },
-        Move { src: D5, dest: D6 }, Move { src: D5, dest: E6 },
-        Move { src: G2, dest: G4 }, Move { src: G2, dest: H3 },
-        Move { src: C3, dest: A4 }, Move { src: C3, dest: B5 },
-        Move { src: C3, dest: B1 }, Move { src: C3, dest: D1 },
-        Move { src: E5, dest: C6 }, Move { src: E5, dest: G6 },
-        Move { src: E5, dest: D7 }, Move { src: E5, dest: F7 },
-        Move { src: E5, dest: C4 }, Move { src: E5, dest: G4 },
-        Move { src: E5, dest: D3 }, Move { src: D2, dest: C1 },
-        Move { src: D2, dest: E3 }, Move { src: D2, dest: F4 },
-        Move { src: D2, dest: G5 }, Move { src: D2, dest: H6 },
-        Move { src: E2, dest: D1 }, Move { src: E2, dest: F1 },
-        Move { src: E2, dest: D3 }, Move { src: E2, dest: C4 },
-        Move { src: E2, dest: B5 }, Move { src: E2, dest: A6 },
-        Move { src: A1, dest: B1 }, Move { src: A1, dest: C1 },
-        Move { src: A1, dest: D1 }, Move { src: H1, dest: G1 },
-        Move { src: H1, dest: F1 }, Move { src: F3, dest: E3 },
-        Move { src: F3, dest: D3 }, Move { src: F3, dest: G3 },
-        Move { src: F3, dest: H3 }, Move { src: F3, dest: F4 },
-        Move { src: F3, dest: F5 }, Move { src: F3, dest: F6 },
-        Move { src: F3, dest: G4 }, Move { src: F3, dest: H5 },
-        Move { src: E1, dest: D1 }, Move { src: E1, dest: C1 },
-        Move { src: E1, dest: F1 }, Move { src: E1, dest: G1 },
+        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
+        Move { src: B2, dest: B3, promotion: None }, Move { src: G2, dest: G3, promotion: None },
+        Move { src: D5, dest: D6, promotion: None }, Move { src: D5, dest: E6, promotion: None },
+        Move { src: G2, dest: G4, promotion: None }, Move { src: G2, dest: H3, promotion: None },
+        Move { src: C3, dest: A4, promotion: None }, Move { src: C3, dest: B5, promotion: None },
+        Move { src: C3, dest: B1, promotion: None }, Move { src: C3, dest: D1, promotion: None },
+        Move { src: E5, dest: C6, promotion: None }, Move { src: E5, dest: G6, promotion: None },
+        Move { src: E5, dest: D7, promotion: None }, Move { src: E5, dest: F7, promotion: None },
+        Move { src: E5, dest: C4, promotion: None }, Move { src: E5, dest: G4, promotion: None },
+        Move { src: E5, dest: D3, promotion: None }, Move { src: D2, dest: C1, promotion: None },
+        Move { src: D2, dest: E3, promotion: None }, Move { src: D2, dest: F4, promotion: None },
+        Move { src: D2, dest: G5, promotion: None }, Move { src: D2, dest: H6, promotion: None },
+        Move { src: E2, dest: D1, promotion: None }, Move { src: E2, dest: F1, promotion: None },
+        Move { src: E2, dest: D3, promotion: None }, Move { src: E2, dest: C4, promotion: None },
+        Move { src: E2, dest: B5, promotion: None }, Move { src: E2, dest: A6, promotion: None },
+        Move { src: A1, dest: B1, promotion: None }, Move { src: A1, dest: C1, promotion: None },
+        Move { src: A1, dest: D1, promotion: None }, Move { src: H1, dest: G1, promotion: None },
+        Move { src: H1, dest: F1, promotion: None }, Move { src: F3, dest: E3, promotion: None },
+        Move { src: F3, dest: D3, promotion: None }, Move { src: F3, dest: G3, promotion: None },
+        Move { src: F3, dest: H3, promotion: None }, Move { src: F3, dest: F4, promotion: None },
+        Move { src: F3, dest: F5, promotion: None }, Move { src: F3, dest: F6, promotion: None },
+        Move { src: F3, dest: G4, promotion: None }, Move { src: F3, dest: H5, promotion: None },
+        Move { src: E1, dest: D1, promotion: None }, Move { src: E1, dest: C1, promotion: None },
+        Move { src: E1, dest: F1, promotion: None }, Move { src: E1, dest: G1, promotion: None },
     ]) ; "kiwipete")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A8, dest: B8 }, Move { src: A8, dest: C8 },
-        Move { src: A8, dest: D8 }, Move { src: E8, dest: C8 },
-        Move { src: E8, dest: D8 }, Move { src: E8, dest: F8 },
-        Move { src: E8, dest: G8 }, Move { src: H8, dest: G8 },
-        Move { src: H8, dest: F8 }, Move { src: C7, dest: C6 },
-        Move { src: C7, dest: C5 }, Move { src: D7, dest: D6 },
-        Move { src: E7, dest: D8 }, Move { src: E7, dest: F8 },
-        Move { src: E7, dest: D6 }, Move { src: E7, dest: C5 },
-        Move { src: G7, dest: F8 }, Move { src: G7, dest: H6 },
-        Move { src: A6, dest: C8 }, Move { src: A6, dest: B7 },
-        Move { src: A6, dest: B5 }, Move { src: A6, dest: C4 },
-        Move { src: A6, dest: D3 }, Move { src: A6, dest: E2 },
-        Move { src: B6, dest: A4 }, Move { src: B6, dest: C4 },
-        Move { src: B6, dest: C8 }, Move { src: B6, dest: D5 },
-        Move { src: E6, dest: D5 }, Move { src: F6, dest: G8 },
-        Move { src: F6, dest: H7 }, Move { src: F6, dest: D5 },
-        Move { src: F6, dest: H5 }, Move { src: F6, dest: E4 },
-        Move { src: F6, dest: G4 }, Move { src: G6, dest: G5 },
-        Move { src: B4, dest: A3 }, Move { src: B4, dest: B3 },
-        Move { src: B4, dest: C3 }, Move { src: H3, dest: G2 },
-        Move { src: H8, dest: H7 }, Move { src: H8, dest: H6 },
-        Move { src: H8, dest: H5 }, Move { src: H8, dest: H4 },
+        Move { src: A8, dest: B8, promotion: None }, Move { src: A8, dest: C8, promotion: None },
+        Move { src: A8, dest: D8, promotion: None }, Move { src: E8, dest: C8, promotion: None },
+        Move { src: E8, dest: D8, promotion: None }, Move { src: E8, dest: F8, promotion: None },
+        Move { src: E8, dest: G8, promotion: None }, Move { src: H8, dest: G8, promotion: None },
+        Move { src: H8, dest: F8, promotion: None }, Move { src: C7, dest: C6, promotion: None },
+        Move { src: C7, dest: C5, promotion: None }, Move { src: D7, dest: D6, promotion: None },
+        Move { src: E7, dest: D8, promotion: None }, Move { src: E7, dest: F8, promotion: None },
+        Move { src: E7, dest: D6, promotion: None }, Move { src: E7, dest: C5, promotion: None },
+        Move { src: G7, dest: F8, promotion: None }, Move { src: G7, dest: H6, promotion: None },
+        Move { src: A6, dest: C8, promotion: None }, Move { src: A6, dest: B7, promotion: None },
+        Move { src: A6, dest: B5, promotion: None }, Move { src: A6, dest: C4, promotion: None },
+        Move { src: A6, dest: D3, promotion: None }, Move { src: A6, dest: E2, promotion: None },
+        Move { src: B6, dest: A4, promotion: None }, Move { src: B6, dest: C4, promotion: None },
+        Move { src: B6, dest: C8, promotion: None }, Move { src: B6, dest: D5, promotion: None },
+        Move { src: E6, dest: D5, promotion: None }, Move { src: F6, dest: G8, promotion: None },
+        Move { src: F6, dest: H7, promotion: None }, Move { src: F6, dest: D5, promotion: None },
+        Move { src: F6, dest: H5, promotion: None }, Move { src: F6, dest: E4, promotion: None },
+        Move { src: F6, dest: G4, promotion: None }, Move { src: G6, dest: G5, promotion: None },
+        Move { src: B4, dest: A3, promotion: None }, Move { src: B4, dest: B3, promotion: None },
+        Move { src: B4, dest: C3, promotion: None }, Move { src: H3, dest: G2, promotion: None },
+        Move { src: H8, dest: H7, promotion: None }, Move { src: H8, dest: H6, promotion: None },
+        Move { src: H8, dest: H5, promotion: None }, Move { src: H8, dest: H4, promotion: None },
     ]) ; "kiwipete depth 2")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
@@ -466,14 +466,14 @@ mod tests {
     #[test_case(
         Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(),
         Vec::from([
-            Move { src: E1, dest: F1 },
-            Move { src: H3, dest: G2 },
+            Move { src: E1, dest: F1, promotion: None },
+            Move { src: H3, dest: G2, promotion: None },
         ]),
         HashSet::from_iter([
-            Move { src: F1, dest: G1 },
-            Move { src: F1, dest: G2 },
-            Move { src: F1, dest: E1 },
-            Move { src: F3, dest: G2 },
+            Move { src: F1, dest: G1, promotion: None },
+            Move { src: F1, dest: G2, promotion: None },
+            Move { src: F1, dest: E1, promotion: None },
+            Move { src: F3, dest: G2, promotion: None },
         ]) ; "kiwipete pawn check"
     )]
     fn test_gen_moves_from_moves(mut start_position: Position, moves_to_make: Vec<Move>, want: HashSet<Move>) {
@@ -482,7 +482,7 @@ mod tests {
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
         for mve_to_make in moves_to_make {
-            let _ = start_position.make_move(mve_to_make);
+            let _ = start_position.make_move(&mve_to_make);
         }
 
         let got = move_gen.gen_moves(&start_position);

@@ -164,7 +164,7 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
 
     for mve in moves {
         let mut move_position = position.clone();
-        move_position.make_move(mve).unwrap();
+        move_position.make_move(&mve).unwrap();
 
         let mut checkers = move_gen.get_checkers(&move_position);
         if !checkers.is_empty() {
@@ -196,7 +196,7 @@ mod tests {
 
     use test_case::test_case;
 
-    use crate::bitboard::Move;
+    use crate::position::Move;
     
     struct AllPiecesMoveGenStub {
         moves: HashSet<Move>
@@ -216,7 +216,7 @@ mod tests {
     fn test_count_en_passant(start_position: Position, want: u64) {
         let move_gen = AllPiecesMoveGenStub{
             moves: HashSet::from([
-                Move { src: B4, dest: A3 }
+                Move { src: B4, dest: A3, promotion: None }
             ])
         };
 
