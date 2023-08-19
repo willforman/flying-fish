@@ -236,7 +236,22 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                 }
 
                 let moves_list: Vec<Move> = moves_bb.to_squares().iter()
-                    .map(|&sq| Move { src: piece_square, dest: sq, promotion: None })
+                    .flat_map(|&sq| {
+                        if piece_type == Piece::Pawn && (
+                            (side == Side::White && sq >= A8) || 
+                            (side == Side::Black && sq <= H1)
+                        )
+                        {
+                            Vec::from_iter([
+                                Move { src: piece_square, dest: sq, promotion: Some(Piece::Knight) },
+                                Move { src: piece_square, dest: sq, promotion: Some(Piece::Bishop) },
+                                Move { src: piece_square, dest: sq, promotion: Some(Piece::Rook) },
+                                Move { src: piece_square, dest: sq, promotion: Some(Piece::Queen) }
+                            ])
+                        } else {
+                            Vec::from_iter([ Move { src: piece_square, dest: sq, promotion: None }])
+                        }
+                    })
                     .collect();
 
                 moves.extend(moves_list);

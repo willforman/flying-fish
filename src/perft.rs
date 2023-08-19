@@ -140,18 +140,7 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
     curr_res.castles += castles;
 
     let promotions: u64 = moves.iter()
-        .filter(|&mve| {
-            let (p, s) = position.is_piece_at(mve.src).unwrap();
-            if p == Piece::Pawn {
-                if s == Side::White {
-                    mve.dest >= A8
-                } else {
-                    mve.dest <= H1
-                }
-            } else {
-                false
-            }
-        })
+        .filter(|&mve| mve.promotion.is_some())
         .count()
         .try_into()
         .unwrap();
