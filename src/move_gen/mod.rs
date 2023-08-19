@@ -259,7 +259,7 @@ impl GenerateAllMoves for AllPiecesMoveGen {
             let moves = match piece_type {
                 Piece::Knight => self.leaping_pieces.gen_knight_king_moves(piece_type, king_square),
                 Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, king_square, occupancy),
-                Piece::Pawn => self.leaping_pieces.gen_pawn_atks(king_square, side),
+                Piece::Pawn => self.leaping_pieces.gen_pawn_atks(king_square, opp_side),
                 Piece::King => BitBoard::empty() // Pass
             };
             let pieces = position.pieces.get(piece_type).get(opp_side);
@@ -461,6 +461,39 @@ mod tests {
 
         let in_want_not_got: HashSet<_> = want.difference(&got).collect();
         assert_empty!(in_want_not_got);
+    }
+
+    #[test_case(
+        Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(),
+        Vec::from([
+            Move { src: E1, dest: F1 },
+            Move { src: H3, dest: G2 },
+        ]),
+        HashSet::from_iter([
+            Move { src: F1, dest: G1 },
+            Move { src: F1, dest: G2 },
+            Move { src: F1, dest: E1 },
+            Move { src: F3, dest: G2 },
+        ]) ; "kiwipete pawn check"
+    )]
+    fn test_gen_moves_from_moves(mut start_position: Position, moves_to_make: Vec<Move>, want: HashSet<Move>) {
+        let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
+        let sliding_pieces = Box::new(HyperbolaQuintessence::new());
+        let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
+
+        for mve_to_make in moves_to_make {
+            start_position.make_move(mve_to_make);
+        }
+
+        let got = move_gen.gen_moves(&start_position);
+        println!("{:?}", move_gen.get_checkers(&start_position));
+
+        let in_got_not_want: HashSet<_> = got.difference(&want).collect();
+        assert_empty!(in_got_not_want);
+
+        let in_want_not_got: HashSet<_> = want.difference(&got).collect();
+        assert_empty!(in_want_not_got);
+
     }
 
     #[test_case(Position::start(), Side::White, BitBoard::from_squares(&[

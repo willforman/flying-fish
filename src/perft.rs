@@ -105,7 +105,6 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
     let side = position.state.to_move;
     let opp_pieces = position.sides.get(side.opposite_side());
 
-    let checkers = move_gen.get_checkers(position);
 
     curr_res.tot += u64::try_from(moves.len()).unwrap();
 
@@ -157,15 +156,25 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
 
     curr_res.promotions += promotions;
 
-    let checks = checkers.num_squares_set();
-    curr_res.checks += u64::try_from(checks).unwrap();
+    let mut tot_checks = 0;
 
+    println!("{:?}", moves);
     for mve in moves {
         let mut move_position = position.clone();
         move_position.make_move(mve).unwrap();
 
+        println!("\n\n{}", position);
+        println!("\n{}", move_position);
+        let checkers = move_gen.get_checkers(&move_position);
+        let checks = checkers.num_squares_set();
+        tot_checks += u64::try_from(checks).unwrap();
+
         perft_helper(depth_results, &move_position, move_gen, max_depth, curr_depth + 1);
     }
+
+    // Reborrow to avoid multiple mutable references 
+    let curr_res = depth_results.get_mut(curr_depth).unwrap();
+    curr_res.checks += tot_checks;
 }
 
 #[cfg(test)]
