@@ -89,22 +89,24 @@ pub fn perft(position: &Position, move_gen: &impl GenerateAllMoves, depth: usize
 }
 
 fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, move_gen: &impl GenerateAllMoves, max_depth: usize, curr_depth: usize) {
+    // Must check moves before checking end condition of this recursive function
+    // because we need to check for checkmate
+    let moves = move_gen.gen_moves(position);
+
+    if moves.is_empty() {
+        let prev_res = depth_results.get_mut(curr_depth - 1).unwrap();
+        prev_res.checkmates += 1;
+        return;
+    }
+
     if curr_depth == max_depth {
         return;
     }
 
     let curr_res = depth_results.get_mut(curr_depth).unwrap();
 
-    let moves = move_gen.gen_moves(position);
-
-    if moves.is_empty() {
-        curr_res.checkmates += 1;
-        return;
-    }
-
     let side = position.state.to_move;
     let opp_pieces = position.sides.get(side.opposite_side());
-
 
     curr_res.tot += u64::try_from(moves.len()).unwrap();
 
@@ -157,17 +159,25 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
     curr_res.promotions += promotions;
 
     let mut tot_checks = 0;
+    let mut tot_double_checks = 0;
+    let mut tot_discovery_checks = 0;
 
-    println!("{:?}", moves);
     for mve in moves {
         let mut move_position = position.clone();
         move_position.make_move(mve).unwrap();
 
-        println!("\n\n{}", position);
-        println!("\n{}", move_position);
-        let checkers = move_gen.get_checkers(&move_position);
-        let checks = checkers.num_squares_set();
-        tot_checks += u64::try_from(checks).unwrap();
+        let mut checkers = move_gen.get_checkers(&move_position);
+        if !checkers.is_empty() {
+            tot_checks += 1;
+            if checkers.num_squares_set() > 1 {
+                tot_double_checks += 1;
+            } else {
+                checkers.clear_square(mve.dest);
+                if !checkers.is_empty() {
+                    tot_discovery_checks += 1;
+                }
+            }
+        }
 
         perft_helper(depth_results, &move_position, move_gen, max_depth, curr_depth + 1);
     }
@@ -175,6 +185,8 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
     // Reborrow to avoid multiple mutable references 
     let curr_res = depth_results.get_mut(curr_depth).unwrap();
     curr_res.checks += tot_checks;
+    curr_res.double_checks += tot_double_checks;
+    curr_res.discovery_checks += tot_discovery_checks;
 }
 
 #[cfg(test)]

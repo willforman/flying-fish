@@ -482,11 +482,10 @@ mod tests {
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
         for mve_to_make in moves_to_make {
-            start_position.make_move(mve_to_make);
+            let _ = start_position.make_move(mve_to_make);
         }
 
         let got = move_gen.gen_moves(&start_position);
-        println!("{:?}", move_gen.get_checkers(&start_position));
 
         let in_got_not_want: HashSet<_> = got.difference(&want).collect();
         assert_empty!(in_got_not_want);
