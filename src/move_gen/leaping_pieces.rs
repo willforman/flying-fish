@@ -113,7 +113,7 @@ fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
 
     let white_bbs: [BitBoard; 64] = Square::iter()
         .map(|sq| {
-            if sq >= Square::A8 || sq <= Square::H1 {
+            if sq >= Square::A8 {
                 BitBoard::from_square_shifts(sq, &edge_push_dirs)
             } else {
                 BitBoard::from_square_shifts(sq, &white_atk_dirs)
@@ -125,7 +125,7 @@ fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
 
     let black_bbs: [BitBoard; 64] = Square::iter()
         .map(|sq| {
-            if sq >= Square::A8 || sq <= Square::H1 {
+            if sq <= Square::H1 {
                 BitBoard::from_square_shifts(sq, &edge_push_dirs)
             } else {
                 BitBoard::from_square_shifts(sq, &black_atk_dirs)
@@ -221,8 +221,12 @@ mod tests {
 
     #[test_case(D2, Side::White, BitBoard::from_squares(&[C3, E3]) ; "white")]
     #[test_case(A7, Side::White, BitBoard::from_squares(&[B8]) ; "white edge")]
+    // Even though a pawn would never actually be in the "back rank", important for 
+    // finding checkers if the king is on the back rank
+    #[test_case(F1, Side::White, BitBoard::from_squares(&[E2, G2]) ; "white back rank")]
     #[test_case(D7, Side::Black, BitBoard::from_squares(&[C6, E6]) ; "black")]
     #[test_case(A2, Side::Black, BitBoard::from_squares(&[B1]) ; "black edge")]
+    #[test_case(F8, Side::Black, BitBoard::from_squares(&[E7, G7]) ; "black back rank")]
     fn test_calc_pawn_atks(square: Square, side: Side, want: BitBoard) {
         let got = calc_pawn_atks();
         let sq_got = got.get_square_db(side).get_bitboard(square);

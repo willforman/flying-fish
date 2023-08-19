@@ -259,7 +259,7 @@ impl GenerateAllMoves for AllPiecesMoveGen {
             let moves = match piece_type {
                 Piece::Knight => self.leaping_pieces.gen_knight_king_moves(piece_type, king_square),
                 Piece::Bishop | Piece::Rook | Piece::Queen => self.sliding_pieces.gen_moves(piece_type, king_square, occupancy),
-                Piece::Pawn => self.leaping_pieces.gen_pawn_atks(king_square, opp_side),
+                Piece::Pawn => self.leaping_pieces.gen_pawn_atks(king_square, side),
                 Piece::King => BitBoard::empty() // Pass
             };
             let pieces = position.pieces.get(piece_type).get(opp_side);
