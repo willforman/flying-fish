@@ -87,6 +87,16 @@ pub struct Move {
     pub promotion: Option<Piece>,
 }
 
+impl Move {
+    pub fn new(src: Square, dest: Square) -> Move {
+        Self { src, dest, promotion: None }
+    }
+
+    pub fn with_promotion(src: Square, dest: Square, promotion: Piece) -> Self {
+        Self { src, dest, promotion: Some(promotion) }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Sides {
     white: BitBoard,
