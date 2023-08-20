@@ -167,7 +167,7 @@ impl GenerateAllMoves for AllPiecesMoveGen {
             let mut moves_bb = self.gen_king_moves(position, side, king_square, friendly_pieces);
             moves_bb &= !friendly_pieces;
             let moves: HashSet<Move> = moves_bb.to_squares().iter()
-                .map(|&sq| Move { src: king_square, dest: sq, promotion: None } )
+                .map(|&sq| Move::new(king_square, sq) )
                 .collect();
             return moves;
         }
@@ -244,16 +244,16 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                     moves_bb.to_squares().iter()
                         .flat_map(|&sq| {
                             [
-                                Move { src: piece_square, dest: sq, promotion: Some(Piece::Knight) },
-                                Move { src: piece_square, dest: sq, promotion: Some(Piece::Bishop) },
-                                Move { src: piece_square, dest: sq, promotion: Some(Piece::Rook) },
-                                Move { src: piece_square, dest: sq, promotion: Some(Piece::Queen) }
+                                Move::with_promotion(piece_square, sq, Piece::Knight),
+                                Move::with_promotion(piece_square, sq, Piece::Bishop),
+                                Move::with_promotion(piece_square, sq, Piece::Rook),
+                                Move::with_promotion(piece_square, sq, Piece::Queen)
                             ]
                         })
                         .collect()
                 } else {
                     moves_bb.to_squares().iter()
-                        .map(|&sq| Move { src: piece_square, dest: sq, promotion: None })
+                        .map(|&sq| Move::new(piece_square, sq))
                         .collect()
                 };
 
@@ -305,175 +305,175 @@ mod tests {
     }
 
     #[test_case(Position::start(), HashSet::from_iter([
-        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
-        Move { src: B2, dest: B3, promotion: None }, Move { src: B2, dest: B4, promotion: None },
-        Move { src: C2, dest: C3, promotion: None }, Move { src: C2, dest: C4, promotion: None },
-        Move { src: D2, dest: D3, promotion: None }, Move { src: D2, dest: D4, promotion: None },
-        Move { src: E2, dest: E3, promotion: None }, Move { src: E2, dest: E4, promotion: None },
-        Move { src: F2, dest: F3, promotion: None }, Move { src: F2, dest: F4, promotion: None },
-        Move { src: G2, dest: G3, promotion: None }, Move { src: G2, dest: G4, promotion: None },
-        Move { src: H2, dest: H3, promotion: None }, Move { src: H2, dest: H4, promotion: None },
-        Move { src: B1, dest: A3, promotion: None }, Move { src: B1, dest: C3, promotion: None },
-        Move { src: G1, dest: F3, promotion: None }, Move { src: G1, dest: H3, promotion: None }
+        Move::new(A2, A3), Move::new(A2, A4),
+        Move::new(B2, B3), Move::new(B2, B4),
+        Move::new(C2, C3), Move::new(C2, C4),
+        Move::new(D2, D3), Move::new(D2, D4),
+        Move::new(E2, E3), Move::new(E2, E4),
+        Move::new(F2, F3), Move::new(F2, F4),
+        Move::new(G2, G3), Move::new(G2, G4),
+        Move::new(H2, H3), Move::new(H2, H4),
+        Move::new(B1, A3), Move::new(B1, C3),
+        Move::new(G1, F3), Move::new(G1, H3)
     ]))]
     #[test_case(Position::from_fen("8/8/p7/1p1p4/1P6/P1P3kp/5p2/1b5K w - - 0 51").unwrap(), HashSet::from_iter([
-        Move { src: C3, dest: C4, promotion: None }, Move { src: A3, dest: A4, promotion: None },
+        Move::new(C3, C4), Move::new(A3, A4),
     ]) ; "random position from my game")]
     #[test_case(Position::from_fen("8/8/8/8/k2Pp3/8/8/7K b - d3 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A4, dest: A5, promotion: None }, Move { src: A4, dest: B5, promotion: None },
-        Move { src: A4, dest: A3, promotion: None }, Move { src: A4, dest: B3, promotion: None },
-        Move { src: A4, dest: B4, promotion: None },
-        Move { src: E4, dest: E3, promotion: None }, Move { src: E4, dest: D3, promotion: None },
+        Move::new(A4, A5), Move::new(A4, B5),
+        Move::new(A4, A3), Move::new(A4, B3),
+        Move::new(A4, B4),
+        Move::new(E4, E3), Move::new(E4, D3),
     ]) ; "en passant")]
     #[test_case(Position::from_fen("8/8/4k3/8/8/4R3/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E6, dest: D7, promotion: None }, Move { src: E6, dest: F7, promotion: None },
-        Move { src: E6, dest: D6, promotion: None }, Move { src: E6, dest: F6, promotion: None },
-        Move { src: E6, dest: D5, promotion: None }, Move { src: E6, dest: F5, promotion: None },
+        Move::new(E6, D7), Move::new(E6, F7),
+        Move::new(E6, D6), Move::new(E6, F6),
+        Move::new(E6, D5), Move::new(E6, F5),
     ]) ; "king cant move into check")]
     #[test_case(Position::from_fen("8/8/4k3/8/5N2/8/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E6, dest: E7, promotion: None }, Move { src: E6, dest: E5, promotion: None },
-        Move { src: E6, dest: D7, promotion: None }, Move { src: E6, dest: F7, promotion: None },
-        Move { src: E6, dest: D6, promotion: None }, Move { src: E6, dest: F6, promotion: None },
-        Move { src: E6, dest: F5, promotion: None }, Move { src: D2, dest: F4, promotion: None },
+        Move::new(E6, E7), Move::new(E6, E5),
+        Move::new(E6, D7), Move::new(E6, F7),
+        Move::new(E6, D6), Move::new(E6, F6),
+        Move::new(E6, F5), Move::new(D2, F4),
     ]) ; "capture checker")]
     #[test_case(Position::from_fen("k7/6r1/8/8/8/R7/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A8, dest: B8, promotion: None }, Move { src: A8, dest: B7, promotion: None },
-        Move { src: G7, dest: A7, promotion: None },
+        Move::new(A8, B8), Move::new(A8, B7),
+        Move::new(G7, A7),
     ]) ; "block checker")]
     #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E6, dest: D6, promotion: None }, Move { src: E6, dest: F6, promotion: None },
-        Move { src: E6, dest: D5, promotion: None }, Move { src: E6, dest: F5, promotion: None },
-        Move { src: E6, dest: D7, promotion: None },
+        Move::new(E6, D6), Move::new(E6, F6),
+        Move::new(E6, D5), Move::new(E6, F5),
+        Move::new(E6, D7),
     ]) ; "double check")]
     #[test_case(Position::from_fen("8/8/8/2k5/3Pp3/8/8/7K b - d3 0 1").unwrap(), HashSet::from_iter([
-        Move { src: C5, dest: B6, promotion: None }, Move { src: C5, dest: D6, promotion: None },
-        Move { src: C5, dest: B5, promotion: None }, Move { src: C5, dest: D5, promotion: None },
-        Move { src: C5, dest: B4, promotion: None }, Move { src: C5, dest: D4, promotion: None },
-        Move { src: C5, dest: C6, promotion: None }, Move { src: C5, dest: C4, promotion: None },
-        Move { src: E4, dest: D3, promotion: None },
+        Move::new(C5, B6), Move::new(C5, D6),
+        Move::new(C5, B5), Move::new(C5, D5),
+        Move::new(C5, B4), Move::new(C5, D4),
+        Move::new(C5, C6), Move::new(C5, C4),
+        Move::new(E4, D3),
     ]) ; "en passant capture to end check")]
     #[test_case(Position::from_fen("7k/8/7r/8/7Q/8/8/K7 b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: H8, dest: G7, promotion: None }, Move { src: H8, dest: H7, promotion: None },
-        Move { src: H8, dest: G8, promotion: None },
-        Move { src: H6, dest: H7, promotion: None }, Move { src: H6, dest: H5, promotion: None },
-        Move { src: H6, dest: H4, promotion: None },
+        Move::new(H8, G7), Move::new(H8, H7),
+        Move::new(H8, G8),
+        Move::new(H6, H7), Move::new(H6, H5),
+        Move::new(H6, H4),
     ]) ; "cant move out of pin file")]
     #[test_case(Position::from_fen("k7/1r6/8/3Q4/8/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A8, dest: B8, promotion: None }, Move { src: A8, dest: A7, promotion: None },
+        Move::new(A8, B8), Move::new(A8, A7),
     ]) ; "cant move out of pin diagonal")]
     #[test_case(Position::from_fen("8/8/8/8/k2Pp2R/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A4, dest: A5, promotion: None }, Move { src: A4, dest: B5, promotion: None },
-        Move { src: A4, dest: A3, promotion: None }, Move { src: A4, dest: B3, promotion: None },
-        Move { src: A4, dest: B4, promotion: None },
-        Move { src: E4, dest: E3, promotion: None },
+        Move::new(A4, A5), Move::new(A4, B5),
+        Move::new(A4, A3), Move::new(A4, B3),
+        Move::new(A4, B4),
+        Move::new(E4, E3),
     ]) ; "prevent en passant discovered check")]
     #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E1, dest: F1, promotion: None }, Move { src: E1, dest: D1, promotion: None },
-        Move { src: E1, dest: F2, promotion: None }, Move { src: E1, dest: D2, promotion: None },
-        Move { src: E1, dest: E2, promotion: None },
-        Move { src: E1, dest: G1, promotion: None }, Move { src: E1, dest: C1, promotion: None }, // Castling
-        Move { src: A1, dest: B1, promotion: None }, Move { src: A1, dest: C1, promotion: None },
-        Move { src: A1, dest: D1, promotion: None }, Move { src: H1, dest: G1, promotion: None },
-        Move { src: H1, dest: F1, promotion: None },
-        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
-        Move { src: H2, dest: H3, promotion: None }, Move { src: H2, dest: H4, promotion: None },
+        Move::new(E1, F1), Move::new(E1, D1),
+        Move::new(E1, F2), Move::new(E1, D2),
+        Move::new(E1, E2),
+        Move::new(E1, G1), Move::new(E1, C1), // Castling
+        Move::new(A1, B1), Move::new(A1, C1),
+        Move::new(A1, D1), Move::new(H1, G1),
+        Move::new(H1, F1),
+        Move::new(A2, A3), Move::new(A2, A4),
+        Move::new(H2, H3), Move::new(H2, H4),
     ]) ; "white castling")]
     #[test_case(Position::from_fen("4k3/8/8/8/8/3bb3/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E1, dest: D1, promotion: None },
-        Move { src: A1, dest: B1, promotion: None }, Move { src: A1, dest: C1, promotion: None },
-        Move { src: A1, dest: D1, promotion: None }, Move { src: H1, dest: G1, promotion: None },
-        Move { src: H1, dest: F1, promotion: None },
-        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
-        Move { src: H2, dest: H3, promotion: None }, Move { src: H2, dest: H4, promotion: None },
+        Move::new(E1, D1),
+        Move::new(A1, B1), Move::new(A1, C1),
+        Move::new(A1, D1), Move::new(H1, G1),
+        Move::new(H1, F1),
+        Move::new(A2, A3), Move::new(A2, A4),
+        Move::new(H2, H3), Move::new(H2, H4),
     ]) ; "white castling cant through check")]
     #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R1N1KB1R w KQ - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E1, dest: D1, promotion: None },
-        Move { src: E1, dest: F2, promotion: None }, Move { src: E1, dest: D2, promotion: None },
-        Move { src: E1, dest: E2, promotion: None },
-        Move { src: A1, dest: B1, promotion: None },
-        Move { src: H1, dest: G1, promotion: None },
-        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
-        Move { src: H2, dest: H3, promotion: None }, Move { src: H2, dest: H4, promotion: None },
-        Move { src: F1, dest: G2, promotion: None }, Move { src: F1, dest: H3, promotion: None },
-        Move { src: F1, dest: E2, promotion: None }, Move { src: F1, dest: D3, promotion: None },
-        Move { src: F1, dest: C4, promotion: None }, Move { src: F1, dest: B5, promotion: None },
-        Move { src: F1, dest: A6, promotion: None },
-        Move { src: C1, dest: B3, promotion: None }, Move { src: C1, dest: D3, promotion: None },
-        Move { src: C1, dest: E2, promotion: None }
+        Move::new(E1, D1),
+        Move::new(E1, F2), Move::new(E1, D2),
+        Move::new(E1, E2),
+        Move::new(A1, B1),
+        Move::new(H1, G1),
+        Move::new(A2, A3), Move::new(A2, A4),
+        Move::new(H2, H3), Move::new(H2, H4),
+        Move::new(F1, G2), Move::new(F1, H3),
+        Move::new(F1, E2), Move::new(F1, D3),
+        Move::new(F1, C4), Move::new(F1, B5),
+        Move::new(F1, A6),
+        Move::new(C1, B3), Move::new(C1, D3),
+        Move::new(C1, E2)
     ]) ; "white castling cant through pieces")]
     #[test_case(Position::from_fen("4k3/8/8/8/1b6/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E1, dest: F1, promotion: None }, Move { src: E1, dest: D1, promotion: None },
-        Move { src: E1, dest: F2, promotion: None }, Move { src: E1, dest: E2, promotion: None },
+        Move::new(E1, F1), Move::new(E1, D1),
+        Move::new(E1, F2), Move::new(E1, E2),
     ]) ; "white cant castle while in check")]
     #[test_case(Position::from_fen("r3k2r/p6p/8/8/8/8/8/4K3 b kq - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: E8, dest: F8, promotion: None }, Move { src: E8, dest: D8, promotion: None },
-        Move { src: E8, dest: F7, promotion: None }, Move { src: E8, dest: D7, promotion: None },
-        Move { src: E8, dest: E7, promotion: None },
-        Move { src: E8, dest: G8, promotion: None }, Move { src: E8, dest: C8, promotion: None }, // Castling
-        Move { src: A8, dest: B8, promotion: None }, Move { src: A8, dest: C8, promotion: None },
-        Move { src: A8, dest: D8, promotion: None }, Move { src: H8, dest: G8, promotion: None },
-        Move { src: H8, dest: F8, promotion: None },
-        Move { src: A7, dest: A6, promotion: None }, Move { src: A7, dest: A5, promotion: None },
-        Move { src: H7, dest: H6, promotion: None }, Move { src: H7, dest: H5, promotion: None },
+        Move::new(E8, F8), Move::new(E8, D8),
+        Move::new(E8, F7), Move::new(E8, D7),
+        Move::new(E8, E7),
+        Move::new(E8, G8), Move::new(E8, C8), // Castling
+        Move::new(A8, B8), Move::new(A8, C8),
+        Move::new(A8, D8), Move::new(H8, G8),
+        Move::new(H8, F8),
+        Move::new(A7, A6), Move::new(A7, A5),
+        Move::new(H7, H6), Move::new(H7, H5),
     ]) ; "black castling")]
     #[test_case(Position::from_fen("r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4").unwrap(), HashSet::from_iter([]) ; "checkmate")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), HashSet::from_iter([
-        Move { src: A2, dest: A3, promotion: None }, Move { src: A2, dest: A4, promotion: None },
-        Move { src: B2, dest: B3, promotion: None }, Move { src: G2, dest: G3, promotion: None },
-        Move { src: D5, dest: D6, promotion: None }, Move { src: D5, dest: E6, promotion: None },
-        Move { src: G2, dest: G4, promotion: None }, Move { src: G2, dest: H3, promotion: None },
-        Move { src: C3, dest: A4, promotion: None }, Move { src: C3, dest: B5, promotion: None },
-        Move { src: C3, dest: B1, promotion: None }, Move { src: C3, dest: D1, promotion: None },
-        Move { src: E5, dest: C6, promotion: None }, Move { src: E5, dest: G6, promotion: None },
-        Move { src: E5, dest: D7, promotion: None }, Move { src: E5, dest: F7, promotion: None },
-        Move { src: E5, dest: C4, promotion: None }, Move { src: E5, dest: G4, promotion: None },
-        Move { src: E5, dest: D3, promotion: None }, Move { src: D2, dest: C1, promotion: None },
-        Move { src: D2, dest: E3, promotion: None }, Move { src: D2, dest: F4, promotion: None },
-        Move { src: D2, dest: G5, promotion: None }, Move { src: D2, dest: H6, promotion: None },
-        Move { src: E2, dest: D1, promotion: None }, Move { src: E2, dest: F1, promotion: None },
-        Move { src: E2, dest: D3, promotion: None }, Move { src: E2, dest: C4, promotion: None },
-        Move { src: E2, dest: B5, promotion: None }, Move { src: E2, dest: A6, promotion: None },
-        Move { src: A1, dest: B1, promotion: None }, Move { src: A1, dest: C1, promotion: None },
-        Move { src: A1, dest: D1, promotion: None }, Move { src: H1, dest: G1, promotion: None },
-        Move { src: H1, dest: F1, promotion: None }, Move { src: F3, dest: E3, promotion: None },
-        Move { src: F3, dest: D3, promotion: None }, Move { src: F3, dest: G3, promotion: None },
-        Move { src: F3, dest: H3, promotion: None }, Move { src: F3, dest: F4, promotion: None },
-        Move { src: F3, dest: F5, promotion: None }, Move { src: F3, dest: F6, promotion: None },
-        Move { src: F3, dest: G4, promotion: None }, Move { src: F3, dest: H5, promotion: None },
-        Move { src: E1, dest: D1, promotion: None }, Move { src: E1, dest: C1, promotion: None },
-        Move { src: E1, dest: F1, promotion: None }, Move { src: E1, dest: G1, promotion: None },
+        Move::new(A2, A3), Move::new(A2, A4),
+        Move::new(B2, B3), Move::new(G2, G3),
+        Move::new(D5, D6), Move::new(D5, E6),
+        Move::new(G2, G4), Move::new(G2, H3),
+        Move::new(C3, A4), Move::new(C3, B5),
+        Move::new(C3, B1), Move::new(C3, D1),
+        Move::new(E5, C6), Move::new(E5, G6),
+        Move::new(E5, D7), Move::new(E5, F7),
+        Move::new(E5, C4), Move::new(E5, G4),
+        Move::new(E5, D3), Move::new(D2, C1),
+        Move::new(D2, E3), Move::new(D2, F4),
+        Move::new(D2, G5), Move::new(D2, H6),
+        Move::new(E2, D1), Move::new(E2, F1),
+        Move::new(E2, D3), Move::new(E2, C4),
+        Move::new(E2, B5), Move::new(E2, A6),
+        Move::new(A1, B1), Move::new(A1, C1),
+        Move::new(A1, D1), Move::new(H1, G1),
+        Move::new(H1, F1), Move::new(F3, E3),
+        Move::new(F3, D3), Move::new(F3, G3),
+        Move::new(F3, H3), Move::new(F3, F4),
+        Move::new(F3, F5), Move::new(F3, F6),
+        Move::new(F3, G4), Move::new(F3, H5),
+        Move::new(E1, D1), Move::new(E1, C1),
+        Move::new(E1, F1), Move::new(E1, G1),
     ]) ; "kiwipete")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1").unwrap(), HashSet::from_iter([
-        Move { src: A8, dest: B8, promotion: None }, Move { src: A8, dest: C8, promotion: None },
-        Move { src: A8, dest: D8, promotion: None }, Move { src: E8, dest: C8, promotion: None },
-        Move { src: E8, dest: D8, promotion: None }, Move { src: E8, dest: F8, promotion: None },
-        Move { src: E8, dest: G8, promotion: None }, Move { src: H8, dest: G8, promotion: None },
-        Move { src: H8, dest: F8, promotion: None }, Move { src: C7, dest: C6, promotion: None },
-        Move { src: C7, dest: C5, promotion: None }, Move { src: D7, dest: D6, promotion: None },
-        Move { src: E7, dest: D8, promotion: None }, Move { src: E7, dest: F8, promotion: None },
-        Move { src: E7, dest: D6, promotion: None }, Move { src: E7, dest: C5, promotion: None },
-        Move { src: G7, dest: F8, promotion: None }, Move { src: G7, dest: H6, promotion: None },
-        Move { src: A6, dest: C8, promotion: None }, Move { src: A6, dest: B7, promotion: None },
-        Move { src: A6, dest: B5, promotion: None }, Move { src: A6, dest: C4, promotion: None },
-        Move { src: A6, dest: D3, promotion: None }, Move { src: A6, dest: E2, promotion: None },
-        Move { src: B6, dest: A4, promotion: None }, Move { src: B6, dest: C4, promotion: None },
-        Move { src: B6, dest: C8, promotion: None }, Move { src: B6, dest: D5, promotion: None },
-        Move { src: E6, dest: D5, promotion: None }, Move { src: F6, dest: G8, promotion: None },
-        Move { src: F6, dest: H7, promotion: None }, Move { src: F6, dest: D5, promotion: None },
-        Move { src: F6, dest: H5, promotion: None }, Move { src: F6, dest: E4, promotion: None },
-        Move { src: F6, dest: G4, promotion: None }, Move { src: G6, dest: G5, promotion: None },
-        Move { src: B4, dest: A3, promotion: None }, Move { src: B4, dest: B3, promotion: None },
-        Move { src: B4, dest: C3, promotion: None }, Move { src: H3, dest: G2, promotion: None },
-        Move { src: H8, dest: H7, promotion: None }, Move { src: H8, dest: H6, promotion: None },
-        Move { src: H8, dest: H5, promotion: None }, Move { src: H8, dest: H4, promotion: None },
+        Move::new(A8, B8), Move::new(A8, C8),
+        Move::new(A8, D8), Move::new(E8, C8),
+        Move::new(E8, D8), Move::new(E8, F8),
+        Move::new(E8, G8), Move::new(H8, G8),
+        Move::new(H8, F8), Move::new(C7, C6),
+        Move::new(C7, C5), Move::new(D7, D6),
+        Move::new(E7, D8), Move::new(E7, F8),
+        Move::new(E7, D6), Move::new(E7, C5),
+        Move::new(G7, F8), Move::new(G7, H6),
+        Move::new(A6, C8), Move::new(A6, B7),
+        Move::new(A6, B5), Move::new(A6, C4),
+        Move::new(A6, D3), Move::new(A6, E2),
+        Move::new(B6, A4), Move::new(B6, C4),
+        Move::new(B6, C8), Move::new(B6, D5),
+        Move::new(E6, D5), Move::new(F6, G8),
+        Move::new(F6, H7), Move::new(F6, D5),
+        Move::new(F6, H5), Move::new(F6, E4),
+        Move::new(F6, G4), Move::new(G6, G5),
+        Move::new(B4, A3), Move::new(B4, B3),
+        Move::new(B4, C3), Move::new(H3, G2),
+        Move::new(H8, H7), Move::new(H8, H6),
+        Move::new(H8, H5), Move::new(H8, H4),
     ]) ; "kiwipete depth 2")]
     #[test_case(Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(), HashSet::from_iter([
-        Move { src: G1, dest: H1, promotion: None },
-        Move { src: F1, dest: F2, promotion: None },
-        Move { src: F3, dest: D4, promotion: None },
-        Move { src: B4, dest: C5, promotion: None },
-        Move { src: C4, dest: C5, promotion: None },
-        Move { src: D2, dest: D4, promotion: None },
+        Move::new(G1, H1),
+        Move::new(F1, F2),
+        Move::new(F3, D4),
+        Move::new(B4, C5),
+        Move::new(C4, C5),
+        Move::new(D2, D4),
     ]) ; "perft results position4")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
@@ -492,27 +492,27 @@ mod tests {
     #[test_case(
         Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(),
         Vec::from([
-            Move { src: E1, dest: F1, promotion: None },
-            Move { src: H3, dest: G2, promotion: None },
+            Move::new(E1, F1),
+            Move::new(H3, G2),
         ]),
         HashSet::from_iter([
-            Move { src: F1, dest: G1, promotion: None },
-            Move { src: F1, dest: G2, promotion: None },
-            Move { src: F1, dest: E1, promotion: None },
-            Move { src: F3, dest: G2, promotion: None },
+            Move::new(F1, G1),
+            Move::new(F1, G2),
+            Move::new(F1, E1),
+            Move::new(F3, G2),
         ]) ; "perft results position4"
     )]
     #[test_case(
         Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(),
         Vec::from([
-            Move { src: E1, dest: F1, promotion: None },
-            Move { src: H3, dest: G2, promotion: None },
+            Move::new(E1, F1),
+            Move::new(H3, G2),
         ]),
         HashSet::from_iter([
-            Move { src: F1, dest: G1, promotion: None },
-            Move { src: F1, dest: G2, promotion: None },
-            Move { src: F1, dest: E1, promotion: None },
-            Move { src: F3, dest: G2, promotion: None },
+            Move::new(F1, G1),
+            Move::new(F1, G2),
+            Move::new(F1, E1),
+            Move::new(F3, G2),
         ]) ; "kiwipete pawn check"
     )]
     fn test_gen_moves_from_moves(mut start_position: Position, moves_to_make: Vec<Move>, want: HashSet<Move>) {

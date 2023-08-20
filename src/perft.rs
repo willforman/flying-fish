@@ -208,7 +208,7 @@ mod tests {
     fn test_count_en_passant(start_position: Position, want: u64) {
         let move_gen = AllPiecesMoveGenStub{
             moves: HashSet::from([
-                Move { src: B4, dest: A3, promotion: None }
+                Move::new(B4, A3)
             ])
         };
 

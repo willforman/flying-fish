@@ -334,10 +334,10 @@ impl Position {
 
                     if mve.src.abs_diff(mve.dest) == 2 { // Castled
                         let rook_move = match mve.dest {
-                            C1 => Move { src: A1, dest: D1, promotion: None },
-                            G1 => Move { src: H1, dest: F1, promotion: None },
-                            C8 => Move { src: A8, dest: D8, promotion: None },
-                            G8 => Move { src: H8, dest: F8, promotion: None },
+                            C1 => Move::new(A1, D1),
+                            G1 => Move::new(H1, F1),
+                            C8 => Move::new(A8, D8),
+                            G8 => Move::new(H8, F8),
                             _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
                         };
 
@@ -429,7 +429,7 @@ mod tests {
         assert_eq!(pos.state.to_move, Side::White);
     }
 
-    #[test_case(Position::start(), Move { src: D2, dest: D4, promotion: None })]
+    #[test_case(Position::start(), Move::new(D2, D4))]
     fn test_make_move(mut position: Position, mve: Move) {
         assert!(position.is_piece_at(mve.src).is_some());
         assert!(position.is_piece_at(mve.dest).is_none());
@@ -442,14 +442,14 @@ mod tests {
         assert!(position.is_piece_at(mve.dest).is_some());
     }
 
-    #[test_case(Position::start(), Move { src: D7, dest: D5, promotion: None })]
+    #[test_case(Position::start(), Move::new(D7, D5))]
     fn test_make_move_err(mut position: Position, mve: Move) {
         let res = position.make_move(&mve);
         assert!(res.is_err());
     }
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 
-        Move { src: A2, dest: A4, promotion: None },A3 ; "kiwipete")]
+        Move::new(A2, A4),A3 ; "kiwipete")]
     fn test_make_move_ep_target(mut position: Position, mve: Move, want_en_passant_target: Square) {
         let _ = position.make_move(&mve);
         assert!(position.state.en_passant_target.is_some());
