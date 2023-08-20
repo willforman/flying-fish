@@ -238,8 +238,8 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                 // For each promotion, we need to add 4 moves to the list,
                 // 1 for each piece type
                 let moves_list: Vec<Move> = if piece_type == Piece::Pawn && 
-                    (side == Side::White && (piece_square >= A7 && piece_square <= H7)) ||
-                    (side == Side::Black && (piece_square >= A2 && piece_square <= H2))
+                    ((side == Side::White && (piece_square >= A7 && piece_square <= H7)) ||
+                    (side == Side::Black && (piece_square >= A2 && piece_square <= H2)))
                 {
                     moves_bb.to_squares().iter()
                         .flat_map(|&sq| {
