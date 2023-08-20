@@ -80,7 +80,7 @@ impl TryFrom<char> for Piece {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
     pub src: Square,
     pub dest: Square,
@@ -94,6 +94,16 @@ impl Move {
 
     pub fn with_promotion(src: Square, dest: Square, promotion: Piece) -> Self {
         Self { src, dest, promotion: Some(promotion) }
+    }
+}
+
+impl fmt::Debug for Move {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} -> {}", self.src, self.dest)?;
+        if self.promotion.is_some() {
+            write!(f, " ({})", self.promotion.unwrap())?;
+        }
+        Ok(())
     }
 }
 
@@ -406,6 +416,7 @@ impl fmt::Debug for Position {
 mod tests {
     use super::*;
     use test_case::test_case;
+    use testresult::TestResult;
 
     #[test]
     fn test_display() {
@@ -450,9 +461,17 @@ mod tests {
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 
         Move::new(A2, A4),A3 ; "kiwipete")]
-    fn test_make_move_ep_target(mut position: Position, mve: Move, want_en_passant_target: Square) {
-        let _ = position.make_move(&mve);
+    fn test_make_move_ep_target(mut position: Position, mve: Move, want_en_passant_target: Square) -> TestResult {
+        position.make_move(&mve)?;
         assert!(position.state.en_passant_target.is_some());
         assert_eq!(position.state.en_passant_target.unwrap(), want_en_passant_target);
+        Ok(())
+    }
+
+    #[test_case(Move::new(A1, G7), "A1 -> G7" ; "no promotion")]
+    #[test_case(Move::with_promotion(F7, B6, Piece::Queen), "F7 -> B6 (Queen)" ; "with promotion")]
+    fn test_move_debug(mve: Move, want: &str) {
+        let got = format!("{:?}", mve);
+        assert_eq!(got, want);
     }
 }

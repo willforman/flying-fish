@@ -296,12 +296,21 @@ mod tests {
     use crate::move_gen::leaping_pieces::LeapingPiecesMoveGen;
     use crate::move_gen::hyperbola_quintessence::HyperbolaQuintessence;
 
-    macro_rules! assert_empty {
-        ($container:expr) => {
-            if !$container.is_empty() {
-                panic!("expected {} to be empty, but got: {:?}", stringify!($container), $container);
+    macro_rules! assert_eq_collections {
+        ($coll_a:expr, $coll_b:expr) => {
+            let set_a: HashSet<_> = HashSet::from_iter($coll_a.iter().cloned());
+            let set_b: HashSet<_> = HashSet::from_iter($coll_b.iter().cloned());
+
+            let diff_a_b: HashSet<_> = set_a.difference(&set_b).cloned().collect();
+            let diff_b_a: HashSet<_> = set_b.difference(&set_a).cloned().collect();
+
+            if !diff_a_b.is_empty() || !diff_b_a.is_empty() {
+                panic!("collections don't have the same elements. \
+                       \nin {} but not {}: {:?}. \
+                       \nin {} but not {}: {:?}.", stringify!($coll_a), stringify!($coll_b), diff_a_b, stringify!($coll_b), stringify!($coll_a), diff_b_a);
             }
-        };
+
+        }
     }
 
     #[test_case(Position::start(), HashSet::from_iter([
@@ -482,11 +491,7 @@ mod tests {
 
         let got = move_gen.gen_moves(&position);
 
-        let in_got_not_want: HashSet<_> = got.difference(&want).collect();
-        assert_empty!(in_got_not_want);
-
-        let in_want_not_got: HashSet<_> = want.difference(&got).collect();
-        assert_empty!(in_want_not_got);
+        assert_eq_collections!(got, want);
     }
 
     #[test_case(
@@ -526,12 +531,7 @@ mod tests {
 
         let got = move_gen.gen_moves(&start_position);
 
-        let in_got_not_want: HashSet<_> = got.difference(&want).collect();
-        assert_empty!(in_got_not_want);
-
-        let in_want_not_got: HashSet<_> = want.difference(&got).collect();
-        assert_empty!(in_want_not_got);
-
+        assert_eq_collections!(got, want);
     }
 
     #[test_case(Position::start(), Side::White, BitBoard::from_squares(&[
