@@ -30,6 +30,18 @@ use test_case::test_case;
     43 
     ) ; "kiwipete 4"
 )]
+#[test_case(Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(), 4, PerftDepthResult::new(
+    422333,
+    131393,
+    0,
+    7795,
+    600032,
+    15492,
+    0,
+    0,
+    5
+    ) ; "perft results position4 4"
+)]
 #[ignore]
 fn test_perft(starting_position: Position, depth: usize, want: PerftDepthResult) {
     let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());

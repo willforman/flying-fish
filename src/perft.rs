@@ -154,6 +154,9 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
     for mve in moves {
         let mut move_position = position.clone();
         move_position.make_move(&mve).unwrap();
+        println!("\n\ndepth= {}", curr_depth);
+        println!("\n{}", position);
+        println!("\n{}", move_position);
 
         let mut checkers = move_gen.get_checkers(&move_position);
         if !checkers.is_empty() {

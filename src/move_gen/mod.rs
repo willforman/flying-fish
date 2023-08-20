@@ -235,24 +235,27 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                     moves_bb &= pin_rays;
                 }
 
-                let moves_list: Vec<Move> = moves_bb.to_squares().iter()
-                    .flat_map(|&sq| {
-                        if piece_type == Piece::Pawn && (
-                            (side == Side::White && sq >= A8) || 
-                            (side == Side::Black && sq <= H1)
-                        )
-                        {
-                            Vec::from_iter([
+                // For each promotion, we need to add 4 moves to the list,
+                // 1 for each piece type
+                let moves_list: Vec<Move> = if piece_type == Piece::Pawn && 
+                    (side == Side::White && (piece_square >= A7 && piece_square <= H7)) ||
+                    (side == Side::Black && (piece_square >= A2 && piece_square <= H2))
+                {
+                    moves_bb.to_squares().iter()
+                        .flat_map(|&sq| {
+                            [
                                 Move { src: piece_square, dest: sq, promotion: Some(Piece::Knight) },
                                 Move { src: piece_square, dest: sq, promotion: Some(Piece::Bishop) },
                                 Move { src: piece_square, dest: sq, promotion: Some(Piece::Rook) },
                                 Move { src: piece_square, dest: sq, promotion: Some(Piece::Queen) }
-                            ])
-                        } else {
-                            Vec::from_iter([ Move { src: piece_square, dest: sq, promotion: None }])
-                        }
-                    })
-                    .collect();
+                            ]
+                        })
+                        .collect()
+                } else {
+                    moves_bb.to_squares().iter()
+                        .map(|&sq| Move { src: piece_square, dest: sq, promotion: None })
+                        .collect()
+                };
 
                 moves.extend(moves_list);
             }
@@ -464,6 +467,14 @@ mod tests {
         Move { src: H8, dest: H7, promotion: None }, Move { src: H8, dest: H6, promotion: None },
         Move { src: H8, dest: H5, promotion: None }, Move { src: H8, dest: H4, promotion: None },
     ]) ; "kiwipete depth 2")]
+    #[test_case(Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(), HashSet::from_iter([
+        Move { src: G1, dest: H1, promotion: None },
+        Move { src: F1, dest: F2, promotion: None },
+        Move { src: F3, dest: D4, promotion: None },
+        Move { src: B4, dest: C5, promotion: None },
+        Move { src: C4, dest: C5, promotion: None },
+        Move { src: D2, dest: D4, promotion: None },
+    ]) ; "perft results position4")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
@@ -478,6 +489,19 @@ mod tests {
         assert_empty!(in_want_not_got);
     }
 
+    #[test_case(
+        Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(),
+        Vec::from([
+            Move { src: E1, dest: F1, promotion: None },
+            Move { src: H3, dest: G2, promotion: None },
+        ]),
+        HashSet::from_iter([
+            Move { src: F1, dest: G1, promotion: None },
+            Move { src: F1, dest: G2, promotion: None },
+            Move { src: F1, dest: E1, promotion: None },
+            Move { src: F3, dest: G2, promotion: None },
+        ]) ; "perft results position4"
+    )]
     #[test_case(
         Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(),
         Vec::from([
