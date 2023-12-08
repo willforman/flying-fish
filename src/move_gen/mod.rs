@@ -115,36 +115,52 @@ impl AllPiecesMoveGen {
     }
 
 
-    fn get_pin_rays(&self, position: &Position, side: Side) -> BitBoard {
-        const PIN_RAY_PIECE_CHECKS: [Piece; 2] = [Piece::Bishop, Piece::Rook];
-
-        let mut pin_rays = BitBoard::empty();
+    fn get_pin_rays(&self, position: &Position, side: Side) -> (BitBoard, BitBoard) {
         let opp_side = side.opposite_side();
 
         let pinner_occupancy = position.pieces.get(Piece::King).get(side);
         let king_square = pinner_occupancy.get_lsb();
         let king_ray_occupancy = position.sides.get(opp_side);
 
-        for pin_ray_piece in PIN_RAY_PIECE_CHECKS {
-            let king_ray = self.sliding_pieces.gen_moves(pin_ray_piece, king_square, king_ray_occupancy);
+        // Rook pin ray
+        let king_ray = self.sliding_pieces.gen_moves(Piece::Rook, king_square, king_ray_occupancy);
 
-            let possible_pinners = position.pieces.get(pin_ray_piece).get(opp_side) |
-                position.pieces.get(Piece::Queen).get(opp_side);
-            let pinners = king_ray & possible_pinners;
+        let possible_pinners = position.pieces.get(Piece::Rook).get(opp_side) |
+            position.pieces.get(Piece::Queen).get(opp_side);
+        let pinners = king_ray & possible_pinners;
 
-            for pinner_square in pinners.to_squares() {
-                let mut moves = self.sliding_pieces.gen_moves(pin_ray_piece, pinner_square, pinner_occupancy);
-                moves.set_square(pinner_square); // Want to include capturing pinner in ray
-                let possible_pin_ray = moves & king_ray;
-                // If there's multiple pieces in the ray, then there's no pin
-                if (possible_pin_ray & position.sides.get(side)).num_squares_set() > 1 {
-                    continue;
-                }
-                pin_rays |= moves & king_ray;
+        let mut rook_pin_ray = BitBoard::empty();
+        for pinner_square in pinners.to_squares() {
+            let mut moves = self.sliding_pieces.gen_moves(Piece::Rook, pinner_square, pinner_occupancy);
+            moves.set_square(pinner_square); // Want to include capturing pinner in ray
+            let possible_pin_ray = moves & king_ray;
+            // If there's multiple pieces in the ray, then there's no pin
+            if (possible_pin_ray & position.sides.get(side)).num_squares_set() > 1 {
+                continue;
             }
+            rook_pin_ray |= moves & king_ray;
         }
 
-        pin_rays
+        // Bishop pin ray
+        let king_ray = self.sliding_pieces.gen_moves(Piece::Bishop, king_square, king_ray_occupancy);
+
+        let possible_pinners = position.pieces.get(Piece::Bishop).get(opp_side) |
+            position.pieces.get(Piece::Queen).get(opp_side);
+        let pinners = king_ray & possible_pinners;
+
+        let mut bishop_pin_ray = BitBoard::empty();
+        for pinner_square in pinners.to_squares() {
+            let mut moves = self.sliding_pieces.gen_moves(Piece::Bishop, pinner_square, pinner_occupancy);
+            moves.set_square(pinner_square); // Want to include capturing pinner in ray
+            let possible_pin_ray = moves & king_ray;
+            // If there's multiple pieces in the ray, then there's no pin
+            if (possible_pin_ray & position.sides.get(side)).num_squares_set() > 1 {
+                continue;
+            }
+            bishop_pin_ray |= moves & king_ray;
+        }
+
+        (rook_pin_ray, bishop_pin_ray)
     }
 }
 
@@ -164,7 +180,7 @@ impl GenerateAllMoves for AllPiecesMoveGen {
         let mut capture_mask = BitBoard::full();
         let mut push_mask = BitBoard::full();
 
-        let pin_rays = self.get_pin_rays(position, side);
+        let (rook_pin_ray, bishop_pin_ray) = self.get_pin_rays(position, side);
 
         // If the king has more than one checker, than the only legal moves are to move the king
         if num_checkers > 1 {
@@ -236,8 +252,11 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                     moves_bb &= capture_mask | push_mask;
                 }
 
-                if pin_rays.is_square_set(piece_square) {
-                    moves_bb &= pin_rays;
+                if rook_pin_ray.is_square_set(piece_square) {
+                    moves_bb &= rook_pin_ray;
+                }
+                if bishop_pin_ray.is_square_set(piece_square) {
+                    moves_bb &= bishop_pin_ray;
                 }
 
                 // For each promotion, we need to add 4 moves to the list,
@@ -498,11 +517,24 @@ mod tests {
     #[test_case(Position::from_fen("k7/1b6/8/8/8/8/6R1/r6K w - - 0 1").unwrap(), HashSet::from_iter([
         Move::new(H1, H2)
     ]) ; "move to another pin")]
+    #[test_case(Position::from_fen("k7/8/8/8/8/8/6N1/2rR3K w - - 0 1").unwrap(), HashSet::from_iter([
+        Move::new(D1, C1),
+        Move::new(D1, E1),
+        Move::new(D1, F1),
+        Move::new(D1, G1),
+        Move::new(G2, E1),
+        Move::new(G2, E3),
+        Move::new(G2, F4),
+        Move::new(G2, H4),
+        Move::new(H1, G1),
+        Move::new(H1, H2),
+    ]))]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
+        println!("{:?}", position);
         let got = move_gen.gen_moves(&position);
 
         assert_eq_collections!(got, want);
@@ -564,15 +596,16 @@ mod tests {
         assert_eq!(got, want);
     }
 
-    #[test_case(Position::from_fen("6B1/8/4r3/3k4/2r5/1Q6/8/7K w - - 0 1").unwrap(), BitBoard::from_squares(&[B3, C4, E6, F7, G8]) ; "bishop")]
-    #[test_case(Position::from_fen("8/8/8/3k1n1R/3n4/3Q4/8/7K w - - 0 1").unwrap(), BitBoard::from_squares(&[D3, D4, E5, F5, G5, H5]) ; "rook")]
-    #[test_case(Position::from_fen("6B1/5N2/4r3/3k4/2r5/1Q6/8/7K w - - 0 1").unwrap(), BitBoard::from_squares(&[B3, C4]) ; "bishop block pin")]
-    fn test_get_pin_rays(position: Position, want: BitBoard) {
+    #[test_case(Position::from_fen("6B1/8/4r3/3k4/2r5/1Q6/8/7K w - - 0 1").unwrap(), BitBoard::empty(), BitBoard::from_squares(&[B3, C4, E6, F7, G8]) ; "bishop")]
+    #[test_case(Position::from_fen("8/8/8/3k1n1R/3n4/3Q4/8/7K w - - 0 1").unwrap(), BitBoard::from_squares(&[D3, D4, E5, F5, G5, H5]), BitBoard::empty() ; "rook")]
+    #[test_case(Position::from_fen("6B1/5N2/4r3/3k4/2r5/1Q6/8/7K w - - 0 1").unwrap(), BitBoard::empty(), BitBoard::from_squares(&[B3, C4]) ; "bishop block pin")]
+    fn test_get_pin_rays(position: Position, want_rook_pin_ray: BitBoard, want_bishop_pin_ray: BitBoard) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
-        let got = move_gen.get_pin_rays(&position, Side::Black);
-        assert_eq!(got, want);
+        let (got_rook_pin_ray, got_bishop_pin_ray) = move_gen.get_pin_rays(&position, Side::Black);
+        assert_eq!(got_rook_pin_ray, want_rook_pin_ray);
+        assert_eq!(got_bishop_pin_ray, want_bishop_pin_ray);
     }
 }
