@@ -135,6 +135,11 @@ impl AllPiecesMoveGen {
             for pinner_square in pinners.to_squares() {
                 let mut moves = self.sliding_pieces.gen_moves(pin_ray_piece, pinner_square, pinner_occupancy);
                 moves.set_square(pinner_square); // Want to include capturing pinner in ray
+                let possible_pin_ray = moves & king_ray;
+                // If there's multiple pieces in the ray, then there's no pin
+                if (possible_pin_ray & position.sides.get(side)).num_squares_set() > 1 {
+                    continue;
+                }
                 pin_rays |= moves & king_ray;
             }
         }
