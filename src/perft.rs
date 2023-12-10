@@ -2,9 +2,8 @@ use std::{time::{Duration, Instant}, fmt::Display};
 
 use tabled::{Tabled,Table};
 
-use crate::{position::{Position, Piece,Side}, move_gen::GenerateAllMoves};
+use crate::{position::{Position, Piece}, move_gen::GenerateAllMoves};
 use crate::bitboard::BitBoard;
-use crate::bitboard::Square::*;
 
 #[derive(Clone,Copy,Debug,PartialEq, Eq, Tabled)]
 pub struct PerftDepthResult {
@@ -110,10 +109,24 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
 
     curr_res.tot += u64::try_from(moves.len()).unwrap();
 
-    let captures = moves.iter()
-        .filter(|&mve| !(BitBoard::from_square(mve.dest) & opp_pieces).is_empty())
-        .count();
-    curr_res.captures += u64::try_from(captures).unwrap();
+    if let Some(ep_target) = position.state.en_passant_target {
+        for mve in moves.clone() {
+            if mve.dest == ep_target {
+                let (piece_type, _) = position.is_piece_at(mve.src).unwrap();
+                if piece_type == Piece::Pawn {
+                    curr_res.captures += 1;
+                }
+            } else if !(BitBoard::from_square(mve.dest) & opp_pieces).is_empty() {
+                curr_res.captures += 1;
+            }
+        }
+    } else {
+        for mve in moves.clone() {
+            if !(BitBoard::from_square(mve.dest) & opp_pieces).is_empty() {
+                curr_res.captures += 1;
+            }
+        }
+    }
 
     if let Some(ep_target) = position.state.en_passant_target {
         for pawn_square in position.pieces.get(Piece::Pawn).get(side).to_squares() {
@@ -184,6 +197,7 @@ mod tests {
     use std::collections::HashSet;
 
     use test_case::test_case;
+    use crate::bitboard::Square::*;
 
     use crate::position::Move;
     

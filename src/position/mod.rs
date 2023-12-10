@@ -16,8 +16,12 @@ pub enum PositionError {
     #[error("no piece at {0}")]
     MoveNoPiece(String),
 
+    #[error("no piece at {0}")]
+    RemoveNoPiece(String),
+
     #[error("to_move is the other side, for move: {0} {1} -> {2}")]
     MoveNotToMove(String, String, String),
+
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
@@ -378,6 +382,16 @@ impl Position {
             }
         } else {
             Err(PositionError::MoveNoPiece(mve.src.to_string()))
+        }
+    }
+
+    pub fn remove_piece(&mut self, square: Square) -> Result<(), PositionError> {
+        if let Some((piece, side)) = self.is_piece_at(square) {
+            self.sides.get_mut(side).clear_square(square);
+            self.pieces.get_mut(piece).get_mut(side).clear_square(square);
+            Ok(())
+        } else {
+            Err(PositionError::RemoveNoPiece(square.to_string()))
         }
     }
 }

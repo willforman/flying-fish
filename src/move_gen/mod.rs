@@ -237,7 +237,15 @@ impl GenerateAllMoves for AllPiecesMoveGen {
 
                         let mut possible_atks = opp_pieces;
                         if let Some(ep_target) = position.state.en_passant_target {
-                            possible_atks |= BitBoard::from_square(ep_target)
+			    // Handle en passant pinning
+			    let en_passant_loc_dir = if side == Side::White { Direction::South } else { Direction::North };
+			    let en_passant_pawn_loc = Square::from_square_with_dir(ep_target, en_passant_loc_dir);
+			    let mut pos_without_ep = position.clone();
+			    pos_without_ep.remove_piece(en_passant_pawn_loc).unwrap();
+			    let (rook_ray_without_ep_pawn, _) = self.get_pin_rays(&pos_without_ep, side);
+			    if !rook_ray_without_ep_pawn.is_square_set(piece_square) {
+				possible_atks |= BitBoard::from_square(ep_target);
+			    }
                         }
 
                         let atks = self.leaping_pieces.gen_pawn_atks(piece_square, side) & possible_atks;
@@ -529,6 +537,12 @@ mod tests {
         Move::new(H1, G1),
         Move::new(H1, H2),
     ]))]
+    #[test_case(Position::from_fen("7k/8/8/KPp4r/8/8/8/8 w - c6 0 17k").unwrap(), HashSet::from_iter([
+	Move::new(B5, B6),
+	Move::new(A5, A6),
+	Move::new(A5, A4),
+	Move::new(A5, B6),
+    ]) ; "en passant pin")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
         let sliding_pieces = Box::new(HyperbolaQuintessence::new());
