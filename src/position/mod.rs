@@ -332,7 +332,7 @@ impl Position {
                     self.sides.get_mut(side).move_piece(mve.src, mve.dest);
 
                     self.pieces.get_mut(Piece::Pawn).get_mut(side).clear_square(mve.src);
-                    self.pieces.get_mut(Piece::Queen).get_mut(side).set_square(mve.dest);
+                    self.pieces.get_mut(mve.promotion.unwrap()).get_mut(side).set_square(mve.dest);
 
                     return Ok(());
                 }
