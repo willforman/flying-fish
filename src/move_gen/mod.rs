@@ -63,6 +63,7 @@ impl AllPiecesMoveGen {
                 if position.state.castling_rights.white_queen_side &&
                     !friendly_pieces.is_square_set(D1) && 
                     !friendly_pieces.is_square_set(C1) &&
+                    !friendly_pieces.is_square_set(B1) &&
                     !king_danger_squares.is_square_set(D1) &&
                     !king_danger_squares.is_square_set(C1)
                 {
@@ -81,6 +82,7 @@ impl AllPiecesMoveGen {
                 if position.state.castling_rights.black_queen_side &&
                     !friendly_pieces.is_square_set(D8) && 
                     !friendly_pieces.is_square_set(C8) &&
+                    !friendly_pieces.is_square_set(B8) &&
                     !king_danger_squares.is_square_set(D8) &&
                     !king_danger_squares.is_square_set(C8)
                 {
