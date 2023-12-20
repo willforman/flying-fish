@@ -226,11 +226,11 @@ impl Pieces {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) struct CastlingRights {
-    pub(crate) white_king_side: bool,
-    pub(crate) white_queen_side: bool,
-    pub(crate) black_king_side: bool,
-    pub(crate) black_queen_side: bool,
+pub struct CastlingRights {
+    pub white_king_side: bool,
+    pub white_queen_side: bool,
+    pub black_king_side: bool,
+    pub black_queen_side: bool,
 }
 
 impl CastlingRights {
@@ -254,11 +254,11 @@ impl CastlingRights {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct State {
-    pub(crate) to_move: Side,
-    pub(crate) half_move_clock: u8,
-    pub(crate) en_passant_target: Option<Square>,
-    pub(crate) castling_rights: CastlingRights,
+pub struct State {
+    pub to_move: Side,
+    pub half_move_clock: u8,
+    pub en_passant_target: Option<Square>,
+    pub castling_rights: CastlingRights,
 }
 
 impl State {
@@ -274,7 +274,7 @@ impl State {
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Position {
-    pub(crate) state: State,
+    pub state: State,
     pub(crate) sides: Sides,
     pub(crate) pieces: Pieces,
 }
