@@ -1,11 +1,7 @@
-use crate::evaluation::evaluate;
 use crate::position::Side;
 use crate::position::{Position,Move};
-use crate::move_gen::{GenerateAllMoves};
-
-pub trait EvaluatePosition {
-    fn evaluate(position: &Position) -> f64;
-}
+use crate::move_gen::GenerateAllMoves;
+use crate::evaluation::EvaluatePosition;
 
 pub fn find_move(position: &Position, evaluate_position: &impl EvaluatePosition, generate_moves: &impl GenerateAllMoves, depth: u32) -> Move {
     let (mve, _best_val) = find_move_helper(position, evaluate_position, generate_moves, 0, depth);
@@ -20,7 +16,8 @@ fn find_move_helper(position: &Position, evaluate_position: &impl EvaluatePositi
             let mut move_position = position.clone();
             move_position.make_move(&mve).unwrap();
             if curr_depth == (max_depth - 1) {
-                return (mve, best_val);
+                let eval_score = evaluate_position.evaluate(&move_position);
+                return (mve, eval_score);
             }
             let (_mve, got_val) = find_move_helper(&move_position, evaluate_position, generate_moves, curr_depth + 1, max_depth);
             if got_val > best_val {
@@ -35,7 +32,8 @@ fn find_move_helper(position: &Position, evaluate_position: &impl EvaluatePositi
             let mut move_position = position.clone();
             move_position.make_move(&mve).unwrap();
             if curr_depth == (max_depth - 1) {
-                return (mve, best_val);
+                let eval_score = evaluate_position.evaluate(&move_position);
+                return (mve, eval_score);
             }
             let (_mve, got_val) = find_move_helper(&move_position, evaluate_position, generate_moves, curr_depth + 1, max_depth);
             if got_val < best_val {

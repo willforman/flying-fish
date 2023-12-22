@@ -1,4 +1,8 @@
-use engine::{position::{Position, PositionError, Move}, bitboard::Square, move_gen::{AllPiecesMoveGen, leaping_pieces::LeapingPiecesMoveGen, hyperbola_quintessence::HyperbolaQuintessence, GenerateAllMoves}};
+use engine::evaluation::PositionEvaluator;
+use engine::position::{Position, PositionError, Move};
+use::engine::bitboard::Square;
+use::engine::move_gen::{AllPiecesMoveGen, leaping_pieces::LeapingPiecesMoveGen, hyperbola_quintessence::HyperbolaQuintessence, GenerateAllMoves};
+use::engine::search::find_move;
 use std::{io, str::FromStr};
 
 fn play_game() -> Result<(), PositionError> {
@@ -6,6 +10,7 @@ fn play_game() -> Result<(), PositionError> {
         Box::new(LeapingPiecesMoveGen::new()),
         Box::new(HyperbolaQuintessence::new()),
     );
+    let position_evaluator = PositionEvaluator{};
 
     let mut position = Position::start();
 
@@ -35,6 +40,9 @@ fn play_game() -> Result<(), PositionError> {
             continue;
         }
 
+        position.make_move(&mve)?;
+        println!("{:?}", position);
+        let mve = find_move(&position, &position_evaluator, &move_gen, 4);
         position.make_move(&mve)?;
         println!("{:?}", position);
     }
