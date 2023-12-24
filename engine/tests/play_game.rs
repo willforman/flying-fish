@@ -1,4 +1,4 @@
-use engine::position::{Position,Move};
+use engine::position::{Position,Move, Piece};
 use engine::bitboard::Square::*;
 
 use test_case::test_case;
@@ -42,7 +42,7 @@ use testresult::TestResult;
     Move::new(E3, F2),
     Move::new(E1, F2),
     Move::new(D7, D5),
-    Move::new(C7, D8),
+    Move::with_promotion(C7, D8, Piece::Queen),
 ], Position::from_fen("rnbQkbnr/pp3ppp/8/3p4/8/8/PPP1PKPP/RNBQ1BNR b kq - 0 6").unwrap() ; "promotion")]
 #[test_case(Position::start(), vec![
     Move::new(E2, E4),
