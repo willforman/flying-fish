@@ -1,8 +1,8 @@
-use chess::position::Position;
-use chess::perft::{PerftDepthResult,perft};
-use chess::move_gen::AllPiecesMoveGen;
-use chess::move_gen::leaping_pieces::LeapingPiecesMoveGen;
-use chess::move_gen::hyperbola_quintessence::HyperbolaQuintessence;
+use engine::position::Position;
+use engine::perft::{PerftDepthResult,perft};
+use engine::move_gen::AllPiecesMoveGen;
+use engine::move_gen::leaping_pieces::LeapingPiecesMoveGen;
+use engine::move_gen::hyperbola_quintessence::HyperbolaQuintessence;
 
 use test_case::test_case;
 

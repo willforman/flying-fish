@@ -1,5 +1,5 @@
-use chess::position::{Position,Move};
-use chess::bitboard::Square::*;
+use engine::position::{Position,Move};
+use engine::bitboard::Square::*;
 
 use test_case::test_case;
 use testresult::TestResult;
