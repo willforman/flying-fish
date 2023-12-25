@@ -19,9 +19,10 @@
           overlays = [ (import rust-overlay) ];
         };
 
-        rust = pkgs.rust-bin.stable.latest.default.override {
+        rust = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
+          extensions = [ "rust-src" "rust-analyzer" ];
           targets = [ "wasm32-unknown-unknown" ];
-        };
+        });
       in
       {
         devShells.default = pkgs.mkShell {
@@ -31,6 +32,7 @@
             libiconv
             cargo-leptos
             wasm-bindgen-cli
+            sass
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
               CoreServices
