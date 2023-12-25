@@ -14,7 +14,13 @@
             rustc
             rust-analyzer
             lldb
-          ];
+            libiconv
+            cargo-leptos
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
+              CoreServices
+              SystemConfiguration
+          ]);
           RUST_LOG = 1;
         };
       }
