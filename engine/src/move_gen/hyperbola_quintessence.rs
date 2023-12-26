@@ -5,6 +5,8 @@ use crate::position::Piece;
 
 use super::GenerateSlidingMoves;
 
+// TODO: Look into using static (lazy_static) for this file
+
 enum MaskType {
     Bit,
     File,
