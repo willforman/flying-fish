@@ -32,6 +32,7 @@
             libiconv
             cargo-leptos
             wasm-bindgen-cli
+            cargo-generate
             sass
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
