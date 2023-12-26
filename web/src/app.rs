@@ -24,7 +24,6 @@ pub fn App() -> impl IntoView {
             .into_view()
         }>
             <main>
-                <h1 class="text-red text-xl">SHOULD BE RED</h1>
                 <Layout> 
                     <Routes>
                         <Route path="" view=IndexPage/>

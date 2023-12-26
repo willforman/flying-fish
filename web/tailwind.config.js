@@ -6,7 +6,10 @@
 // build output in `cargo leptos watch`. It still wasn't right though, because it was building from
 // the root of the project. I had to update content to check inside `web/`.
 module.exports = {
-  content: ["*.html", "./web/src/**/*.rs",],
+   content: {
+    relative: true,
+    files: ["*.html", "./src/**/*.rs"],
+  },
   theme: {
     extend: {},
   },
