@@ -1,8 +1,8 @@
-use engine::position::Position;
-use engine::perft::{PerftDepthResult,perft};
-use engine::move_gen::AllPiecesMoveGen;
-use engine::move_gen::leaping_pieces::LeapingPiecesMoveGen;
 use engine::move_gen::hyperbola_quintessence::HyperbolaQuintessence;
+use engine::move_gen::leaping_pieces::LeapingPiecesMoveGen;
+use engine::move_gen::AllPiecesMoveGen;
+use engine::perft::{perft, PerftDepthResult};
+use engine::position::Position;
 
 use test_case::test_case;
 
@@ -27,7 +27,7 @@ use test_case::test_case;
     25523,
     42,
     6,
-    43 
+    43
     ) ; "kiwipete 4"
 )]
 #[test_case(Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(), 4, PerftDepthResult::new(

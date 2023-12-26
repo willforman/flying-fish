@@ -2,10 +2,10 @@ use strum::IntoEnumIterator;
 
 use std::string::ToString;
 
-use crate::bitboard::{BitBoard, Square, Direction};
-use crate::position::{Piece,Side};
+use crate::bitboard::{BitBoard, Direction, Square};
+use crate::position::{Piece, Side};
 
-use super::{MoveGenError, GenerateLeapingMoves};
+use super::{GenerateLeapingMoves, MoveGenError};
 
 struct SquareToMoveDatabase([BitBoard; 64]);
 
@@ -52,7 +52,7 @@ impl GenerateLeapingMoves for LeapingPiecesMoveGen {
         match piece {
             Piece::Knight => self.knight_atks.get_bitboard(square),
             Piece::King => self.king_atks.get_bitboard(square),
-            _ => panic!("piece type: want [knight, king], got {}", piece.to_string())
+            _ => panic!("piece type: want [knight, king], got {}", piece.to_string()),
         }
     }
 
@@ -66,11 +66,17 @@ impl GenerateLeapingMoves for LeapingPiecesMoveGen {
 }
 
 fn calc_pawn_pushes() -> ColoredSquareToMoveDatabase {
-    let white_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::North]]; 
-    let white_double_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::North], vec![Direction::North, Direction::North]]; 
-    let black_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::South]]; 
-    let black_double_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::South], vec![Direction::South, Direction::South]]; 
-    let edge_push_dirs: Vec<Vec<Direction>> = vec![]; 
+    let white_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::North]];
+    let white_double_push_dirs: Vec<Vec<Direction>> = vec![
+        vec![Direction::North],
+        vec![Direction::North, Direction::North],
+    ];
+    let black_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::South]];
+    let black_double_push_dirs: Vec<Vec<Direction>> = vec![
+        vec![Direction::South],
+        vec![Direction::South, Direction::South],
+    ];
+    let edge_push_dirs: Vec<Vec<Direction>> = vec![];
 
     let white_bbs: [BitBoard; 64] = Square::iter()
         .map(|sq| {
@@ -107,9 +113,15 @@ fn calc_pawn_pushes() -> ColoredSquareToMoveDatabase {
 }
 
 fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
-    let white_atk_dirs: Vec<Vec<Direction>> = vec![vec![Direction::North, Direction::East], vec![Direction::North, Direction::West]]; 
-    let black_atk_dirs: Vec<Vec<Direction>> = vec![vec![Direction::South, Direction::East], vec![Direction::South, Direction::West]]; 
-    let edge_push_dirs: Vec<Vec<Direction>> = vec![]; 
+    let white_atk_dirs: Vec<Vec<Direction>> = vec![
+        vec![Direction::North, Direction::East],
+        vec![Direction::North, Direction::West],
+    ];
+    let black_atk_dirs: Vec<Vec<Direction>> = vec![
+        vec![Direction::South, Direction::East],
+        vec![Direction::South, Direction::West],
+    ];
+    let edge_push_dirs: Vec<Vec<Direction>> = vec![];
 
     let white_bbs: [BitBoard; 64] = Square::iter()
         .map(|sq| {
@@ -143,14 +155,14 @@ fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
 
 fn calc_knight_atks() -> SquareToMoveDatabase {
     let dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::North, Direction::North, Direction::East], 
-        vec![Direction::North, Direction::North, Direction::West], 
-        vec![Direction::South, Direction::South, Direction::East], 
-        vec![Direction::South, Direction::South, Direction::West], 
-        vec![Direction::North, Direction::East, Direction::East], 
-        vec![Direction::North, Direction::West, Direction::West], 
-        vec![Direction::South, Direction::East, Direction::East], 
-        vec![Direction::South, Direction::West, Direction::West], 
+        vec![Direction::North, Direction::North, Direction::East],
+        vec![Direction::North, Direction::North, Direction::West],
+        vec![Direction::South, Direction::South, Direction::East],
+        vec![Direction::South, Direction::South, Direction::West],
+        vec![Direction::North, Direction::East, Direction::East],
+        vec![Direction::North, Direction::West, Direction::West],
+        vec![Direction::South, Direction::East, Direction::East],
+        vec![Direction::South, Direction::West, Direction::West],
     ];
 
     let bbs: [BitBoard; 64] = Square::iter()
@@ -163,14 +175,14 @@ fn calc_knight_atks() -> SquareToMoveDatabase {
 
 fn calc_king_atks() -> SquareToMoveDatabase {
     let dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::North], 
-        vec![Direction::East], 
-        vec![Direction::West], 
-        vec![Direction::South], 
-        vec![Direction::North, Direction::East], 
-        vec![Direction::North, Direction::West], 
-        vec![Direction::South, Direction::East], 
-        vec![Direction::South, Direction::West], 
+        vec![Direction::North],
+        vec![Direction::East],
+        vec![Direction::West],
+        vec![Direction::South],
+        vec![Direction::North, Direction::East],
+        vec![Direction::North, Direction::West],
+        vec![Direction::South, Direction::East],
+        vec![Direction::South, Direction::West],
     ];
 
     let bbs: [BitBoard; 64] = Square::iter()
@@ -183,10 +195,10 @@ fn calc_king_atks() -> SquareToMoveDatabase {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::Square::*;
+    use super::*;
     use test_case::test_case;
-    
+
     #[test_case(D4, BitBoard::from_squares(&[B5, C6, E6, F5, B3, C2, E2, F3]) ; "center")]
     #[test_case(A8, BitBoard::from_squares(&[B6, C7]) ; "corner")]
     #[test_case(A4, BitBoard::from_squares(&[B6, C5, C3, B2]) ; "edge")]
@@ -221,7 +233,7 @@ mod tests {
 
     #[test_case(D2, Side::White, BitBoard::from_squares(&[C3, E3]) ; "white")]
     #[test_case(A7, Side::White, BitBoard::from_squares(&[B8]) ; "white edge")]
-    // Even though a pawn would never actually be in the "back rank", important for 
+    // Even though a pawn would never actually be in the "back rank", important for
     // finding checkers if the king is on the back rank
     #[test_case(F1, Side::White, BitBoard::from_squares(&[E2, G2]) ; "white back rank")]
     #[test_case(D7, Side::Black, BitBoard::from_squares(&[C6, E6]) ; "black")]

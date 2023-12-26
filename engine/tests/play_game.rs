@@ -1,5 +1,5 @@
-use engine::position::{Position,Move, Piece};
 use engine::bitboard::Square::*;
+use engine::position::{Move, Piece, Position};
 
 use test_case::test_case;
 use testresult::TestResult;
@@ -57,7 +57,7 @@ fn test_play_game(mut starting_position: Position, moves: Vec<Move>, want: Posit
     for mve in moves {
         starting_position.make_move(&mve)?;
     }
-    
+
     assert_eq!(starting_position, want);
     Ok(())
 }

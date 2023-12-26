@@ -1,10 +1,10 @@
 use std::fmt;
 
 use strum::IntoEnumIterator;
-use strum_macros::{Display,EnumIter};
+use strum_macros::{Display, EnumIter};
 
-use crate::bitboard::{BitBoard,Square,Direction};
 use crate::bitboard::Square::*;
+use crate::bitboard::{BitBoard, Direction, Square};
 
 mod fen;
 
@@ -21,18 +21,21 @@ pub enum PositionError {
 
     #[error("to_move is the other side, for move: {0} {1} -> {2}")]
     MoveNotToMove(String, String, String),
-
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
 pub enum Side {
     White,
-    Black
+    Black,
 }
 
 impl Side {
     pub(crate) fn opposite_side(self) -> Side {
-        if self == Side::White { Side::Black } else { Side::White }
+        if self == Side::White {
+            Side::Black
+        } else {
+            Side::White
+        }
     }
 }
 
@@ -43,7 +46,7 @@ pub enum Piece {
     Bishop,
     Rook,
     Queen,
-    King
+    King,
 }
 
 impl Piece {
@@ -63,7 +66,7 @@ impl Into<char> for Piece {
             Piece::Bishop => 'b',
             Piece::Rook => 'r',
             Piece::Queen => 'q',
-            Piece::King => 'k'
+            Piece::King => 'k',
         }
     }
 }
@@ -79,7 +82,7 @@ impl TryFrom<char> for Piece {
             'r' => Ok(Piece::Rook),
             'q' => Ok(Piece::Queen),
             'k' => Ok(Piece::King),
-            _ => Err(PositionError::FromCharPiece(value))
+            _ => Err(PositionError::FromCharPiece(value)),
         }
     }
 }
@@ -93,11 +96,19 @@ pub struct Move {
 
 impl Move {
     pub fn new(src: Square, dest: Square) -> Move {
-        Self { src, dest, promotion: None }
+        Self {
+            src,
+            dest,
+            promotion: None,
+        }
     }
 
     pub fn with_promotion(src: Square, dest: Square, promotion: Piece) -> Self {
-        Self { src, dest, promotion: Some(promotion) }
+        Self {
+            src,
+            dest,
+            promotion: Some(promotion),
+        }
     }
 }
 
@@ -114,7 +125,7 @@ impl fmt::Debug for Move {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Sides {
     white: BitBoard,
-    black: BitBoard
+    black: BitBoard,
 }
 
 impl Sides {
@@ -127,13 +138,11 @@ impl Sides {
     fn start() -> Self {
         Self {
             white: BitBoard::from_squares(&[
-                A1, B1, C1, D1, E1, F1, G1, H1,
-                A2, B2, C2, D2, E2, F2, G2, H2,
+                A1, B1, C1, D1, E1, F1, G1, H1, A2, B2, C2, D2, E2, F2, G2, H2,
             ]),
             black: BitBoard::from_squares(&[
-                A7, B7, C7, D7, E7, F7, G7, H7,
-                A8, B8, C8, D8, E8, F8, G8, H8,
-            ])
+                A7, B7, C7, D7, E7, F7, G7, H7, A8, B8, C8, D8, E8, F8, G8, H8,
+            ]),
         }
     }
 
@@ -177,27 +186,27 @@ impl Pieces {
         Self {
             pawns: Sides {
                 white: { BitBoard::from_squares(&[A2, B2, C2, D2, E2, F2, G2, H2]) },
-                black: { BitBoard::from_squares(&[A7, B7, C7, D7, E7, F7, G7, H7]) }
+                black: { BitBoard::from_squares(&[A7, B7, C7, D7, E7, F7, G7, H7]) },
             },
             knights: Sides {
                 white: { BitBoard::from_squares(&[B1, G1]) },
-                black: { BitBoard::from_squares(&[B8, G8]) }
+                black: { BitBoard::from_squares(&[B8, G8]) },
             },
             bishops: Sides {
                 white: { BitBoard::from_squares(&[C1, F1]) },
-                black: { BitBoard::from_squares(&[C8, F8]) }
+                black: { BitBoard::from_squares(&[C8, F8]) },
             },
             rooks: Sides {
                 white: { BitBoard::from_squares(&[A1, H1]) },
-                black: { BitBoard::from_squares(&[A8, H8]) }
+                black: { BitBoard::from_squares(&[A8, H8]) },
             },
             queens: Sides {
                 white: { BitBoard::from_squares(&[D1]) },
-                black: { BitBoard::from_squares(&[D8]) }
+                black: { BitBoard::from_squares(&[D8]) },
             },
             kings: Sides {
                 white: { BitBoard::from_squares(&[E1]) },
-                black: { BitBoard::from_squares(&[E8]) }
+                black: { BitBoard::from_squares(&[E8]) },
             },
         }
     }
@@ -243,7 +252,12 @@ impl CastlingRights {
         }
     }
 
-    pub(crate) fn new(white_king_side: bool, white_queen_side: bool, black_king_side: bool, black_queen_side: bool) -> Self {
+    pub(crate) fn new(
+        white_king_side: bool,
+        white_queen_side: bool,
+        black_king_side: bool,
+        black_queen_side: bool,
+    ) -> Self {
         Self {
             white_king_side,
             white_queen_side,
@@ -267,7 +281,7 @@ impl State {
             to_move: Side::White,
             half_move_clock: 0,
             en_passant_target: None,
-            castling_rights: CastlingRights::start()
+            castling_rights: CastlingRights::start(),
         }
     }
 }
@@ -293,8 +307,7 @@ impl Position {
             let sides = &self.pieces.get(piece);
             if sides.white.is_square_set(square) {
                 return Some((piece, Side::White));
-            }
-            else if sides.black.is_square_set(square) {
+            } else if sides.black.is_square_set(square) {
                 return Some((piece, Side::Black));
             }
         }
@@ -305,7 +318,11 @@ impl Position {
     pub fn make_move(&mut self, mve: &Move) -> Result<(), PositionError> {
         if let Some((piece, side)) = self.is_piece_at(mve.src) {
             if side != self.state.to_move {
-                Err(PositionError::MoveNotToMove(side.to_string(), mve.src.to_string(), mve.dest.to_string()))
+                Err(PositionError::MoveNotToMove(
+                    side.to_string(),
+                    mve.src.to_string(),
+                    mve.dest.to_string(),
+                ))
             } else {
                 self.state.to_move = side.opposite_side();
 
@@ -316,7 +333,11 @@ impl Position {
                 }
 
                 if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
-                    let ep_dir = if side == Side::White { Direction::North } else { Direction::South };
+                    let ep_dir = if side == Side::White {
+                        Direction::North
+                    } else {
+                        Direction::South
+                    };
                     let ep_target = Square::from_square_with_dir(mve.src, ep_dir);
                     self.state.en_passant_target = Some(ep_target);
                 } else {
@@ -325,14 +346,24 @@ impl Position {
 
                 if let Some((opp_piece, opp_side)) = self.is_piece_at(mve.dest) {
                     self.sides.get_mut(opp_side).clear_square(mve.dest);
-                    self.pieces.get_mut(opp_piece).get_mut(opp_side).clear_square(mve.dest);
+                    self.pieces
+                        .get_mut(opp_piece)
+                        .get_mut(opp_side)
+                        .clear_square(mve.dest);
                 }
 
-                if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) { // Promotion
+                if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
+                    // Promotion
                     self.sides.get_mut(side).move_piece(mve.src, mve.dest);
 
-                    self.pieces.get_mut(Piece::Pawn).get_mut(side).clear_square(mve.src);
-                    self.pieces.get_mut(mve.promotion.unwrap()).get_mut(side).set_square(mve.dest);
+                    self.pieces
+                        .get_mut(Piece::Pawn)
+                        .get_mut(side)
+                        .clear_square(mve.src);
+                    self.pieces
+                        .get_mut(mve.promotion.unwrap())
+                        .get_mut(side)
+                        .set_square(mve.dest);
 
                     return Ok(());
                 }
@@ -346,7 +377,8 @@ impl Position {
                         self.state.castling_rights.black_queen_side = false;
                     }
 
-                    if mve.src.abs_diff(mve.dest) == 2 { // Castled
+                    if mve.src.abs_diff(mve.dest) == 2 {
+                        // Castled
                         let rook_move = match mve.dest {
                             C1 => Move::new(A1, D1),
                             G1 => Move::new(H1, F1),
@@ -355,8 +387,13 @@ impl Position {
                             _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
                         };
 
-                        self.sides.get_mut(side).move_piece(rook_move.src, rook_move.dest);
-                        self.pieces.get_mut(Piece::Rook).get_mut(side).move_piece(rook_move.src, rook_move.dest);
+                        self.sides
+                            .get_mut(side)
+                            .move_piece(rook_move.src, rook_move.dest);
+                        self.pieces
+                            .get_mut(Piece::Rook)
+                            .get_mut(side)
+                            .move_piece(rook_move.src, rook_move.dest);
                     }
                 }
 
@@ -374,9 +411,11 @@ impl Position {
                     }
                 }
 
-
                 self.sides.get_mut(side).move_piece(mve.src, mve.dest);
-                self.pieces.get_mut(piece).get_mut(side).move_piece(mve.src, mve.dest);
+                self.pieces
+                    .get_mut(piece)
+                    .get_mut(side)
+                    .move_piece(mve.src, mve.dest);
 
                 Ok(())
             }
@@ -388,7 +427,10 @@ impl Position {
     pub fn remove_piece(&mut self, square: Square) -> Result<(), PositionError> {
         if let Some((piece, side)) = self.is_piece_at(square) {
             self.sides.get_mut(side).clear_square(square);
-            self.pieces.get_mut(piece).get_mut(side).clear_square(square);
+            self.pieces
+                .get_mut(piece)
+                .get_mut(side)
+                .clear_square(square);
             Ok(())
         } else {
             Err(PositionError::RemoveNoPiece(square.to_string()))
@@ -410,7 +452,6 @@ impl fmt::Display for Position {
                 };
 
                 board_str.push(ch);
-
             }
             if rank != 0 {
                 board_str.push('\n');
@@ -475,10 +516,17 @@ mod tests {
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 
         Move::new(A2, A4),A3 ; "kiwipete")]
-    fn test_make_move_ep_target(mut position: Position, mve: Move, want_en_passant_target: Square) -> TestResult {
+    fn test_make_move_ep_target(
+        mut position: Position,
+        mve: Move,
+        want_en_passant_target: Square,
+    ) -> TestResult {
         position.make_move(&mve)?;
         assert!(position.state.en_passant_target.is_some());
-        assert_eq!(position.state.en_passant_target.unwrap(), want_en_passant_target);
+        assert_eq!(
+            position.state.en_passant_target.unwrap(),
+            want_en_passant_target
+        );
         Ok(())
     }
 

@@ -1,6 +1,6 @@
-use crate::position::{Position,Side,Piece,CastlingRights,Sides,Pieces,State};
-use crate::bitboard::{BitBoard,Square};
 use crate::bitboard::Square::*;
+use crate::bitboard::{BitBoard, Square};
+use crate::position::{CastlingRights, Piece, Pieces, Position, Side, Sides, State};
 use std::str::FromStr;
 
 use strum::IntoEnumIterator;
@@ -23,12 +23,12 @@ pub enum FenParseError {
     EnPassantTarget(String),
 
     #[error("halfmove clock: want 0 <= x < 50 got {0}")]
-    HalfmoveClock(String)
+    HalfmoveClock(String),
 }
 
 impl Position {
     pub fn from_fen(fen: &str) -> Result<Self, FenParseError> {
-        let fields = fen.split(' ').collect::<Vec<&str>>(); 
+        let fields = fen.split(' ').collect::<Vec<&str>>();
 
         if fields.len() != 6 {
             Err(FenParseError::NumFields(fields.len()))?
@@ -39,10 +39,11 @@ impl Position {
         let to_move = match fields[1] {
             "w" => Side::White,
             "b" => Side::Black,
-            _ => Err(FenParseError::SideToMove(String::from(fields[1])))?
+            _ => Err(FenParseError::SideToMove(String::from(fields[1])))?,
         };
 
-        let half_move_clock = fields[4].parse::<u8>()
+        let half_move_clock = fields[4]
+            .parse::<u8>()
             .map_err(|_| FenParseError::HalfmoveClock(fields[4].to_string()))?;
 
         // Half move counter must be in 0..=49
@@ -51,7 +52,6 @@ impl Position {
             Err(FenParseError::HalfmoveClock(fields[4].to_string()))?
         }
 
-
         let state = State {
             castling_rights: castling_rights_from_fen(fields[2])?,
             en_passant_target: en_passant_target_from_fen(fields[3])?,
@@ -59,10 +59,10 @@ impl Position {
             to_move,
         };
 
-        Ok(Position{
+        Ok(Position {
             sides,
             pieces,
-            state
+            state,
         })
     }
 }
@@ -81,36 +81,60 @@ fn castling_rights_from_fen(castling_rights_str: &str) -> Result<CastlingRights,
         match ch {
             'K' => {
                 if white_king_side {
-                    return Err(FenParseError::CastlingRights(castling_rights_str.to_string(), idx))
+                    return Err(FenParseError::CastlingRights(
+                        castling_rights_str.to_string(),
+                        idx,
+                    ));
                 }
                 white_king_side = true;
             }
             'Q' => {
                 if white_queen_side {
-                    return Err(FenParseError::CastlingRights(castling_rights_str.to_string(), idx));
+                    return Err(FenParseError::CastlingRights(
+                        castling_rights_str.to_string(),
+                        idx,
+                    ));
                 }
                 white_queen_side = true;
             }
             'k' => {
                 if black_king_side {
-                    return Err(FenParseError::CastlingRights(castling_rights_str.to_string(), idx));
+                    return Err(FenParseError::CastlingRights(
+                        castling_rights_str.to_string(),
+                        idx,
+                    ));
                 }
                 black_king_side = true;
             }
             'q' => {
                 if black_queen_side {
-                    return Err(FenParseError::CastlingRights(castling_rights_str.to_string(), idx));
+                    return Err(FenParseError::CastlingRights(
+                        castling_rights_str.to_string(),
+                        idx,
+                    ));
                 }
                 black_queen_side = true;
             }
-            _ => return Err(FenParseError::CastlingRights(castling_rights_str.to_string(), idx)),
+            _ => {
+                return Err(FenParseError::CastlingRights(
+                    castling_rights_str.to_string(),
+                    idx,
+                ))
+            }
         }
     }
 
-    Ok(CastlingRights::new(white_king_side, white_queen_side, black_king_side, black_queen_side))
+    Ok(CastlingRights::new(
+        white_king_side,
+        white_queen_side,
+        black_king_side,
+        black_queen_side,
+    ))
 }
 
-fn en_passant_target_from_fen(en_passant_target_str: &str) -> Result<Option<Square>, FenParseError> {
+fn en_passant_target_from_fen(
+    en_passant_target_str: &str,
+) -> Result<Option<Square>, FenParseError> {
     if en_passant_target_str == "-" {
         return Ok(None);
     }
@@ -122,14 +146,9 @@ fn en_passant_target_from_fen(en_passant_target_str: &str) -> Result<Option<Squa
 }
 
 const FEN_SQUARE_ORDER: [Square; 64] = [
-    A8, B8, C8, D8, E8, F8, G8, H8,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A3, B3, C3, D3, E3, F3, G3, H3,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A1, B1, C1, D1, E1, F1, G1, H1
+    A8, B8, C8, D8, E8, F8, G8, H8, A7, B7, C7, D7, E7, F7, G7, H7, A6, B6, C6, D6, E6, F6, G6, H6,
+    A5, B5, C5, D5, E5, F5, G5, H5, A4, B4, C4, D4, E4, F4, G4, H4, A3, B3, C3, D3, E3, F3, G3, H3,
+    A2, B2, C2, D2, E2, F2, G2, H2, A1, B1, C1, D1, E1, F1, G1, H1,
 ];
 
 fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
@@ -140,18 +159,25 @@ fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
     for (ch_idx, ch) in pieces_str.chars().enumerate() {
         if let Ok(piece) = Piece::try_from(ch.to_ascii_lowercase()) {
             let square = FEN_SQUARE_ORDER[sq_idx];
-            let side = if ch.is_uppercase() { Side::White } else { Side::Black }; 
+            let side = if ch.is_uppercase() {
+                Side::White
+            } else {
+                Side::Black
+            };
 
             sides.get_mut(side).set_square(square);
             pieces.get_mut(piece).get_mut(side).set_square(square);
 
             sq_idx += 1;
-        } else if let Some(digit) = ch.to_digit(10){
+        } else if let Some(digit) = ch.to_digit(10) {
             sq_idx += digit as usize;
         } else if ch == '/' {
             // pass
         } else {
-            Err(FenParseError::PiecePlacement(pieces_str.to_string(), ch_idx))?
+            Err(FenParseError::PiecePlacement(
+                pieces_str.to_string(),
+                ch_idx,
+            ))?
         }
     }
 
@@ -247,4 +273,4 @@ mod tests {
 
         Ok(())
     }
- }
+}

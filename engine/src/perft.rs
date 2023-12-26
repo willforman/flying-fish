@@ -1,11 +1,17 @@
-use std::{time::{Duration, Instant}, fmt::Display};
+use std::{
+    fmt::Display,
+    time::{Duration, Instant},
+};
 
-use tabled::{Tabled,Table};
+use tabled::{Table, Tabled};
 
-use crate::{position::{Position, Piece}, move_gen::GenerateAllMoves};
 use crate::bitboard::BitBoard;
+use crate::{
+    move_gen::GenerateAllMoves,
+    position::{Piece, Position},
+};
 
-#[derive(Clone,Copy,Debug,PartialEq, Eq, Tabled)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Tabled)]
 pub struct PerftDepthResult {
     tot: u64,
     captures: u64,
@@ -15,7 +21,7 @@ pub struct PerftDepthResult {
     checks: u64,
     discovery_checks: u64,
     double_checks: u64,
-    checkmates: u64
+    checkmates: u64,
 }
 
 pub struct PerftResult {
@@ -27,15 +33,15 @@ pub struct PerftResult {
 
 impl PerftDepthResult {
     pub fn new(
-        tot: u64, 
-        captures: u64, 
-        en_passants: u64, 
-        castles: u64, 
-        promotions: u64, 
-        checks: u64, 
-        discovery_checks: u64, 
-        double_checks: u64, 
-        checkmates: u64
+        tot: u64,
+        captures: u64,
+        en_passants: u64,
+        castles: u64,
+        promotions: u64,
+        checks: u64,
+        discovery_checks: u64,
+        double_checks: u64,
+        checkmates: u64,
     ) -> Self {
         PerftDepthResult {
             tot,
@@ -46,9 +52,8 @@ impl PerftDepthResult {
             checks,
             discovery_checks,
             double_checks,
-            checkmates
+            checkmates,
         }
-
     }
     pub fn empty() -> PerftDepthResult {
         PerftDepthResult::new(0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -74,20 +79,25 @@ pub fn perft(position: &Position, move_gen: &impl GenerateAllMoves, depth: usize
 
     let time_elapsed = start.elapsed();
 
-    let tot_nodes = depth_results.iter()
-        .fold(0, |tot, curr| tot + curr.tot);
+    let tot_nodes = depth_results.iter().fold(0, |tot, curr| tot + curr.tot);
 
     let nodes_per_second = tot_nodes as f64 / time_elapsed.as_secs_f64();
 
-    PerftResult { 
-        depth_results, 
+    PerftResult {
+        depth_results,
         tot_nodes,
         time_elapsed,
-        nodes_per_second
+        nodes_per_second,
     }
 }
 
-fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, move_gen: &impl GenerateAllMoves, max_depth: usize, curr_depth: usize) {
+fn perft_helper(
+    depth_results: &mut Vec<PerftDepthResult>,
+    position: &Position,
+    move_gen: &impl GenerateAllMoves,
+    max_depth: usize,
+    curr_depth: usize,
+) {
     // Must check moves before checking end condition of this recursive function
     // because we need to check for checkmate
     let moves = move_gen.gen_moves(position);
@@ -130,7 +140,8 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
 
     if let Some(ep_target) = position.state.en_passant_target {
         for pawn_square in position.pieces.get(Piece::Pawn).get(side).to_squares() {
-            let has_en_passant = moves.iter()
+            let has_en_passant = moves
+                .iter()
                 .any(|&mve| mve.src == pawn_square && mve.dest == ep_target);
             if has_en_passant {
                 curr_res.en_passants += 1;
@@ -138,7 +149,8 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
         }
     }
 
-    let castles: u64 = moves.iter()
+    let castles: u64 = moves
+        .iter()
         .filter(|&mve| {
             let (p, _) = position.is_piece_at(mve.src).unwrap();
             if p == Piece::King {
@@ -152,7 +164,8 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
         .unwrap();
     curr_res.castles += castles;
 
-    let promotions: u64 = moves.iter()
+    let promotions: u64 = moves
+        .iter()
         .filter(|&mve| mve.promotion.is_some())
         .count()
         .try_into()
@@ -181,10 +194,16 @@ fn perft_helper(depth_results: &mut Vec<PerftDepthResult>, position: &Position, 
             }
         }
 
-        perft_helper(depth_results, &move_position, move_gen, max_depth, curr_depth + 1);
+        perft_helper(
+            depth_results,
+            &move_position,
+            move_gen,
+            max_depth,
+            curr_depth + 1,
+        );
     }
 
-    // Reborrow to avoid multiple mutable references 
+    // Reborrow to avoid multiple mutable references
     let curr_res = depth_results.get_mut(curr_depth).unwrap();
     curr_res.checks += tot_checks;
     curr_res.double_checks += tot_double_checks;
@@ -196,13 +215,13 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
-    use test_case::test_case;
     use crate::bitboard::Square::*;
+    use test_case::test_case;
 
     use crate::position::Move;
-    
+
     struct AllPiecesMoveGenStub {
-        moves: HashSet<Move>
+        moves: HashSet<Move>,
     }
 
     impl GenerateAllMoves for AllPiecesMoveGenStub {
@@ -217,10 +236,8 @@ mod tests {
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1").unwrap(), 1)]
     fn test_count_en_passant(start_position: Position, want: u64) {
-        let move_gen = AllPiecesMoveGenStub{
-            moves: HashSet::from([
-                Move::new(B4, A3)
-            ])
+        let move_gen = AllPiecesMoveGenStub {
+            moves: HashSet::from([Move::new(B4, A3)]),
         };
 
         let res = perft(&start_position, &move_gen, 1);

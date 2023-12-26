@@ -1,8 +1,10 @@
 use std::fmt;
-use std::ops::{BitAnd,BitOr,BitXor,Not,Sub, SubAssign, BitXorAssign, BitAndAssign, BitOrAssign};
+use std::ops::{
+    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Sub, SubAssign,
+};
 
-use strum_macros::{EnumIter,EnumString,FromRepr,Display};
 use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter, EnumString, FromRepr};
 
 #[allow(dead_code)]
 #[rustfmt::skip]
@@ -70,20 +72,20 @@ impl BitBoard {
 
     // TODO: convert to From<&[Square]>
     pub(crate) fn from_squares(squares: &[Square]) -> Self {
-        BitBoard(
-            squares
-            .iter()
-            .fold(0, |board, sq| board | 1 << (*sq as u8))
-        )
+        BitBoard(squares.iter().fold(0, |board, sq| board | 1 << (*sq as u8)))
     }
 
     pub(crate) fn from_val(val: u64) -> Self {
         BitBoard(val)
     }
 
-    pub(crate) fn from_square_shifts(square: Square, shift_dirs_list: &Vec<Vec<Direction>>) -> Self {
+    pub(crate) fn from_square_shifts(
+        square: Square,
+        shift_dirs_list: &Vec<Vec<Direction>>,
+    ) -> Self {
         let start = BitBoard::from_square(square);
-        let res = shift_dirs_list.iter()
+        let res = shift_dirs_list
+            .iter()
             .fold(start.clone(), |acc, shift_dirs| {
                 let mut shifted = start.clone();
                 for &sd in shift_dirs {
@@ -284,11 +286,7 @@ impl fmt::Debug for BitBoard {
         for rank in (0..8).rev() {
             for file in 0..8 {
                 let square = Square::from_repr(rank * 8 + file).unwrap();
-                let ch = if self.is_square_set(square) {
-                    'X'
-                } else {
-                    '.'
-                };
+                let ch = if self.is_square_set(square) { 'X' } else { '.' };
                 board_str.push(ch);
             }
             if rank != 0 {
@@ -302,8 +300,8 @@ impl fmt::Debug for BitBoard {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::Square::*;
+    use super::*;
     use test_case::test_case;
 
     #[test]
@@ -340,7 +338,7 @@ mod tests {
         }
     }
 
-    #[test_case([B8, G6, A4, F1], 
+    #[test_case([B8, G6, A4, F1],
         0b0000001000000000010000000000000000000001000000000000000000100000
     ; "first")]
     fn test_is_piece_at_binary_number(piece_squares: [Square; 4], bin_num: u64) {
@@ -377,14 +375,17 @@ mod tests {
     #[test_case(D4, vec![vec![Direction::North]], BitBoard::from_square(D5) ; "one")]
     #[test_case(D4, vec![vec![Direction::North], vec![Direction::South]], BitBoard::from_squares(&[D5, D3]) ; "two")]
     #[test_case(D4, vec![
-        vec![Direction::North], 
+        vec![Direction::North],
         vec![Direction::South],
         vec![Direction::East],
         vec![Direction::West],
     ], BitBoard::from_squares(&[D5, D3, E4, C4]) ; "all")]
-
     #[test_case(D4, vec![vec![Direction::North, Direction::East]], BitBoard::from_square(E5) ; "multi")]
-    fn test_from_square_shifts(inp_square: Square, shift_dirs_list: Vec<Vec<Direction>>, want: BitBoard) {
+    fn test_from_square_shifts(
+        inp_square: Square,
+        shift_dirs_list: Vec<Vec<Direction>>,
+        want: BitBoard,
+    ) {
         let got = BitBoard::from_square_shifts(inp_square, &shift_dirs_list);
         assert_eq!(got, want);
     }

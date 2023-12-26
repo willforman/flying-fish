@@ -24,7 +24,7 @@ pub fn App() -> impl IntoView {
             .into_view()
         }>
             <main>
-                <Layout> 
+                <Layout>
                     <Routes>
                         <Route path="" view=IndexPage/>
                     </Routes>

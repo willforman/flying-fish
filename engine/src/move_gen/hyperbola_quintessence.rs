@@ -1,6 +1,6 @@
 use strum::IntoEnumIterator;
 
-use crate::bitboard::{BitBoard, Square, Direction};
+use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::Piece;
 
 use super::GenerateSlidingMoves;
@@ -19,7 +19,7 @@ struct SquareMasks {
     bit: BitBoard,
     file: BitBoard,
     diag: BitBoard,
-    anti_diag: BitBoard
+    anti_diag: BitBoard,
 }
 
 impl SquareMasks {
@@ -79,8 +79,10 @@ impl MasksList {
                 let rank = (idx + 1) / 8;
 
                 file_dirs[7 - rank] = vec![Direction::South; rank];
-                diag_dirs[7 - rank] = [vec![Direction::South; rank], vec![Direction::East; rank]].concat();
-                anti_diag_dirs[7 - rank] = [vec![Direction::South; rank], vec![Direction::West; rank]].concat();
+                diag_dirs[7 - rank] =
+                    [vec![Direction::South; rank], vec![Direction::East; rank]].concat();
+                anti_diag_dirs[7 - rank] =
+                    [vec![Direction::South; rank], vec![Direction::West; rank]].concat();
             }
         }
         MasksList(masks_list.try_into().unwrap())
@@ -117,7 +119,8 @@ fn calc_rank_atks() -> [u8; 64 * 8] {
             let shifted_pieces = pieces << 1; // Ignore the first and last bit
                                               //
             let left_atks = calc_left_rank_atk(shifted_pieces, rook);
-            let right_atks = calc_left_rank_atk(shifted_pieces.reverse_bits(), rook.reverse_bits()).reverse_bits();
+            let right_atks = calc_left_rank_atk(shifted_pieces.reverse_bits(), rook.reverse_bits())
+                .reverse_bits();
 
             let atks = left_atks | right_atks;
             rank_atks_list.push(atks);
@@ -139,7 +142,7 @@ impl HyperbolaQuintessence {
             rank_atks: calc_rank_atks(),
         }
     }
-    
+
     fn get_moves(&self, occupancy: BitBoard, mask: BitBoard, bit_mask: BitBoard) -> BitBoard {
         let mut forward = occupancy & mask;
         let mut reverse = forward.swap_bytes();
@@ -171,30 +174,32 @@ impl GenerateSlidingMoves for HyperbolaQuintessence {
         let bit_mask = masks.get(MaskType::Bit);
 
         match piece {
-            Piece::Bishop => { 
-                self.get_moves(occupancy, masks.get(MaskType::Diagonal), bit_mask) |
-                self.get_moves(occupancy, masks.get(MaskType::AntiDiagonal), bit_mask)
+            Piece::Bishop => {
+                self.get_moves(occupancy, masks.get(MaskType::Diagonal), bit_mask)
+                    | self.get_moves(occupancy, masks.get(MaskType::AntiDiagonal), bit_mask)
             }
             Piece::Rook => {
-                self.get_moves(occupancy, masks.get(MaskType::File), bit_mask) |
-                self.get_rank_moves(occupancy, square)
+                self.get_moves(occupancy, masks.get(MaskType::File), bit_mask)
+                    | self.get_rank_moves(occupancy, square)
             }
-            Piece::Queen => { 
-                self.get_moves(occupancy, masks.get(MaskType::File), bit_mask) |
-                self.get_rank_moves(occupancy, square) |
-                self.get_moves(occupancy, masks.get(MaskType::Diagonal), bit_mask) |
-                self.get_moves(occupancy, masks.get(MaskType::AntiDiagonal), bit_mask)
-
+            Piece::Queen => {
+                self.get_moves(occupancy, masks.get(MaskType::File), bit_mask)
+                    | self.get_rank_moves(occupancy, square)
+                    | self.get_moves(occupancy, masks.get(MaskType::Diagonal), bit_mask)
+                    | self.get_moves(occupancy, masks.get(MaskType::AntiDiagonal), bit_mask)
             }
-            _ => panic!("piece type: want [bishop, rook, queen], got {}", piece.to_string())
+            _ => panic!(
+                "piece type: want [bishop, rook, queen], got {}",
+                piece.to_string()
+            ),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::Square::*;
+    use super::*;
     use test_case::test_case;
 
     #[test_case(MaskType::Bit, D4, BitBoard::from_square(D4) ; "bit")]
