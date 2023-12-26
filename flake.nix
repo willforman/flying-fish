@@ -33,7 +33,7 @@
             cargo-leptos
             wasm-bindgen-cli
             cargo-generate
-            sass
+            tailwindcss
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
               CoreServices

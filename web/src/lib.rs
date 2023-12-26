@@ -2,6 +2,8 @@ use cfg_if::cfg_if;
 pub mod app;
 pub mod error_template;
 pub mod fileserv;
+mod routes;
+mod layout;
 
 cfg_if! { if #[cfg(feature = "hydrate")] {
     use leptos::*;
