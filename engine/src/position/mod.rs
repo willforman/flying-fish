@@ -441,10 +441,10 @@ impl Position {
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut board_str = String::with_capacity(64 + 7);
-        for rank in (0..8).rev() {
-            for file in 0..8 {
-                let square = Square::from_repr(rank * 8 + file).unwrap();
-
+        Square::list_white_perspective()
+            .into_iter()
+            .enumerate()
+            .for_each(|(idx, square)| {
                 let ch = match self.is_piece_at(square) {
                     Some((p, Side::White)) => <Piece as Into<char>>::into(p).to_ascii_uppercase(),
                     Some((p, Side::Black)) => <Piece as Into<char>>::into(p),
@@ -452,11 +452,10 @@ impl fmt::Display for Position {
                 };
 
                 board_str.push(ch);
-            }
-            if rank != 0 {
-                board_str.push('\n');
-            }
-        }
+                if (idx + 1) % 8 == 0 && idx != 63 {
+                    board_str.push('\n');
+                }
+            });
         write!(f, "{}", board_str)
     }
 }
