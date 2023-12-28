@@ -2,10 +2,12 @@ use strum::IntoEnumIterator;
 
 use std::string::ToString;
 
+use static_init::dynamic;
+
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::{Piece, Side};
 
-use super::{GenerateLeapingMoves, MoveGenError};
+use super::GenerateLeapingMoves;
 
 struct SquareToMoveDatabase([BitBoard; 64]);
 
@@ -20,6 +22,15 @@ struct ColoredSquareToMoveDatabase {
     black: SquareToMoveDatabase,
 }
 
+#[dynamic]
+static PAWN_PUSHES: ColoredSquareToMoveDatabase = calc_pawn_pushes();
+#[dynamic]
+static PAWN_ATKS: ColoredSquareToMoveDatabase = calc_pawn_atks();
+#[dynamic]
+static KNIGHT_ATKS: SquareToMoveDatabase = calc_knight_atks();
+#[dynamic]
+static KING_ATKS: SquareToMoveDatabase = calc_king_atks();
+
 impl ColoredSquareToMoveDatabase {
     fn get_square_db(&self, side: Side) -> &SquareToMoveDatabase {
         match side {
@@ -29,39 +40,23 @@ impl ColoredSquareToMoveDatabase {
     }
 }
 
-pub struct LeapingPiecesMoveGen {
-    pawn_pushes: ColoredSquareToMoveDatabase,
-    pawn_atks: ColoredSquareToMoveDatabase,
-    knight_atks: SquareToMoveDatabase,
-    king_atks: SquareToMoveDatabase,
-}
-
-impl LeapingPiecesMoveGen {
-    pub fn new() -> Self {
-        Self {
-            pawn_pushes: calc_pawn_pushes(),
-            pawn_atks: calc_pawn_atks(),
-            knight_atks: calc_knight_atks(),
-            king_atks: calc_king_atks(),
-        }
-    }
-}
+pub struct LeapingPiecesMoveGen;
 
 impl GenerateLeapingMoves for LeapingPiecesMoveGen {
     fn gen_knight_king_moves(&self, piece: Piece, square: Square) -> BitBoard {
         match piece {
-            Piece::Knight => self.knight_atks.get_bitboard(square),
-            Piece::King => self.king_atks.get_bitboard(square),
+            Piece::Knight => KNIGHT_ATKS.get_bitboard(square),
+            Piece::King => KING_ATKS.get_bitboard(square),
             _ => panic!("piece type: want [knight, king], got {}", piece.to_string()),
         }
     }
 
     fn gen_pawn_pushes(&self, square: Square, side: Side) -> BitBoard {
-        self.pawn_pushes.get_square_db(side).get_bitboard(square)
+        PAWN_PUSHES.get_square_db(side).get_bitboard(square)
     }
 
     fn gen_pawn_atks(&self, square: Square, side: Side) -> BitBoard {
-        self.pawn_atks.get_square_db(side).get_bitboard(square)
+        PAWN_ATKS.get_square_db(side).get_bitboard(square)
     }
 }
 

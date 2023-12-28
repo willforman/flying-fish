@@ -615,8 +615,8 @@ mod tests {
 	Move::new(A5, B6),
     ]) ; "en passant pin")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
-        let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
-        let sliding_pieces = Box::new(HyperbolaQuintessence::new());
+        let leaping_pieces = Box::new(LeapingPiecesMoveGen {});
+        let sliding_pieces = Box::new(HyperbolaQuintessence {});
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
         println!("{:?}", position);
@@ -625,58 +625,13 @@ mod tests {
         assert_eq_collections!(got, want);
     }
 
-    // #[test_case(
-    //     Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(),
-    //     Vec::from([
-    //         Move::new(E1, F1),
-    //         Move::new(H3, G2),
-    //     ]),
-    //     HashSet::from_iter([
-    //         Move::new(F1, G1),
-    //         Move::new(F1, G2),
-    //         Move::new(F1, E1),
-    //         Move::new(F3, G2),
-    //     ]) ; "perft results position4"
-    // )]
-    // #[test_case(
-    //     Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(),
-    //     Vec::from([
-    //         Move::new(G1, H1),
-    //         Move::new(B2, A1),
-    //     ]),
-    //     HashSet::from_iter([
-    //         Move::new(F1, G1),
-    //         Move::new(F1, G2),
-    //         Move::new(F1, E1),
-    //         Move::new(F3, G2),
-    //     ]) ; "kiwipete pawn check"
-    // )]
-    fn test_gen_moves_from_moves(
-        mut start_position: Position,
-        moves_to_make: Vec<Move>,
-        want: HashSet<Move>,
-    ) -> TestResult {
-        let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
-        let sliding_pieces = Box::new(HyperbolaQuintessence::new());
-        let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
-
-        for mve_to_make in moves_to_make {
-            start_position.make_move(&mve_to_make)?;
-        }
-
-        let got = move_gen.gen_moves(&start_position);
-
-        assert_eq_collections!(got, want);
-        Ok(())
-    }
-
     #[test_case(Position::start(), Side::White, BitBoard::from_squares(&[
         B1, C1, D1, E1, F1, G1,
         A2, B2, C2, D2, E2, F2, G2, H2,
         A3, B3, C3, D3, E3, F3, G3, H3]))]
     fn test_gen_attacked_squares(position: Position, side: Side, want: BitBoard) {
-        let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
-        let sliding_pieces = Box::new(HyperbolaQuintessence::new());
+        let leaping_pieces = Box::new(LeapingPiecesMoveGen {});
+        let sliding_pieces = Box::new(HyperbolaQuintessence {});
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
         let got = move_gen.gen_attacked_squares(&position, side);
@@ -692,8 +647,8 @@ mod tests {
         want_rook_pin_ray: BitBoard,
         want_bishop_pin_ray: BitBoard,
     ) {
-        let leaping_pieces = Box::new(LeapingPiecesMoveGen::new());
-        let sliding_pieces = Box::new(HyperbolaQuintessence::new());
+        let leaping_pieces = Box::new(LeapingPiecesMoveGen {});
+        let sliding_pieces = Box::new(HyperbolaQuintessence {});
         let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
 
         let (got_rook_pin_ray, got_bishop_pin_ray) = move_gen.get_pin_rays(&position, Side::Black);
