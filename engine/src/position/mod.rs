@@ -302,7 +302,7 @@ impl Position {
         }
     }
 
-    pub(crate) fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
+    pub fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
         for piece in Piece::iter() {
             let sides = &self.pieces.get(piece);
             if sides.white.is_square_set(square) {
