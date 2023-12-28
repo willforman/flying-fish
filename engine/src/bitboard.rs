@@ -22,26 +22,29 @@ pub enum Square {
 }
 
 impl Square {
-    pub(crate) fn abs_diff(self, other: Square) -> u8 {
+    pub(crate) const fn abs_diff(self, other: Square) -> u8 {
         (self as u8).abs_diff(other as u8)
     }
 
-    pub(crate) fn to_rank_file(self) -> (u8, u8) {
+    pub(crate) const fn to_rank_file(self) -> (u8, u8) {
         (self as u8 / 8, self as u8 % 8)
     }
 
-    pub(crate) fn from_square_with_dir(src: Square, dir: Direction) -> Square {
-        let shift = dir as isize;
-        let idx = if shift > 0 {
-            src as u8 + u8::try_from(shift).unwrap()
-        } else {
-            src as u8 - u8::try_from(-shift).unwrap()
-        };
-        Square::from_repr(idx).unwrap()
+    pub(crate) const fn from_square_with_dir(src: Square, dir: Direction) -> Option<Square> {
+        let shift = dir as i8;
+        let idx = src as i8 + shift;
+        Square::from_repr(idx as u8)
+    }
+
+    pub(crate) const fn from_u8(idx: u8) -> Square {
+        match Square::from_repr(idx) {
+            Some(sq) => sq,
+            None => panic!("square out of bounds"),
+        }
     }
 
     #[rustfmt::skip]
-    pub fn list_white_perspective() -> [Square; 64] {
+    pub const fn list_white_perspective() -> [Square; 64] {
         [
             Square::A8, Square::B8, Square::C8, Square::D8, Square::E8, Square::F8, Square::G8, Square::H8,
             Square::A7, Square::B7, Square::C7, Square::D7, Square::E7, Square::F7, Square::G7, Square::H7,
@@ -55,7 +58,7 @@ impl Square {
     }
 
     #[rustfmt::skip]
-    pub fn list_black_perspective() -> [Square; 64] {
+    pub const fn list_black_perspective() -> [Square; 64] {
         [
             Square::H1, Square::G1, Square::F1, Square::E1, Square::D1, Square::C1, Square::B1, Square::A1,
             Square::H2, Square::G2, Square::F2, Square::E2, Square::D2, Square::C2, Square::B2, Square::A2,
@@ -86,15 +89,15 @@ pub(crate) enum Direction {
 pub struct BitBoard(u64);
 
 impl BitBoard {
-    pub(crate) fn empty() -> Self {
+    pub(crate) const fn empty() -> Self {
         BitBoard(0)
     }
 
-    pub(crate) fn full() -> Self {
+    pub(crate) const fn full() -> Self {
         BitBoard(u64::max_value())
     }
 
-    pub(crate) fn from_square(square: Square) -> Self {
+    pub(crate) const fn from_square(square: Square) -> Self {
         BitBoard(1 << (square as u8))
     }
 
@@ -103,7 +106,7 @@ impl BitBoard {
         BitBoard(squares.iter().fold(0, |board, sq| board | 1 << (*sq as u8)))
     }
 
-    pub(crate) fn from_val(val: u64) -> Self {
+    pub(crate) const fn from_val(val: u64) -> Self {
         BitBoard(val)
     }
 
@@ -240,6 +243,10 @@ impl BitBoard {
         }
 
         count
+    }
+
+    pub(crate) const fn const_bit_or(self, other: BitBoard) -> BitBoard {
+        BitBoard(self.0 | other.0)
     }
 }
 
@@ -418,9 +425,14 @@ mod tests {
         assert_eq!(got, want);
     }
 
-    #[test_case(A2, Direction::North, A3 ; "north")]
-    #[test_case(A2, Direction::East, B2 ; "east")]
-    fn test_from_square_with_dir(start: Square, dir: Direction, want: Square) {
+    #[test_case(A2, Direction::North, Some(A3) ; "north")]
+    #[test_case(A2, Direction::East, Some(B2) ; "east")]
+    #[test_case(A1, Direction::West, None ; "edge horizontal")]
+    #[test_case(A1, Direction::South, None ; "edge vertical")]
+    #[test_case(A1, Direction::SouthWest, None ; "edge diagonal")]
+    #[test_case(A8, Direction::West, None ; "A8 horizontal")]
+    #[test_case(A8, Direction::NorthWest, None ; "A8 diagonal")]
+    fn test_from_square_with_dir(start: Square, dir: Direction, want: Option<Square>) {
         let got = Square::from_square_with_dir(start, dir);
         assert_eq!(got, want);
     }

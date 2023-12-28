@@ -338,7 +338,7 @@ impl Position {
                     } else {
                         Direction::South
                     };
-                    let ep_target = Square::from_square_with_dir(mve.src, ep_dir);
+                    let ep_target = Square::from_square_with_dir(mve.src, ep_dir).unwrap();
                     self.state.en_passant_target = Some(ep_target);
                 } else {
                     self.state.en_passant_target = None;

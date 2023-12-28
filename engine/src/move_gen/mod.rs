@@ -292,7 +292,8 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                                 Direction::North
                             };
                             let en_passant_pawn_loc =
-                                Square::from_square_with_dir(ep_target, en_passant_loc_dir);
+                                Square::from_square_with_dir(ep_target, en_passant_loc_dir)
+                                    .unwrap();
                             let mut pos_without_ep = position.clone();
                             pos_without_ep.remove_piece(en_passant_pawn_loc).unwrap();
                             let (rook_ray_without_ep_pawn, _) =

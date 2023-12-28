@@ -168,23 +168,40 @@ fn calc_knight_atks() -> SquareToMoveDatabase {
     SquareToMoveDatabase(bbs)
 }
 
-fn calc_king_atks() -> SquareToMoveDatabase {
-    let dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::North],
-        vec![Direction::East],
-        vec![Direction::West],
-        vec![Direction::South],
-        vec![Direction::North, Direction::East],
-        vec![Direction::North, Direction::West],
-        vec![Direction::South, Direction::East],
-        vec![Direction::South, Direction::West],
+const fn calc_king_atks() -> SquareToMoveDatabase {
+    let dirs: [Direction; 8] = [
+        Direction::North,
+        Direction::East,
+        Direction::West,
+        Direction::South,
+        Direction::NorthEast,
+        Direction::NorthWest,
+        Direction::SouthEast,
+        Direction::SouthWest,
     ];
 
-    let bbs: [BitBoard; 64] = Square::iter()
-        .map(|sq| BitBoard::from_square_shifts(sq, &dirs))
-        .collect::<Vec<BitBoard>>()
-        .try_into()
-        .unwrap();
+    let mut bbs = [BitBoard::empty(); 64];
+
+    let mut bb_idx = 0;
+
+    while bb_idx < bbs.len() {
+        let mut bb = BitBoard::empty();
+
+        let sq = Square::from_u8(bb_idx as u8);
+
+        let mut dir_idx = 0;
+        while dir_idx < dirs.len() {
+            let dir = dirs[dir_idx];
+            // Some of these will be out of bounds
+            if let Some(sq) = Square::from_square_with_dir(sq, dir) {
+                bb = bb.const_bit_or(BitBoard::from_square(sq));
+            }
+            dir_idx += 1;
+        }
+        bbs[bb_idx] = bb;
+        bb_idx += 1;
+    }
+
     SquareToMoveDatabase(bbs)
 }
 
