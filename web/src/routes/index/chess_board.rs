@@ -1,7 +1,11 @@
+use std::str::FromStr;
+
 use leptos::*;
 
 use engine::bitboard::Square;
 use engine::position::{Position, Side};
+use leptos::ev::MouseEvent;
+use wasm_bindgen::{JsCast, UnwrapThrowExt};
 
 const BG_DARK: &str = "bg-[#86A666]";
 const BG_LIGHT: &str = "bg-[#FFFFDD]";
@@ -12,6 +16,17 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
         Square::list_white_perspective()
     } else {
         Square::list_black_perspective()
+    };
+
+    let handle_square_click = move |mouse_event: MouseEvent| {
+        let square_str = mouse_event
+            .target()
+            .unwrap_throw()
+            .unchecked_into::<web_sys::HtmlImageElement>()
+            .id();
+
+        let square = Square::from_str(&square_str).unwrap_throw();
+        panic!("{:?}", square);
     };
 
     view! {
@@ -30,8 +45,8 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
                         let img_name = format!("{}_{}.svg", piece.to_string().to_lowercase(), side.to_string().to_lowercase());
                         let alt = format!("{} {}", piece.to_string(), side.to_string());
                         view! {
-                            <div class=class >
-                                <img src=img_name alt=alt height="78" width="78" />
+                            <div class=class>
+                                <img src=img_name id={square.to_string()} alt=alt height="78" width="78" on:click={handle_square_click} />
                             </div>
                         }
                     } else {
