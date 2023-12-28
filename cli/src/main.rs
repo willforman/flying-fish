@@ -1,17 +1,17 @@
-use ::engine::bitboard::Square;
-use ::engine::move_gen::{
+use engine::bitboard::Square;
+use engine::evaluation::PositionEvaluator;
+use engine::move_gen::{
     hyperbola_quintessence::HyperbolaQuintessence, leaping_pieces::LeapingPiecesMoveGen,
     AllPiecesMoveGen, GenerateAllMoves,
 };
-use ::engine::search::find_move;
-use engine::evaluation::PositionEvaluator;
 use engine::position::{Move, Position, PositionError};
+use engine::search::find_move;
 use std::{io, str::FromStr};
 
 fn play_game() -> Result<(), PositionError> {
     let move_gen = AllPiecesMoveGen::new(
-        Box::new(LeapingPiecesMoveGen::new()),
-        Box::new(HyperbolaQuintessence::new()),
+        Box::new(LeapingPiecesMoveGen {}),
+        Box::new(HyperbolaQuintessence {}),
     );
     let position_evaluator = PositionEvaluator {};
 
