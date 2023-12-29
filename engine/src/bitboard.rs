@@ -32,8 +32,12 @@ impl Square {
 
     pub(crate) const fn from_square_with_dir(src: Square, dir: Direction) -> Option<Square> {
         let shift = dir as i8;
-        let idx = src as i8 + shift;
-        Square::from_repr(idx as u8)
+        let src_idx = src as i8;
+
+        let dest_idx = src_idx + shift;
+
+        // Make if we inc/dec file, it doesn't wrap around to next row
+        Square::from_repr(dest_idx as u8)
     }
 
     pub(crate) const fn from_u8(idx: u8) -> Square {
@@ -75,14 +79,14 @@ impl Square {
 #[repr(isize)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Direction {
-    North = 8,
-    East = 1,
-    South = -8,
-    West = -1,
-    NorthEast = 9,
-    NorthWest = 7,
-    SouthEast = -7,
-    SouthWest = -9,
+    IncRank = 8,
+    IncFile = 1,
+    DecRank = -8,
+    DecFile = -1,
+    IncRankIncFile = 9,
+    IncRankDecFile = 7,
+    DecRankIncFile = -7,
+    DecRankDecFile = -9,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -133,27 +137,27 @@ impl BitBoard {
 
         let dir = if sq1_file == sq2_file {
             if sq1_rank < sq2_rank {
-                Direction::North
+                Direction::IncRank
             } else {
-                Direction::South
+                Direction::DecRank
             }
         } else if sq1_rank == sq2_rank {
             if sq1_file < sq2_file {
-                Direction::East
+                Direction::IncFile
             } else {
-                Direction::West
+                Direction::DecFile
             }
         } else if sq1_file < sq2_file {
             if sq1_rank < sq2_rank {
-                Direction::NorthEast
+                Direction::IncRankIncFile
             } else {
-                Direction::SouthEast
+                Direction::DecRankIncFile
             }
         } else {
             if sq1_rank < sq2_rank {
-                Direction::NorthWest
+                Direction::IncRankDecFile
             } else {
-                Direction::SouthWest
+                Direction::DecRankDecFile
             }
         };
         let mut curr_bb = BitBoard::from_square(sq1);
@@ -205,9 +209,9 @@ impl BitBoard {
     pub(crate) fn shift(&mut self, dir: Direction) {
         const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
         const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
-        if dir == Direction::East {
+        if dir == Direction::IncFile {
             self.0 &= EAST_SHIFT_MASK;
-        } else if dir == Direction::West {
+        } else if dir == Direction::DecFile {
             self.0 &= WEST_SHIFT_MASK;
         }
         let shift_amt = dir as isize;
@@ -387,19 +391,19 @@ mod tests {
         }
     }
 
-    #[test_case(BitBoard::from_square(D4), vec![Direction::North], BitBoard::from_square(D5) ; "n")]
-    #[test_case(BitBoard::from_square(D4), vec![Direction::South], BitBoard::from_square(D3) ; "s")]
-    #[test_case(BitBoard::from_square(D4), vec![Direction::East], BitBoard::from_square(E4) ; "e")]
-    #[test_case(BitBoard::from_square(D4), vec![Direction::West], BitBoard::from_square(C4) ; "w")]
-    #[test_case(BitBoard::from_square(D4), vec![Direction::East, Direction::East], BitBoard::from_square(F4) ; "ee")]
-    #[test_case(BitBoard::from_square(D4), vec![Direction::NorthEast], BitBoard::from_square(E5) ; "ne")]
-    #[test_case(BitBoard::from_square(D4), vec![Direction::NorthWest], BitBoard::from_square(C5) ; "nw")]
-    #[test_case(BitBoard::from_square(D4), vec![Direction::SouthEast], BitBoard::from_square(E3) ; "se")]
-    #[test_case(BitBoard::from_square(D4), vec![Direction::SouthWest], BitBoard::from_square(C3) ; "sw")]
-    #[test_case(BitBoard::from_square(A6), vec![Direction::West], BitBoard(0) ; "overlap w")]
-    #[test_case(BitBoard::from_square(H3), vec![Direction::East], BitBoard(0) ; "overlap e")]
-    #[test_case(BitBoard::from_square(A2), vec![Direction::SouthWest], BitBoard(0) ; "overlap sw")]
-    #[test_case(BitBoard::from_square(H7), vec![Direction::NorthEast], BitBoard(0) ; "overlap ne")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::IncRank], BitBoard::from_square(D5) ; "n")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::DecRank], BitBoard::from_square(D3) ; "s")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::IncFile], BitBoard::from_square(E4) ; "e")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::DecFile], BitBoard::from_square(C4) ; "w")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::IncFile, Direction::IncFile], BitBoard::from_square(F4) ; "ee")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::IncRankIncFile], BitBoard::from_square(E5) ; "ne")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::IncRankDecFile], BitBoard::from_square(C5) ; "nw")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::DecRankIncFile], BitBoard::from_square(E3) ; "se")]
+    #[test_case(BitBoard::from_square(D4), vec![Direction::DecRankDecFile], BitBoard::from_square(C3) ; "sw")]
+    #[test_case(BitBoard::from_square(A6), vec![Direction::DecFile], BitBoard(0) ; "overlap w")]
+    #[test_case(BitBoard::from_square(H3), vec![Direction::IncFile], BitBoard(0) ; "overlap e")]
+    #[test_case(BitBoard::from_square(A2), vec![Direction::DecRankDecFile], BitBoard(0) ; "overlap sw")]
+    #[test_case(BitBoard::from_square(H7), vec![Direction::IncRankIncFile], BitBoard(0) ; "overlap ne")]
     fn test_shift(mut inp: BitBoard, shift_dirs: Vec<Direction>, want: BitBoard) {
         for shift_dir in shift_dirs {
             inp.shift(shift_dir);
@@ -407,15 +411,15 @@ mod tests {
         assert_eq!(inp, want);
     }
 
-    #[test_case(D4, vec![vec![Direction::North]], BitBoard::from_square(D5) ; "one")]
-    #[test_case(D4, vec![vec![Direction::North], vec![Direction::South]], BitBoard::from_squares(&[D5, D3]) ; "two")]
+    #[test_case(D4, vec![vec![Direction::IncRank]], BitBoard::from_square(D5) ; "one")]
+    #[test_case(D4, vec![vec![Direction::IncRank], vec![Direction::DecRank]], BitBoard::from_squares(&[D5, D3]) ; "two")]
     #[test_case(D4, vec![
-        vec![Direction::North],
-        vec![Direction::South],
-        vec![Direction::East],
-        vec![Direction::West],
+        vec![Direction::IncRank],
+        vec![Direction::DecRank],
+        vec![Direction::IncFile],
+        vec![Direction::DecFile],
     ], BitBoard::from_squares(&[D5, D3, E4, C4]) ; "all")]
-    #[test_case(D4, vec![vec![Direction::North, Direction::East]], BitBoard::from_square(E5) ; "multi")]
+    #[test_case(D4, vec![vec![Direction::IncRank, Direction::IncFile]], BitBoard::from_square(E5) ; "multi")]
     fn test_from_square_shifts(
         inp_square: Square,
         shift_dirs_list: Vec<Vec<Direction>>,
@@ -425,13 +429,22 @@ mod tests {
         assert_eq!(got, want);
     }
 
-    #[test_case(A2, Direction::North, Some(A3) ; "north")]
-    #[test_case(A2, Direction::East, Some(B2) ; "east")]
-    #[test_case(A1, Direction::West, None ; "edge horizontal")]
-    #[test_case(A1, Direction::South, None ; "edge vertical")]
-    #[test_case(A1, Direction::SouthWest, None ; "edge diagonal")]
-    #[test_case(A8, Direction::West, None ; "A8 horizontal")]
-    #[test_case(A8, Direction::NorthWest, None ; "A8 diagonal")]
+    #[test_case(D4, Direction::IncRank, Some(D5) ; "inc rank")]
+    #[test_case(D4, Direction::DecRank, Some(D3) ; "dec rank")]
+    #[test_case(D4, Direction::DecFile, Some(C4) ; "dec file")]
+    #[test_case(D4, Direction::IncFile, Some(E4) ; "inc file")]
+    #[test_case(D4, Direction::IncRankIncFile, Some(E5) ; "inc rank inc file")]
+    #[test_case(D4, Direction::IncRankDecFile, Some(C5) ; "inc rank dec file")]
+    #[test_case(D4, Direction::DecRankIncFile, Some(E3) ; "dec rank inc file")]
+    #[test_case(D4, Direction::DecRankDecFile, Some(C3) ; "dec rank dec file")]
+    #[test_case(A3, Direction::DecFile, None ; "dec file edge")]
+    #[test_case(H3, Direction::IncFile, None ; "inc file edge")]
+    #[test_case(D8, Direction::IncRank, None ; "inc rank edge")]
+    #[test_case(D1, Direction::DecRank, None ; "dec rank edge")]
+    #[test_case(H8, Direction::IncRankIncFile, None ; "inc rank inc file both edge")]
+    #[test_case(A1, Direction::DecRankDecFile, None ; "dec rank dec file both edge")]
+    #[test_case(D8, Direction::IncRankIncFile, None ; "inc rank inc file rank edge")]
+    #[test_case(H8, Direction::IncRankIncFile, None ; "inc rank inc file file edge")]
     fn test_from_square_with_dir(start: Square, dir: Direction, want: Option<Square>) {
         let got = Square::from_square_with_dir(start, dir);
         assert_eq!(got, want);

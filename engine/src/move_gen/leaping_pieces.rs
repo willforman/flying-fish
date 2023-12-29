@@ -61,15 +61,15 @@ impl GenerateLeapingMoves for LeapingPiecesMoveGen {
 }
 
 fn calc_pawn_pushes() -> ColoredSquareToMoveDatabase {
-    let white_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::North]];
+    let white_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::IncRank]];
     let white_double_push_dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::North],
-        vec![Direction::North, Direction::North],
+        vec![Direction::IncRank],
+        vec![Direction::IncRank, Direction::IncRank],
     ];
-    let black_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::South]];
+    let black_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::DecRank]];
     let black_double_push_dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::South],
-        vec![Direction::South, Direction::South],
+        vec![Direction::DecRank],
+        vec![Direction::DecRank, Direction::DecRank],
     ];
     let edge_push_dirs: Vec<Vec<Direction>> = vec![];
 
@@ -109,12 +109,12 @@ fn calc_pawn_pushes() -> ColoredSquareToMoveDatabase {
 
 fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
     let white_atk_dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::North, Direction::East],
-        vec![Direction::North, Direction::West],
+        vec![Direction::IncRank, Direction::IncFile],
+        vec![Direction::IncRank, Direction::DecFile],
     ];
     let black_atk_dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::South, Direction::East],
-        vec![Direction::South, Direction::West],
+        vec![Direction::DecRank, Direction::IncFile],
+        vec![Direction::DecRank, Direction::DecFile],
     ];
     let edge_push_dirs: Vec<Vec<Direction>> = vec![];
 
@@ -150,14 +150,14 @@ fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
 
 fn calc_knight_atks() -> SquareToMoveDatabase {
     let dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::North, Direction::North, Direction::East],
-        vec![Direction::North, Direction::North, Direction::West],
-        vec![Direction::South, Direction::South, Direction::East],
-        vec![Direction::South, Direction::South, Direction::West],
-        vec![Direction::North, Direction::East, Direction::East],
-        vec![Direction::North, Direction::West, Direction::West],
-        vec![Direction::South, Direction::East, Direction::East],
-        vec![Direction::South, Direction::West, Direction::West],
+        vec![Direction::IncRank, Direction::IncRank, Direction::IncFile],
+        vec![Direction::IncRank, Direction::IncRank, Direction::DecFile],
+        vec![Direction::DecRank, Direction::DecRank, Direction::IncFile],
+        vec![Direction::DecRank, Direction::DecRank, Direction::DecFile],
+        vec![Direction::IncRank, Direction::IncFile, Direction::IncFile],
+        vec![Direction::IncRank, Direction::DecFile, Direction::DecFile],
+        vec![Direction::DecRank, Direction::IncFile, Direction::IncFile],
+        vec![Direction::DecRank, Direction::DecFile, Direction::DecFile],
     ];
 
     let bbs: [BitBoard; 64] = Square::iter()
@@ -170,14 +170,14 @@ fn calc_knight_atks() -> SquareToMoveDatabase {
 
 const fn calc_king_atks() -> SquareToMoveDatabase {
     let dirs: [Direction; 8] = [
-        Direction::North,
-        Direction::East,
-        Direction::West,
-        Direction::South,
-        Direction::NorthEast,
-        Direction::NorthWest,
-        Direction::SouthEast,
-        Direction::SouthWest,
+        Direction::IncRank,
+        Direction::IncFile,
+        Direction::DecFile,
+        Direction::DecRank,
+        Direction::IncRankIncFile,
+        Direction::IncRankDecFile,
+        Direction::DecRankIncFile,
+        Direction::DecRankDecFile,
     ];
 
     let mut bbs = [BitBoard::empty(); 64];

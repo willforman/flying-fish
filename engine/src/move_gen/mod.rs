@@ -230,9 +230,9 @@ impl GenerateAllMoves for AllPiecesMoveGen {
             capture_mask = checkers;
             if let Some(ep_target) = position.state.en_passant_target {
                 let ep_dir = if side.opposite_side() == Side::White {
-                    Direction::North
+                    Direction::IncRank
                 } else {
-                    Direction::South
+                    Direction::DecRank
                 };
                 let ep_src_bb = BitBoard::from_square_shifts(ep_target, &vec![vec![ep_dir]]);
                 if ep_src_bb == checkers {
@@ -276,9 +276,9 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                         let mut all_pieces_except_self = opp_pieces | friendly_pieces;
                         all_pieces_except_self.clear_square(piece_square);
                         let shift_dir = if side == Side::White {
-                            Direction::North
+                            Direction::IncRank
                         } else {
-                            Direction::South
+                            Direction::DecRank
                         };
                         all_pieces_except_self.shift(shift_dir);
                         pushes &= !all_pieces_except_self;
@@ -287,9 +287,9 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                         if let Some(ep_target) = position.state.en_passant_target {
                             // Handle en passant pinning
                             let en_passant_loc_dir = if side == Side::White {
-                                Direction::South
+                                Direction::DecRank
                             } else {
-                                Direction::North
+                                Direction::IncRank
                             };
                             let en_passant_pawn_loc =
                                 Square::from_square_with_dir(ep_target, en_passant_loc_dir)

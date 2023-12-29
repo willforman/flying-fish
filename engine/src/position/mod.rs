@@ -334,9 +334,9 @@ impl Position {
 
                 if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
                     let ep_dir = if side == Side::White {
-                        Direction::North
+                        Direction::IncRank
                     } else {
-                        Direction::South
+                        Direction::DecRank
                     };
                     let ep_target = Square::from_square_with_dir(mve.src, ep_dir).unwrap();
                     self.state.en_passant_target = Some(ep_target);

@@ -113,31 +113,31 @@ impl GenerateSlidingMoves for HyperbolaQuintessence {
 
 fn calc_masks_list() -> MasksList {
     let mut file_dirs = vec![
-        vec![Direction::North; 1],
-        vec![Direction::North; 2],
-        vec![Direction::North; 3],
-        vec![Direction::North; 4],
-        vec![Direction::North; 5],
-        vec![Direction::North; 6],
-        vec![Direction::North; 7],
+        vec![Direction::IncRank; 1],
+        vec![Direction::IncRank; 2],
+        vec![Direction::IncRank; 3],
+        vec![Direction::IncRank; 4],
+        vec![Direction::IncRank; 5],
+        vec![Direction::IncRank; 6],
+        vec![Direction::IncRank; 7],
     ];
     let mut diag_dirs = vec![
-        [vec![Direction::North; 1], vec![Direction::West; 1]].concat(),
-        [vec![Direction::North; 2], vec![Direction::West; 2]].concat(),
-        [vec![Direction::North; 3], vec![Direction::West; 3]].concat(),
-        [vec![Direction::North; 4], vec![Direction::West; 4]].concat(),
-        [vec![Direction::North; 5], vec![Direction::West; 5]].concat(),
-        [vec![Direction::North; 6], vec![Direction::West; 6]].concat(),
-        [vec![Direction::North; 7], vec![Direction::West; 7]].concat(),
+        [vec![Direction::IncRank; 1], vec![Direction::DecFile; 1]].concat(),
+        [vec![Direction::IncRank; 2], vec![Direction::DecFile; 2]].concat(),
+        [vec![Direction::IncRank; 3], vec![Direction::DecFile; 3]].concat(),
+        [vec![Direction::IncRank; 4], vec![Direction::DecFile; 4]].concat(),
+        [vec![Direction::IncRank; 5], vec![Direction::DecFile; 5]].concat(),
+        [vec![Direction::IncRank; 6], vec![Direction::DecFile; 6]].concat(),
+        [vec![Direction::IncRank; 7], vec![Direction::DecFile; 7]].concat(),
     ];
     let mut anti_diag_dirs = vec![
-        [vec![Direction::North; 1], vec![Direction::East; 1]].concat(),
-        [vec![Direction::North; 2], vec![Direction::East; 2]].concat(),
-        [vec![Direction::North; 3], vec![Direction::East; 3]].concat(),
-        [vec![Direction::North; 4], vec![Direction::East; 4]].concat(),
-        [vec![Direction::North; 5], vec![Direction::East; 5]].concat(),
-        [vec![Direction::North; 6], vec![Direction::East; 6]].concat(),
-        [vec![Direction::North; 7], vec![Direction::East; 7]].concat(),
+        [vec![Direction::IncRank; 1], vec![Direction::IncFile; 1]].concat(),
+        [vec![Direction::IncRank; 2], vec![Direction::IncFile; 2]].concat(),
+        [vec![Direction::IncRank; 3], vec![Direction::IncFile; 3]].concat(),
+        [vec![Direction::IncRank; 4], vec![Direction::IncFile; 4]].concat(),
+        [vec![Direction::IncRank; 5], vec![Direction::IncFile; 5]].concat(),
+        [vec![Direction::IncRank; 6], vec![Direction::IncFile; 6]].concat(),
+        [vec![Direction::IncRank; 7], vec![Direction::IncFile; 7]].concat(),
     ];
 
     let mut masks_list = Vec::with_capacity(64);
@@ -153,11 +153,17 @@ fn calc_masks_list() -> MasksList {
         if (idx + 1) % 8 == 0 && idx != 63 {
             let rank = (idx + 1) / 8;
 
-            file_dirs[7 - rank] = vec![Direction::South; rank];
-            diag_dirs[7 - rank] =
-                [vec![Direction::South; rank], vec![Direction::East; rank]].concat();
-            anti_diag_dirs[7 - rank] =
-                [vec![Direction::South; rank], vec![Direction::West; rank]].concat();
+            file_dirs[7 - rank] = vec![Direction::DecRank; rank];
+            diag_dirs[7 - rank] = [
+                vec![Direction::DecRank; rank],
+                vec![Direction::IncFile; rank],
+            ]
+            .concat();
+            anti_diag_dirs[7 - rank] = [
+                vec![Direction::DecRank; rank],
+                vec![Direction::DecFile; rank],
+            ]
+            .concat();
         }
     }
     MasksList(masks_list.try_into().unwrap())
