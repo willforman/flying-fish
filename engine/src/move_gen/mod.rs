@@ -291,9 +291,9 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                             } else {
                                 Direction::IncRank
                             };
-                            let en_passant_pawn_loc =
-                                Square::from_square_with_dir(ep_target, en_passant_loc_dir)
-                                    .unwrap();
+                            let en_passant_pawn_loc = BitBoard::from_square(ep_target)
+                                .shift(en_passant_loc_dir)
+                                .to_squares()[0];
                             let mut pos_without_ep = position.clone();
                             pos_without_ep.remove_piece(en_passant_pawn_loc).unwrap();
                             let (rook_ray_without_ep_pawn, _) =

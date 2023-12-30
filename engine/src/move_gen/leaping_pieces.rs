@@ -169,15 +169,15 @@ fn calc_knight_atks() -> SquareToMoveDatabase {
 }
 
 const fn calc_king_atks() -> SquareToMoveDatabase {
-    let dirs: [Direction; 8] = [
-        Direction::IncRank,
-        Direction::IncFile,
-        Direction::DecFile,
-        Direction::DecRank,
-        Direction::IncRankIncFile,
-        Direction::IncRankDecFile,
-        Direction::DecRankIncFile,
-        Direction::DecRankDecFile,
+    let dirs: [&[Direction]; 8] = [
+        &[Direction::IncRank],
+        &[Direction::IncFile],
+        &[Direction::DecFile],
+        &[Direction::DecRank],
+        &[Direction::IncRank, Direction::IncFile],
+        &[Direction::IncRank, Direction::DecFile],
+        &[Direction::DecRank, Direction::IncFile],
+        &[Direction::DecRank, Direction::DecFile],
     ];
 
     let mut bbs = [BitBoard::empty(); 64];
@@ -185,20 +185,30 @@ const fn calc_king_atks() -> SquareToMoveDatabase {
     let mut bb_idx = 0;
 
     while bb_idx < bbs.len() {
-        let mut bb = BitBoard::empty();
-
         let sq = Square::from_u8(bb_idx as u8);
 
-        let mut dir_idx = 0;
-        while dir_idx < dirs.len() {
-            let dir = dirs[dir_idx];
-            // Some of these will be out of bounds
-            if let Some(sq) = Square::from_square_with_dir(sq, dir) {
-                bb = bb.const_bit_or(BitBoard::from_square(sq));
+        let mut sq_bb = BitBoard::empty();
+
+        let mut dirs_idx = 0;
+        while dirs_idx < dirs.len() {
+            let dirs = dirs[dirs_idx];
+
+            let mut dir_sq_bb = BitBoard::from_square(sq);
+            let mut curr_dir_idx = 0;
+
+            while curr_dir_idx < dirs.len() {
+                let curr_dir = dirs[curr_dir_idx];
+                dir_sq_bb = dir_sq_bb.shift(curr_dir);
+                // If a shift goes out of bounds, then we break early
+                if dir_sq_bb.is_empty() {
+                    break;
+                }
+                curr_dir_idx += 1;
             }
-            dir_idx += 1;
+            sq_bb = sq_bb.const_bit_or(dir_sq_bb);
+            dirs_idx += 1;
         }
-        bbs[bb_idx] = bb;
+        bbs[bb_idx] = sq_bb;
         bb_idx += 1;
     }
 
