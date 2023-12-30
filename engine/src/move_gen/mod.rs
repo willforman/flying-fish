@@ -291,9 +291,11 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                             } else {
                                 Direction::IncRank
                             };
-                            let en_passant_pawn_loc = BitBoard::from_square(ep_target)
-                                .shift(en_passant_loc_dir)
-                                .to_squares()[0];
+
+                            let mut en_passant_pawn_loc_bb = BitBoard::from_square(ep_target);
+                            en_passant_pawn_loc_bb.shift(en_passant_loc_dir);
+                            let en_passant_pawn_loc = en_passant_pawn_loc_bb.to_squares()[0];
+
                             let mut pos_without_ep = position.clone();
                             pos_without_ep.remove_piece(en_passant_pawn_loc).unwrap();
                             let (rook_ray_without_ep_pawn, _) =
@@ -615,6 +617,9 @@ mod tests {
 	Move::new(A5, A4),
 	Move::new(A5, B6),
     ]) ; "en passant pin")]
+    #[test_case(Position::from_fen("7k/8/8/8/8/7p/7P/7K w - - 0 1").unwrap(), HashSet::from_iter([
+        Move::new(H1, G1),
+    ]) ; "pawn cant double push through piece")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         let leaping_pieces = Box::new(LeapingPiecesMoveGen {});
         let sliding_pieces = Box::new(HyperbolaQuintessence {});

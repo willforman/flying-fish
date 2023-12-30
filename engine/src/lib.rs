@@ -1,3 +1,5 @@
+#![feature(const_mut_refs)]
+
 pub mod bitboard;
 pub mod evaluation;
 pub mod move_gen;

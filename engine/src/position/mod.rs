@@ -338,7 +338,11 @@ impl Position {
                     } else {
                         Direction::DecRank
                     };
-                    let ep_target = BitBoard::from_square(mve.src).shift(ep_dir).to_squares()[0];
+
+                    let mut ep_target_bb = BitBoard::from_square(mve.src);
+                    ep_target_bb.shift(ep_dir);
+                    let ep_target = ep_target_bb.to_squares()[0];
+
                     self.state.en_passant_target = Some(ep_target);
                 } else {
                     self.state.en_passant_target = None;

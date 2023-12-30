@@ -110,7 +110,7 @@ impl BitBoard {
             .fold(start.clone(), |acc, shift_dirs| {
                 let mut shifted = start.clone();
                 for &sd in shift_dirs {
-                    shifted = shifted.shift(sd);
+                    shifted.shift(sd);
                 }
                 acc | shifted
             });
@@ -154,7 +154,7 @@ impl BitBoard {
         while !curr_bb.const_equals(end_bb) {
             let mut dir_idx = 0;
             while dir_idx < dirs.len() {
-                curr_bb = curr_bb.shift(dirs[dir_idx]);
+                curr_bb.shift(dirs[dir_idx]);
                 dir_idx += 1;
             }
             ray = ray.const_bit_or(curr_bb);
@@ -196,7 +196,7 @@ impl BitBoard {
         self.0 == 0
     }
 
-    pub(crate) const fn shift(mut self, dir: Direction) -> BitBoard {
+    pub(crate) const fn shift(&mut self, dir: Direction) {
         const EAST_SHIFT_MASK: u64 = 0x7F7F7F7F7F7F7F7F;
         const WEST_SHIFT_MASK: u64 = 0xFEFEFEFEFEFEFEFE;
         match dir {
@@ -210,7 +210,6 @@ impl BitBoard {
         } else {
             self.0 >>= -shift_amt
         }
-        self
     }
 
     pub(crate) fn get_lsb(&self) -> Square {
@@ -409,7 +408,7 @@ mod tests {
     #[test_case(BitBoard::from_square(H7), &[Direction::IncRank, Direction::IncFile], BitBoard(0) ; "overlap ne")]
     fn test_shift(mut inp: BitBoard, shift_dirs: &[Direction], want: BitBoard) {
         for &shift_dir in shift_dirs {
-            inp = inp.shift(shift_dir);
+            inp.shift(shift_dir);
         }
         assert_eq!(inp, want);
     }

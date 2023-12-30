@@ -198,7 +198,7 @@ const fn calc_king_atks() -> SquareToMoveDatabase {
 
             while curr_dir_idx < dirs.len() {
                 let curr_dir = dirs[curr_dir_idx];
-                dir_sq_bb = dir_sq_bb.shift(curr_dir);
+                dir_sq_bb.shift(curr_dir);
                 // If a shift goes out of bounds, then we break early
                 if dir_sq_bb.is_empty() {
                     break;
