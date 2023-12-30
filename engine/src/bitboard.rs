@@ -180,7 +180,7 @@ impl BitBoard {
         self.set_square(dest);
     }
 
-    pub(crate) fn set_square(&mut self, square: Square) {
+    pub(crate) const fn set_square(&mut self, square: Square) {
         self.0 |= 1 << square as u64
     }
 
@@ -241,6 +241,10 @@ impl BitBoard {
 
     pub(crate) const fn const_bit_or(self, other: BitBoard) -> BitBoard {
         BitBoard(self.0 | other.0)
+    }
+
+    pub(crate) const fn const_bit_or_mut(&mut self, other: BitBoard) {
+        self.0 |= other.0
     }
 
     pub(crate) const fn const_bit_and(self, other: BitBoard) -> BitBoard {

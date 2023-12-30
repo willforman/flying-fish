@@ -1,4 +1,5 @@
 #![feature(const_mut_refs)]
+#![feature(const_option)]
 
 pub mod bitboard;
 pub mod evaluation;

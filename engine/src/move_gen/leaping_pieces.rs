@@ -1,8 +1,5 @@
-use strum::IntoEnumIterator;
-
+use std::borrow::BorrowMut;
 use std::string::ToString;
-
-use static_init::dynamic;
 
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::{Piece, Side};
@@ -12,8 +9,12 @@ use super::GenerateLeapingMoves;
 struct SquareToMoveDatabase([BitBoard; 64]);
 
 impl SquareToMoveDatabase {
-    fn get_bitboard(&self, square: Square) -> BitBoard {
+    const fn get_bitboard(&self, square: Square) -> BitBoard {
         self.0[square as usize]
+    }
+
+    const fn get_bitboard_mut(&mut self, square: Square) -> &mut BitBoard {
+        &mut self.0[square as usize]
     }
 }
 
@@ -21,15 +22,6 @@ struct ColoredSquareToMoveDatabase {
     white: SquareToMoveDatabase,
     black: SquareToMoveDatabase,
 }
-
-#[dynamic]
-static PAWN_PUSHES: ColoredSquareToMoveDatabase = calc_pawn_pushes();
-#[dynamic]
-static PAWN_ATKS: ColoredSquareToMoveDatabase = calc_pawn_atks();
-#[dynamic]
-static KNIGHT_ATKS: SquareToMoveDatabase = calc_knight_atks();
-#[dynamic]
-static KING_ATKS: SquareToMoveDatabase = calc_king_atks();
 
 impl ColoredSquareToMoveDatabase {
     fn get_square_db(&self, side: Side) -> &SquareToMoveDatabase {
@@ -60,126 +52,7 @@ impl GenerateLeapingMoves for LeapingPiecesMoveGen {
     }
 }
 
-fn calc_pawn_pushes() -> ColoredSquareToMoveDatabase {
-    let white_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::IncRank]];
-    let white_double_push_dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::IncRank],
-        vec![Direction::IncRank, Direction::IncRank],
-    ];
-    let black_single_push_dirs: Vec<Vec<Direction>> = vec![vec![Direction::DecRank]];
-    let black_double_push_dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::DecRank],
-        vec![Direction::DecRank, Direction::DecRank],
-    ];
-    let edge_push_dirs: Vec<Vec<Direction>> = vec![];
-
-    let white_bbs: [BitBoard; 64] = Square::iter()
-        .map(|sq| {
-            if sq >= Square::A8 || sq <= Square::H1 {
-                BitBoard::from_square_shifts(sq, &edge_push_dirs)
-            } else if sq <= Square::H2 {
-                BitBoard::from_square_shifts(sq, &white_double_push_dirs)
-            } else {
-                BitBoard::from_square_shifts(sq, &white_single_push_dirs)
-            }
-        })
-        .collect::<Vec<BitBoard>>()
-        .try_into()
-        .unwrap();
-
-    let black_bbs: [BitBoard; 64] = Square::iter()
-        .map(|sq| {
-            if sq >= Square::A8 || sq <= Square::H1 {
-                BitBoard::from_square_shifts(sq, &edge_push_dirs)
-            } else if sq >= Square::A7 {
-                BitBoard::from_square_shifts(sq, &black_double_push_dirs)
-            } else {
-                BitBoard::from_square_shifts(sq, &black_single_push_dirs)
-            }
-        })
-        .collect::<Vec<BitBoard>>()
-        .try_into()
-        .unwrap();
-
-    ColoredSquareToMoveDatabase {
-        white: SquareToMoveDatabase(white_bbs),
-        black: SquareToMoveDatabase(black_bbs),
-    }
-}
-
-fn calc_pawn_atks() -> ColoredSquareToMoveDatabase {
-    let white_atk_dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::IncRank, Direction::IncFile],
-        vec![Direction::IncRank, Direction::DecFile],
-    ];
-    let black_atk_dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::DecRank, Direction::IncFile],
-        vec![Direction::DecRank, Direction::DecFile],
-    ];
-    let edge_push_dirs: Vec<Vec<Direction>> = vec![];
-
-    let white_bbs: [BitBoard; 64] = Square::iter()
-        .map(|sq| {
-            if sq >= Square::A8 {
-                BitBoard::from_square_shifts(sq, &edge_push_dirs)
-            } else {
-                BitBoard::from_square_shifts(sq, &white_atk_dirs)
-            }
-        })
-        .collect::<Vec<BitBoard>>()
-        .try_into()
-        .unwrap();
-
-    let black_bbs: [BitBoard; 64] = Square::iter()
-        .map(|sq| {
-            if sq <= Square::H1 {
-                BitBoard::from_square_shifts(sq, &edge_push_dirs)
-            } else {
-                BitBoard::from_square_shifts(sq, &black_atk_dirs)
-            }
-        })
-        .collect::<Vec<BitBoard>>()
-        .try_into()
-        .unwrap();
-
-    ColoredSquareToMoveDatabase {
-        white: SquareToMoveDatabase(white_bbs),
-        black: SquareToMoveDatabase(black_bbs),
-    }
-}
-
-fn calc_knight_atks() -> SquareToMoveDatabase {
-    let dirs: Vec<Vec<Direction>> = vec![
-        vec![Direction::IncRank, Direction::IncRank, Direction::IncFile],
-        vec![Direction::IncRank, Direction::IncRank, Direction::DecFile],
-        vec![Direction::DecRank, Direction::DecRank, Direction::IncFile],
-        vec![Direction::DecRank, Direction::DecRank, Direction::DecFile],
-        vec![Direction::IncRank, Direction::IncFile, Direction::IncFile],
-        vec![Direction::IncRank, Direction::DecFile, Direction::DecFile],
-        vec![Direction::DecRank, Direction::IncFile, Direction::IncFile],
-        vec![Direction::DecRank, Direction::DecFile, Direction::DecFile],
-    ];
-
-    let bbs: [BitBoard; 64] = Square::iter()
-        .map(|sq| BitBoard::from_square_shifts(sq, &dirs))
-        .collect::<Vec<BitBoard>>()
-        .try_into()
-        .unwrap();
-    SquareToMoveDatabase(bbs)
-}
-
-const fn calc_king_atks() -> SquareToMoveDatabase {
-    let dirs: [&[Direction]; 8] = [
-        &[Direction::IncRank],
-        &[Direction::IncFile],
-        &[Direction::DecFile],
-        &[Direction::DecRank],
-        &[Direction::IncRank, Direction::IncFile],
-        &[Direction::IncRank, Direction::DecFile],
-        &[Direction::DecRank, Direction::IncFile],
-        &[Direction::DecRank, Direction::DecFile],
-    ];
-
+const fn calc_square_to_move_database(dirs: &[&[Direction]]) -> SquareToMoveDatabase {
     let mut bbs = [BitBoard::empty(); 64];
 
     let mut bb_idx = 0;
@@ -215,6 +88,81 @@ const fn calc_king_atks() -> SquareToMoveDatabase {
     SquareToMoveDatabase(bbs)
 }
 
+const fn calc_pawn_pushes_square_to_move_databases() -> ColoredSquareToMoveDatabase {
+    // Adds double pushes for the 2nd rank for white and the 7th for black
+    let mut moves = ColoredSquareToMoveDatabase {
+        white: calc_square_to_move_database(&[&[Direction::IncRank]]),
+        black: calc_square_to_move_database(&[&[Direction::DecRank]]),
+    };
+
+    let mut white_idx = 8;
+    const WHITE_END_IDX: usize = 16;
+    const WHITE_SHIFT_DIR: Direction = Direction::IncRank;
+    while white_idx < WHITE_END_IDX {
+        let sq = Square::from_repr(white_idx as u8).unwrap();
+
+        let mut double_shift_bb = moves.white.get_bitboard(sq);
+        double_shift_bb.shift(WHITE_SHIFT_DIR);
+
+        let bb: &mut BitBoard = moves.white.get_bitboard_mut(sq);
+        bb.const_bit_or_mut(double_shift_bb);
+
+        white_idx += 1;
+    }
+
+    let mut black_idx = 48;
+    const BLACK_END_IDX: usize = 56;
+    const BLACK_SHIFT_DIR: Direction = Direction::DecRank;
+    while black_idx < BLACK_END_IDX {
+        let sq = Square::from_repr(black_idx as u8).unwrap();
+
+        let mut double_shift_bb = moves.black.get_bitboard(sq);
+        double_shift_bb.shift(BLACK_SHIFT_DIR);
+
+        let bb: &mut BitBoard = moves.black.get_bitboard_mut(sq);
+        bb.const_bit_or_mut(double_shift_bb);
+
+        black_idx += 1;
+    }
+
+    moves
+}
+
+static PAWN_PUSHES: ColoredSquareToMoveDatabase = calc_pawn_pushes_square_to_move_databases();
+
+static PAWN_ATKS: ColoredSquareToMoveDatabase = ColoredSquareToMoveDatabase {
+    white: calc_square_to_move_database(&[
+        &[Direction::IncRank, Direction::IncFile],
+        &[Direction::IncRank, Direction::DecFile],
+    ]),
+    black: calc_square_to_move_database(&[
+        &[Direction::DecRank, Direction::IncFile],
+        &[Direction::DecRank, Direction::DecFile],
+    ]),
+};
+
+static KNIGHT_ATKS: SquareToMoveDatabase = calc_square_to_move_database(&[
+    &[Direction::IncRank, Direction::IncRank, Direction::IncFile],
+    &[Direction::IncRank, Direction::IncRank, Direction::DecFile],
+    &[Direction::DecRank, Direction::DecRank, Direction::IncFile],
+    &[Direction::DecRank, Direction::DecRank, Direction::DecFile],
+    &[Direction::IncRank, Direction::IncFile, Direction::IncFile],
+    &[Direction::IncRank, Direction::DecFile, Direction::DecFile],
+    &[Direction::DecRank, Direction::IncFile, Direction::IncFile],
+    &[Direction::DecRank, Direction::DecFile, Direction::DecFile],
+]);
+
+static KING_ATKS: SquareToMoveDatabase = calc_square_to_move_database(&[
+    &[Direction::IncRank],
+    &[Direction::IncFile],
+    &[Direction::DecFile],
+    &[Direction::DecRank],
+    &[Direction::IncRank, Direction::IncFile],
+    &[Direction::IncRank, Direction::DecFile],
+    &[Direction::DecRank, Direction::IncFile],
+    &[Direction::DecRank, Direction::DecFile],
+]);
+
 #[cfg(test)]
 mod tests {
     use super::Square::*;
@@ -225,8 +173,7 @@ mod tests {
     #[test_case(A8, BitBoard::from_squares(&[B6, C7]) ; "corner")]
     #[test_case(A4, BitBoard::from_squares(&[B6, C5, C3, B2]) ; "edge")]
     fn test_calc_knight_atks(square: Square, want: BitBoard) {
-        let got = calc_knight_atks();
-        let sq_got = got.get_bitboard(square);
+        let sq_got = KNIGHT_ATKS.get_bitboard(square);
         assert_eq!(sq_got, want);
     }
 
@@ -234,8 +181,7 @@ mod tests {
     #[test_case(A8, BitBoard::from_squares(&[A7, B7, B8]) ; "corner")]
     #[test_case(C1, BitBoard::from_squares(&[B1, B2, C2, D2, D1]) ; "edge")]
     fn test_calc_king_atks(square: Square, want: BitBoard) {
-        let got = calc_king_atks();
-        let sq_got = got.get_bitboard(square);
+        let sq_got = KING_ATKS.get_bitboard(square);
         assert_eq!(sq_got, want);
     }
 
@@ -248,8 +194,7 @@ mod tests {
     #[test_case(G2, Side::Black, BitBoard::from_squares(&[G1]) ; "black single edge")]
     #[test_case(G1, Side::Black, BitBoard::from_squares(&[]) ; "black edge")]
     fn test_calc_pawn_pushes(square: Square, side: Side, want: BitBoard) {
-        let got = calc_pawn_pushes();
-        let sq_got = got.get_square_db(side).get_bitboard(square);
+        let sq_got = PAWN_PUSHES.get_square_db(side).get_bitboard(square);
         assert_eq!(sq_got, want);
     }
 
@@ -262,8 +207,7 @@ mod tests {
     #[test_case(A2, Side::Black, BitBoard::from_squares(&[B1]) ; "black edge")]
     #[test_case(F8, Side::Black, BitBoard::from_squares(&[E7, G7]) ; "black back rank")]
     fn test_calc_pawn_atks(square: Square, side: Side, want: BitBoard) {
-        let got = calc_pawn_atks();
-        let sq_got = got.get_square_db(side).get_bitboard(square);
+        let sq_got = PAWN_ATKS.get_square_db(side).get_bitboard(square);
         assert_eq!(sq_got, want);
     }
 }
