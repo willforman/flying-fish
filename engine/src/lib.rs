@@ -1,5 +1,7 @@
 #![feature(const_mut_refs)]
 #![feature(const_option)]
+#![feature(const_trait_impl)]
+#![feature(effects)]
 
 pub mod bitboard;
 pub mod evaluation;

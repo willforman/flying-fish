@@ -45,13 +45,12 @@ impl MasksList {
 
 #[static_init::dynamic]
 static MASKS_LIST: MasksList = calc_masks_list();
-#[static_init::dynamic]
 static RANK_ATKS: [u8; 64 * 8] = calc_rank_atks();
 
 pub struct HyperbolaQuintessence {}
 
 // o^(o-2r) trick
-fn calc_left_rank_atk(blocking_pieces: u8, rook: u8) -> u8 {
+const fn calc_left_rank_atk(blocking_pieces: u8, rook: u8) -> u8 {
     let occ = blocking_pieces | rook;
     let atks = occ ^ (blocking_pieces.wrapping_sub(rook));
     atks
@@ -169,34 +168,29 @@ fn calc_masks_list() -> MasksList {
     MasksList(masks_list.try_into().unwrap())
 }
 
-fn calc_rank_atks() -> [u8; 64 * 8] {
-    const ROOK_OPTIONS: [u8; 8] = [
-        1 << 0,
-        1 << 1,
-        1 << 2,
-        1 << 3,
-        1 << 4,
-        1 << 5,
-        1 << 6,
-        1 << 7,
-    ];
+const fn calc_rank_atks() -> [u8; 64 * 8] {
+    let mut rank_atks_list: [u8; 64 * 8] = [0; 64 * 8];
 
-    let mut rank_atks_list = Vec::with_capacity(64 * 8);
+    let mut pieces = 0;
+    while pieces < 64 {
+        let mut rook_shift = 0;
+        while rook_shift < 8 {
+            let rook = 1 << rook_shift;
 
-    for pieces in 0..64 {
-        for rook in ROOK_OPTIONS {
             let shifted_pieces = pieces << 1; // Ignore the first and last bit
-                                              //
+
             let left_atks = calc_left_rank_atk(shifted_pieces, rook);
             let right_atks = calc_left_rank_atk(shifted_pieces.reverse_bits(), rook.reverse_bits())
                 .reverse_bits();
 
             let atks = left_atks | right_atks;
-            rank_atks_list.push(atks);
-        }
-    }
+            rank_atks_list[pieces as usize * 8 + rook_shift] = atks;
 
-    rank_atks_list.try_into().unwrap()
+            rook_shift += 1;
+        }
+        pieces += 1;
+    }
+    rank_atks_list
 }
 
 #[cfg(test)]
