@@ -234,7 +234,7 @@ impl GenerateAllMoves for AllPiecesMoveGen {
                 } else {
                     Direction::DecRank
                 };
-                let ep_src_bb = BitBoard::from_square_shifts(ep_target, &vec![vec![ep_dir]]);
+                let ep_src_bb = BitBoard::from_square_shifts(ep_target, &[&[ep_dir]]);
                 if ep_src_bb == checkers {
                     capture_mask |= BitBoard::from_square(ep_target);
                 }

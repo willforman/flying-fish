@@ -92,22 +92,30 @@ impl BitBoard {
     }
 
     // TODO: convert to From<&[Square]>
-    pub(crate) fn from_squares(squares: &[Square]) -> Self {
-        BitBoard(squares.iter().fold(0, |board, sq| board | 1 << (*sq as u8)))
+    pub(crate) const fn from_squares(squares: &[Square]) -> Self {
+        let mut bb = BitBoard::empty();
+        let mut sq_idx = 0;
+        while sq_idx < squares.len() {
+            let sq = squares[sq_idx];
+            let sq_bb = BitBoard::from_square(sq);
+            bb = bb.const_bit_or(sq_bb);
+            sq_idx += 1;
+        }
+        bb
     }
 
     pub(crate) const fn from_val(val: u64) -> Self {
         BitBoard(val)
     }
 
-    pub(crate) fn from_square_shifts(
+    pub(crate) const fn from_square_shifts(
         square: Square,
-        shift_dirs_list: &Vec<Vec<Direction>>,
+        shift_dirs_list: &[&[Direction]],
     ) -> Self {
         let start = BitBoard::from_square(square);
         let res = shift_dirs_list
-            .iter()
-            .fold(start.clone(), |acc, shift_dirs| {
+            .into_iter()
+            .fold(start.clone(), |acc, &shift_dirs| {
                 let mut shifted = start.clone();
                 for &sd in shift_dirs {
                     shifted.shift(sd);
@@ -258,6 +266,10 @@ impl BitBoard {
     pub(crate) const fn const_bit_not(self) -> BitBoard {
         BitBoard(!self.0)
     }
+
+    pub(crate) const fn const_shr(self, rhs: usize) -> BitBoard {
+        BitBoard(self.0 >> rhs)
+    }
 }
 
 impl BitOr for BitBoard {
@@ -383,11 +395,12 @@ mod tests {
         }
     }
 
-    #[test_case([B8, G6, A4, F1],
+    #[test_case(&[B8, G6, A4, F1],
         0b0000001000000000010000000000000000000001000000000000000000100000
     ; "first")]
-    fn test_is_piece_at_binary_number(piece_squares: [Square; 4], bin_num: u64) {
-        let bb = BitBoard(bin_num);
+    #[test_case(&[A1], 1 ; "first square")]
+    fn test_bitboard_from_val(piece_squares: &[Square], val: u64) {
+        let bb = BitBoard::from_val(val);
         for sq in Square::iter() {
             if piece_squares.contains(&sq) {
                 assert!(bb.is_square_set(sq));
@@ -410,6 +423,8 @@ mod tests {
     #[test_case(BitBoard::from_square(H3), &[Direction::IncFile], BitBoard(0) ; "overlap e")]
     #[test_case(BitBoard::from_square(A2), &[Direction::DecRank, Direction::DecFile], BitBoard(0) ; "overlap sw")]
     #[test_case(BitBoard::from_square(H7), &[Direction::IncRank, Direction::IncFile], BitBoard(0) ; "overlap ne")]
+    #[test_case(BitBoard::from_squares(&[A8, B7, C6, D5, E4, F3, G2, H1]), 
+                &[Direction::DecFile], BitBoard::from_squares(&[A7, B6, C5, D4, E3, F2, G1]) ; "diagonal dec file")]
     fn test_shift(mut inp: BitBoard, shift_dirs: &[Direction], want: BitBoard) {
         for &shift_dir in shift_dirs {
             inp.shift(shift_dir);
@@ -417,18 +432,18 @@ mod tests {
         assert_eq!(inp, want);
     }
 
-    #[test_case(D4, vec![vec![Direction::IncRank]], BitBoard::from_square(D5) ; "one")]
-    #[test_case(D4, vec![vec![Direction::IncRank], vec![Direction::DecRank]], BitBoard::from_squares(&[D5, D3]) ; "two")]
-    #[test_case(D4, vec![
-        vec![Direction::IncRank],
-        vec![Direction::DecRank],
-        vec![Direction::IncFile],
-        vec![Direction::DecFile],
+    #[test_case(D4, &[&[Direction::IncRank]], BitBoard::from_square(D5) ; "one")]
+    #[test_case(D4, &[&[Direction::IncRank], &[Direction::DecRank]], BitBoard::from_squares(&[D5, D3]) ; "two")]
+    #[test_case(D4, &[
+        &[Direction::IncRank],
+        &[Direction::DecRank],
+        &[Direction::IncFile],
+        &[Direction::DecFile],
     ], BitBoard::from_squares(&[D5, D3, E4, C4]) ; "all")]
-    #[test_case(D4, vec![vec![Direction::IncRank, Direction::IncFile]], BitBoard::from_square(E5) ; "multi")]
+    #[test_case(D4, &[&[Direction::IncRank, Direction::IncFile]], BitBoard::from_square(E5) ; "multi")]
     fn test_from_square_shifts(
         inp_square: Square,
-        shift_dirs_list: Vec<Vec<Direction>>,
+        shift_dirs_list: &[&[Direction]],
         want: BitBoard,
     ) {
         let got = BitBoard::from_square_shifts(inp_square, &shift_dirs_list);

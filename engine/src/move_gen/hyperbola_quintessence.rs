@@ -1,7 +1,5 @@
 use strum::IntoEnumIterator;
 
-use static_init;
-
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::Piece;
 
@@ -16,7 +14,7 @@ enum MaskType {
     AntiDiagonal,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct SquareMasks {
     bit: BitBoard,
     file: BitBoard,
@@ -25,6 +23,15 @@ struct SquareMasks {
 }
 
 impl SquareMasks {
+    const fn empty() -> SquareMasks {
+        SquareMasks {
+            bit: BitBoard::empty(),
+            file: BitBoard::empty(),
+            diag: BitBoard::empty(),
+            anti_diag: BitBoard::empty(),
+        }
+    }
+
     fn get(&self, mask_type: MaskType) -> BitBoard {
         match mask_type {
             MaskType::Bit => self.bit,
@@ -43,7 +50,6 @@ impl MasksList {
     }
 }
 
-#[static_init::dynamic]
 static MASKS_LIST: MasksList = calc_masks_list();
 static RANK_ATKS: [u8; 64 * 8] = calc_rank_atks();
 
@@ -110,62 +116,62 @@ impl GenerateSlidingMoves for HyperbolaQuintessence {
     }
 }
 
-fn calc_masks_list() -> MasksList {
-    let mut file_dirs = vec![
-        vec![Direction::IncRank; 1],
-        vec![Direction::IncRank; 2],
-        vec![Direction::IncRank; 3],
-        vec![Direction::IncRank; 4],
-        vec![Direction::IncRank; 5],
-        vec![Direction::IncRank; 6],
-        vec![Direction::IncRank; 7],
-    ];
-    let mut diag_dirs = vec![
-        [vec![Direction::IncRank; 1], vec![Direction::DecFile; 1]].concat(),
-        [vec![Direction::IncRank; 2], vec![Direction::DecFile; 2]].concat(),
-        [vec![Direction::IncRank; 3], vec![Direction::DecFile; 3]].concat(),
-        [vec![Direction::IncRank; 4], vec![Direction::DecFile; 4]].concat(),
-        [vec![Direction::IncRank; 5], vec![Direction::DecFile; 5]].concat(),
-        [vec![Direction::IncRank; 6], vec![Direction::DecFile; 6]].concat(),
-        [vec![Direction::IncRank; 7], vec![Direction::DecFile; 7]].concat(),
-    ];
-    let mut anti_diag_dirs = vec![
-        [vec![Direction::IncRank; 1], vec![Direction::IncFile; 1]].concat(),
-        [vec![Direction::IncRank; 2], vec![Direction::IncFile; 2]].concat(),
-        [vec![Direction::IncRank; 3], vec![Direction::IncFile; 3]].concat(),
-        [vec![Direction::IncRank; 4], vec![Direction::IncFile; 4]].concat(),
-        [vec![Direction::IncRank; 5], vec![Direction::IncFile; 5]].concat(),
-        [vec![Direction::IncRank; 6], vec![Direction::IncFile; 6]].concat(),
-        [vec![Direction::IncRank; 7], vec![Direction::IncFile; 7]].concat(),
-    ];
+const fn calc_masks_list() -> MasksList {
+    let mut masks_list = [SquareMasks::empty(); 64];
+    let mut curr_file = BitBoard::from_squares(&[
+        Square::A1,
+        Square::A2,
+        Square::A3,
+        Square::A4,
+        Square::A5,
+        Square::A6,
+        Square::A7,
+        Square::A8,
+    ]);
+    let mut curr_diag = BitBoard::from_squares(&[Square::A1]);
+    let mut curr_anti_diag = BitBoard::from_squares(&[
+        Square::A1,
+        Square::B2,
+        Square::C3,
+        Square::D4,
+        Square::E5,
+        Square::F6,
+        Square::G7,
+        Square::H8,
+    ]);
 
-    let mut masks_list = Vec::with_capacity(64);
+    let mut reset_diag = curr_diag;
+    let mut reset_anti_diag = curr_anti_diag;
 
-    for (idx, square) in Square::iter().enumerate() {
-        masks_list.push(SquareMasks {
-            bit: BitBoard::from_square(square),
-            file: BitBoard::from_square_shifts(square, &file_dirs),
-            diag: BitBoard::from_square_shifts(square, &diag_dirs),
-            anti_diag: BitBoard::from_square_shifts(square, &anti_diag_dirs),
-        });
+    let mut idx: usize = 0;
+    while idx < 64 {
+        let sq = Square::from_repr(idx as u8).unwrap();
+        let bit_mask = BitBoard::from_square(sq);
+        masks_list[idx] = SquareMasks {
+            bit: bit_mask,
+            file: curr_file.const_bit_and(bit_mask.const_bit_not()),
+            diag: curr_diag.const_bit_and(bit_mask.const_bit_not()),
+            anti_diag: curr_anti_diag.const_bit_and(bit_mask.const_bit_not()),
+        };
+        // Add square at:
+        // B7: A8
+        // C7: B8
+        if (idx + 1) % 8 == 0 {
+            curr_file = curr_file.const_shr(7);
 
-        if (idx + 1) % 8 == 0 && idx != 63 {
-            let rank = (idx + 1) / 8;
+            reset_diag.shift(Direction::DecRank);
+            curr_diag = reset_diag;
 
-            file_dirs[7 - rank] = vec![Direction::DecRank; rank];
-            diag_dirs[7 - rank] = [
-                vec![Direction::DecRank; rank],
-                vec![Direction::IncFile; rank],
-            ]
-            .concat();
-            anti_diag_dirs[7 - rank] = [
-                vec![Direction::DecRank; rank],
-                vec![Direction::DecFile; rank],
-            ]
-            .concat();
+            reset_anti_diag.shift(Direction::IncRank);
+            curr_anti_diag = reset_anti_diag;
+        } else {
+            curr_file.shift(Direction::IncFile);
+            curr_diag.shift(Direction::IncFile);
+            curr_anti_diag.shift(Direction::IncFile);
         }
+        idx += 1;
     }
-    MasksList(masks_list.try_into().unwrap())
+    MasksList(masks_list)
 }
 
 const fn calc_rank_atks() -> [u8; 64 * 8] {
@@ -209,8 +215,8 @@ mod tests {
     #[test_case(MaskType::AntiDiagonal, D5, BitBoard::from_squares(&[G8, F7, E6, C4, B3, A2]) ; "anti diagonal off main")]
     #[test_case(MaskType::AntiDiagonal, A8, BitBoard::from_squares(&[]) ; "anti diagonal empty")]
     fn test_mask(mask_type: MaskType, check_square: Square, want: BitBoard) {
-        let masks_list = calc_masks_list();
-        assert_eq!(masks_list.get(check_square).get(mask_type), want);
+        let got = MASKS_LIST.get(check_square).get(mask_type);
+        assert_eq!(got, want);
     }
 
     #[test_case(H4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A4, B4, C4, D4, E4, F4, G4]) ; "empty")]
