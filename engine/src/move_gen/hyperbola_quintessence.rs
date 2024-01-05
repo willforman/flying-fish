@@ -53,6 +53,122 @@ impl MasksList {
 static MASKS_LIST: MasksList = calc_masks_list();
 static RANK_ATKS: [u8; 64 * 8] = calc_rank_atks();
 
+const fn calc_masks_list() -> MasksList {
+    let mut masks_list = [SquareMasks::empty(); 64];
+
+    let mut idx: usize = 0;
+    while idx < 64 {
+        let sq = Square::from_repr(idx as u8).unwrap();
+        let bit_mask = BitBoard::from_square(sq);
+
+        masks_list[idx].bit = bit_mask;
+        idx += 1;
+    }
+
+    let mut file: usize = 0;
+    let mut rank: usize = 0;
+    let mut curr_file = BitBoard::from_squares(&[
+        Square::A1,
+        Square::A2,
+        Square::A3,
+        Square::A4,
+        Square::A5,
+        Square::A6,
+        Square::A7,
+        Square::A8,
+    ]);
+
+    while file < 8 {
+        while rank < 8 {
+            let idx = file * 8 + rank;
+            let bit_mask = masks_list[idx].bit;
+            let file_mask = curr_file.const_bit_and(bit_mask.const_bit_not());
+
+            masks_list[idx].file = file_mask;
+            rank += 1;
+        }
+        curr_file.shift(Direction::IncFile);
+        file += 1;
+    }
+
+    file = 0;
+    let mut curr_anti_diag = BitBoard::from_squares(&[
+        Square::A1,
+        Square::B2,
+        Square::C3,
+        Square::D4,
+        Square::E5,
+        Square::F6,
+        Square::G7,
+        Square::H8,
+    ]);
+
+    while file < 8 {
+        let mut idx = file;
+        // Continue up the anti diagonal until we reach the last file
+        while idx != file && idx % 8 != 0 {
+            let bit_mask = masks_list[idx].bit;
+            let anti_diag_mask = curr_anti_diag.const_bit_and(bit_mask.const_bit_not());
+
+            masks_list[idx].anti_diag = anti_diag_mask;
+            idx += 9;
+        }
+        curr_anti_diag.shift(Direction::IncFile);
+        file += 1;
+    }
+
+    rank = 0;
+    curr_anti_diag = BitBoard::from_squares(&[
+        Square::B1,
+        Square::C2,
+        Square::D3,
+        Square::E4,
+        Square::F5,
+        Square::G6,
+        Square::H7,
+    ]);
+    while rank < 8 {
+        let mut idx = rank;
+        // Continue up the anti diagonal until we reach the last rank
+        while idx != rank && idx / 8 == 8 {
+            let bit_mask = masks_list[idx].bit;
+            let anti_diag_mask = curr_anti_diag.const_bit_and(bit_mask.const_bit_not());
+
+            masks_list[idx].anti_diag = anti_diag_mask;
+            idx += 9;
+        }
+        curr_anti_diag.shift(Direction::IncRank);
+        rank += 1;
+    }
+
+    MasksList(masks_list)
+}
+
+const fn calc_rank_atks() -> [u8; 64 * 8] {
+    let mut rank_atks_list: [u8; 64 * 8] = [0; 64 * 8];
+
+    let mut pieces = 0;
+    while pieces < 64 {
+        let mut rook_shift = 0;
+        while rook_shift < 8 {
+            let rook = 1 << rook_shift;
+
+            let shifted_pieces = pieces << 1; // Ignore the first and last bit
+
+            let left_atks = calc_left_rank_atk(shifted_pieces, rook);
+            let right_atks = calc_left_rank_atk(shifted_pieces.reverse_bits(), rook.reverse_bits())
+                .reverse_bits();
+
+            let atks = left_atks | right_atks;
+            rank_atks_list[pieces as usize * 8 + rook_shift] = atks;
+
+            rook_shift += 1;
+        }
+        pieces += 1;
+    }
+    rank_atks_list
+}
+
 pub struct HyperbolaQuintessence {}
 
 // o^(o-2r) trick
@@ -114,89 +230,6 @@ impl GenerateSlidingMoves for HyperbolaQuintessence {
             ),
         }
     }
-}
-
-const fn calc_masks_list() -> MasksList {
-    let mut masks_list = [SquareMasks::empty(); 64];
-    let mut curr_file = BitBoard::from_squares(&[
-        Square::A1,
-        Square::A2,
-        Square::A3,
-        Square::A4,
-        Square::A5,
-        Square::A6,
-        Square::A7,
-        Square::A8,
-    ]);
-    let mut curr_diag = BitBoard::from_squares(&[Square::A1]);
-    let mut curr_anti_diag = BitBoard::from_squares(&[
-        Square::A1,
-        Square::B2,
-        Square::C3,
-        Square::D4,
-        Square::E5,
-        Square::F6,
-        Square::G7,
-        Square::H8,
-    ]);
-
-    let mut reset_diag = curr_diag;
-    let mut reset_anti_diag = curr_anti_diag;
-
-    let mut idx: usize = 0;
-    while idx < 64 {
-        let sq = Square::from_repr(idx as u8).unwrap();
-        let bit_mask = BitBoard::from_square(sq);
-        masks_list[idx] = SquareMasks {
-            bit: bit_mask,
-            file: curr_file.const_bit_and(bit_mask.const_bit_not()),
-            diag: curr_diag.const_bit_and(bit_mask.const_bit_not()),
-            anti_diag: curr_anti_diag.const_bit_and(bit_mask.const_bit_not()),
-        };
-        // Add square at:
-        // B7: A8
-        // C7: B8
-        if (idx + 1) % 8 == 0 {
-            curr_file = curr_file.const_shr(7);
-
-            reset_diag.shift(Direction::DecRank);
-            curr_diag = reset_diag;
-
-            reset_anti_diag.shift(Direction::IncRank);
-            curr_anti_diag = reset_anti_diag;
-        } else {
-            curr_file.shift(Direction::IncFile);
-            curr_diag.shift(Direction::IncFile);
-            curr_anti_diag.shift(Direction::IncFile);
-        }
-        idx += 1;
-    }
-    MasksList(masks_list)
-}
-
-const fn calc_rank_atks() -> [u8; 64 * 8] {
-    let mut rank_atks_list: [u8; 64 * 8] = [0; 64 * 8];
-
-    let mut pieces = 0;
-    while pieces < 64 {
-        let mut rook_shift = 0;
-        while rook_shift < 8 {
-            let rook = 1 << rook_shift;
-
-            let shifted_pieces = pieces << 1; // Ignore the first and last bit
-
-            let left_atks = calc_left_rank_atk(shifted_pieces, rook);
-            let right_atks = calc_left_rank_atk(shifted_pieces.reverse_bits(), rook.reverse_bits())
-                .reverse_bits();
-
-            let atks = left_atks | right_atks;
-            rank_atks_list[pieces as usize * 8 + rook_shift] = atks;
-
-            rook_shift += 1;
-        }
-        pieces += 1;
-    }
-    rank_atks_list
 }
 
 #[cfg(test)]
