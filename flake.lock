@@ -33,10 +33,27 @@
         "type": "github"
       }
     },
+    "nixpkgs-lldb-fix": {
+      "locked": {
+        "lastModified": 1704278541,
+        "narHash": "sha256-soPHUpKqSny7S8kHkn4SWAe4aj2HWGKW2uOu4zDK7TE=",
+        "owner": "Itaros",
+        "repo": "nixpkgs",
+        "rev": "3c049266e7ae0110e49d9cd7a618b0dc82f9845e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Itaros",
+        "ref": "sideport-lldb-1x",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-lldb-fix": "nixpkgs-lldb-fix",
         "rust-overlay": "rust-overlay"
       }
     },

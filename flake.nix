@@ -9,15 +9,23 @@
         flake-utils.follows = "flake-utils";
       };
     };
+
+    nixpkgs-lldb-fix.url = "github:Itaros/nixpkgs/sideport-lldb-1x";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, nixpkgs-lldb-fix }:
     flake-utils.lib.eachDefaultSystem (system:
       let
+        lldb-fix-overlay = final: prev: {
+          inherit (nixpkgs-lldb-fix.legacyPackages.${prev.system})
+            lldb_17;
+        };
+
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ (import rust-overlay) ];
+          overlays = [ (import rust-overlay) lldb-fix-overlay ];
         };
+
 
         rust = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
@@ -28,12 +36,12 @@
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             rust
-            lldb
             libiconv
             cargo-leptos
             wasm-bindgen-cli
             cargo-generate
             tailwindcss
+            lldb_17
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
               CoreServices
