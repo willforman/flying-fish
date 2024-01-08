@@ -42,6 +42,7 @@
             cargo-generate
             tailwindcss
             lldb_17
+            libllvm
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
               CoreServices

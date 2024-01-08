@@ -5,8 +5,6 @@ use crate::position::Piece;
 
 use super::GenerateSlidingMoves;
 
-// TODO: Look into using static (lazy_static) for this file
-
 enum MaskType {
     Bit,
     File,
@@ -66,7 +64,6 @@ const fn calc_masks_list() -> MasksList {
     }
 
     let mut file: usize = 0;
-    let mut rank: usize = 0;
     let mut curr_file = BitBoard::from_squares(&[
         Square::A1,
         Square::A2,
@@ -79,8 +76,9 @@ const fn calc_masks_list() -> MasksList {
     ]);
 
     while file < 8 {
+        let mut rank = 0;
         while rank < 8 {
-            let idx = file * 8 + rank;
+            let idx = rank * 8 + file;
             let bit_mask = masks_list[idx].bit;
             let file_mask = curr_file.const_bit_and(bit_mask.const_bit_not());
 
@@ -91,7 +89,6 @@ const fn calc_masks_list() -> MasksList {
         file += 1;
     }
 
-    file = 0;
     let mut curr_anti_diag = BitBoard::from_squares(&[
         Square::A1,
         Square::B2,
@@ -102,11 +99,12 @@ const fn calc_masks_list() -> MasksList {
         Square::G7,
         Square::H8,
     ]);
+    let mut file = 0;
 
     while file < 8 {
         let mut idx = file;
         // Continue up the anti diagonal until we reach the last file
-        while idx != file && idx % 8 != 0 {
+        while idx % 8 != 0 || idx == file {
             let bit_mask = masks_list[idx].bit;
             let anti_diag_mask = curr_anti_diag.const_bit_and(bit_mask.const_bit_not());
 
@@ -117,20 +115,20 @@ const fn calc_masks_list() -> MasksList {
         file += 1;
     }
 
-    rank = 0;
-    curr_anti_diag = BitBoard::from_squares(&[
-        Square::B1,
-        Square::C2,
-        Square::D3,
-        Square::E4,
-        Square::F5,
-        Square::G6,
-        Square::H7,
+    let mut rank = 1;
+    let mut curr_anti_diag = BitBoard::from_squares(&[
+        Square::A2,
+        Square::B3,
+        Square::C4,
+        Square::D5,
+        Square::E6,
+        Square::F7,
+        Square::G8,
     ]);
     while rank < 8 {
-        let mut idx = rank;
+        let mut idx = rank * 8;
         // Continue up the anti diagonal until we reach the last rank
-        while idx != rank && idx / 8 == 8 {
+        while idx / 8 != 8 {
             let bit_mask = masks_list[idx].bit;
             let anti_diag_mask = curr_anti_diag.const_bit_and(bit_mask.const_bit_not());
 
@@ -139,6 +137,66 @@ const fn calc_masks_list() -> MasksList {
         }
         curr_anti_diag.shift(Direction::IncRank);
         rank += 1;
+    }
+
+    let mut curr_diag = BitBoard::from_squares(&[
+        Square::A8,
+        Square::B7,
+        Square::C6,
+        Square::D5,
+        Square::E4,
+        Square::F3,
+        Square::G2,
+        Square::H1,
+    ]);
+    let mut file = 0;
+
+    while file < 8 {
+        let mut idx: usize = 56 + file;
+        // Continue up the anti diagonal until we reach the last file
+        loop {
+            let _sq = Square::from_repr(idx as u8).unwrap();
+            let bit_mask = masks_list[idx].bit;
+            let diag_mask = curr_diag.const_bit_and(bit_mask.const_bit_not());
+
+            masks_list[idx].diag = diag_mask;
+            if idx % 8 == 7 {
+                break;
+            }
+            idx -= 7;
+        }
+        curr_diag.shift(Direction::IncFile);
+        file += 1;
+    }
+
+    let mut file = 6;
+    let mut curr_diag = BitBoard::from_squares(&[
+        Square::G1,
+        Square::F2,
+        Square::E3,
+        Square::D4,
+        Square::C5,
+        Square::B6,
+        Square::A7,
+    ]);
+    loop {
+        let mut idx = file;
+        // Continue up the anti diagonal until we pass the last rank
+        loop {
+            let bit_mask = masks_list[idx].bit;
+            let diag_mask = curr_diag.const_bit_and(bit_mask.const_bit_not());
+
+            masks_list[idx].diag = diag_mask;
+            if idx % 8 == 0 {
+                break;
+            }
+            idx += 7;
+        }
+        if file == 0 {
+            break;
+        }
+        curr_diag.shift(Direction::DecFile);
+        file -= 1;
     }
 
     MasksList(masks_list)
@@ -241,14 +299,16 @@ mod tests {
     #[test_case(MaskType::Bit, D4, BitBoard::from_square(D4) ; "bit")]
     #[test_case(MaskType::File, A8, BitBoard::from_squares(&[A7, A6, A5, A4, A3, A2, A1]) ; "file corner")]
     #[test_case(MaskType::File, D4, BitBoard::from_squares(&[D8, D7, D6, D5, D3, D2, D1]) ; "file middle")]
-    #[test_case(MaskType::Diagonal, A8, BitBoard::from_squares(&[B7, C6, D5, E4, F3, G2, H1]) ; "diagonal main")]
+    #[test_case(MaskType::Diagonal, A8, BitBoard::from_squares(&[B7, C6, D5, E4, F3, G2, H1]) ; "diagonal main corner")]
+    #[test_case(MaskType::Diagonal, E5, BitBoard::from_squares(&[B8, C7, D6, F4, G3, H2]) ; "diagonal middle")]
     #[test_case(MaskType::Diagonal, D4, BitBoard::from_squares(&[A7, B6, C5, E3, F2, G1]) ; "diagonal off main")]
     #[test_case(MaskType::Diagonal, A1, BitBoard::from_squares(&[]) ; "diagonal empty")]
     #[test_case(MaskType::AntiDiagonal, H8, BitBoard::from_squares(&[G7, F6, E5, D4, C3, B2, A1]) ; "anti diagonal main")]
     #[test_case(MaskType::AntiDiagonal, D5, BitBoard::from_squares(&[G8, F7, E6, C4, B3, A2]) ; "anti diagonal off main")]
     #[test_case(MaskType::AntiDiagonal, A8, BitBoard::from_squares(&[]) ; "anti diagonal empty")]
     fn test_mask(mask_type: MaskType, check_square: Square, want: BitBoard) {
-        let got = MASKS_LIST.get(check_square).get(mask_type);
+        let masks = calc_masks_list();
+        let got = masks.get(check_square).get(mask_type);
         assert_eq!(got, want);
     }
 
