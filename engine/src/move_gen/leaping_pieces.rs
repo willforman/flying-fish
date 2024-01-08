@@ -163,6 +163,8 @@ static KING_ATKS: SquareToMoveDatabase = calc_square_to_move_database(&[
     &[Direction::DecRank, Direction::DecFile],
 ]);
 
+static LEAPING_PIECES_MOVE_GEN: LeapingPiecesMoveGen = LeapingPiecesMoveGen {};
+
 #[cfg(test)]
 mod tests {
     use super::Square::*;

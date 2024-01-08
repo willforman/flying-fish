@@ -290,6 +290,8 @@ impl GenerateSlidingMoves for HyperbolaQuintessence {
     }
 }
 
+static HYPERBOLA_QUINTESSENCE: HyperbolaQuintessence = HyperbolaQuintessence {};
+
 #[cfg(test)]
 mod tests {
     use super::Square::*;
