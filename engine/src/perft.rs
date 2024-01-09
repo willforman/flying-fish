@@ -5,9 +5,12 @@ use std::{
 
 use tabled::{Table, Tabled};
 
-use crate::bitboard::BitBoard;
 use crate::{
-    move_gen::GenerateAllMoves,
+    bitboard::BitBoard,
+    move_gen::{gen_moves_hyperbola_quintessence, get_checkers_hyperbola_quintessence},
+};
+use crate::{
+    move_gen::all_pieces::GenerateAllMoves,
     position::{Piece, Position},
 };
 
@@ -100,7 +103,7 @@ fn perft_helper(
 ) {
     // Must check moves before checking end condition of this recursive function
     // because we need to check for checkmate
-    let moves = move_gen.gen_moves(position);
+    let moves = gen_moves_hyperbola_quintessence(position);
 
     if moves.is_empty() {
         let prev_res = depth_results.get_mut(curr_depth - 1).unwrap();
@@ -181,7 +184,7 @@ fn perft_helper(
         let mut move_position = position.clone();
         move_position.make_move(&mve).unwrap();
 
-        let mut checkers = move_gen.get_checkers(&move_position);
+        let mut checkers = get_checkers_hyperbola_quintessence(&move_position);
         if !checkers.is_empty() {
             tot_checks += 1;
             if checkers.num_squares_set() > 1 {
@@ -215,7 +218,10 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
-    use crate::bitboard::Square::*;
+    use crate::{
+        bitboard::Square::*,
+        move_gen::all_pieces::{GenerateLeapingMoves, GenerateSlidingMoves},
+    };
     use test_case::test_case;
 
     use crate::position::Move;
@@ -225,11 +231,21 @@ mod tests {
     }
 
     impl GenerateAllMoves for AllPiecesMoveGenStub {
-        fn gen_moves(&self, _position: &Position) -> HashSet<Move> {
+        fn gen_moves(
+            &self,
+            _position: &Position,
+            leaping_pieces: impl GenerateLeapingMoves,
+            sliding_pieces: impl GenerateSlidingMoves,
+        ) -> HashSet<Move> {
             self.moves.clone()
         }
 
-        fn get_checkers(&self, _position: &Position) -> BitBoard {
+        fn get_checkers(
+            &self,
+            _position: &Position,
+            leaping_pieces: impl GenerateLeapingMoves,
+            sliding_pieces: impl GenerateSlidingMoves,
+        ) -> BitBoard {
             BitBoard::empty()
         }
     }

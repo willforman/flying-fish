@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::Piece;
 
-use super::GenerateSlidingMoves;
+use crate::move_gen::all_pieces::GenerateSlidingMoves;
 
 enum MaskType {
     Bit,
@@ -290,7 +290,7 @@ impl GenerateSlidingMoves for HyperbolaQuintessence {
     }
 }
 
-static HYPERBOLA_QUINTESSENCE: HyperbolaQuintessence = HyperbolaQuintessence {};
+pub(crate) static HYPERBOLA_QUINTESSENCE: HyperbolaQuintessence = HyperbolaQuintessence {};
 
 #[cfg(test)]
 mod tests {
