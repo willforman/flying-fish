@@ -1,18 +1,14 @@
 use std::{
     fmt::Display,
+    marker::Copy,
     time::{Duration, Instant},
 };
 
 use tabled::{Table, Tabled};
 
-use crate::{
-    bitboard::BitBoard,
-    move_gen::{gen_moves_hyperbola_quintessence, get_checkers_hyperbola_quintessence},
-};
-use crate::{
-    move_gen::all_pieces::GenerateAllMoves,
-    position::{Piece, Position},
-};
+use crate::move_gen::{GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
+use crate::position::{Piece, Position};
+use crate::{bitboard::BitBoard, move_gen::GenerateCheckers};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Tabled)]
 pub struct PerftDepthResult {
@@ -73,12 +69,16 @@ impl Display for PerftResult {
     }
 }
 
-pub fn perft(position: &Position, move_gen: &impl GenerateAllMoves, depth: usize) -> PerftResult {
+pub fn perft(
+    position: &Position,
+    depth: usize,
+    move_gen: impl GenerateMoves + GenerateCheckers + Copy,
+) -> PerftResult {
     let mut depth_results = vec![PerftDepthResult::empty(); depth];
 
     let start = Instant::now();
 
-    perft_helper(&mut depth_results, position, move_gen, depth, 0);
+    perft_helper(&mut depth_results, position, depth, 0, move_gen);
 
     let time_elapsed = start.elapsed();
 
@@ -97,13 +97,13 @@ pub fn perft(position: &Position, move_gen: &impl GenerateAllMoves, depth: usize
 fn perft_helper(
     depth_results: &mut Vec<PerftDepthResult>,
     position: &Position,
-    move_gen: &impl GenerateAllMoves,
     max_depth: usize,
     curr_depth: usize,
+    move_gen: impl GenerateMoves + GenerateCheckers + Copy,
 ) {
     // Must check moves before checking end condition of this recursive function
     // because we need to check for checkmate
-    let moves = gen_moves_hyperbola_quintessence(position);
+    let moves = move_gen.gen_moves(position);
 
     if moves.is_empty() {
         let prev_res = depth_results.get_mut(curr_depth - 1).unwrap();
@@ -184,7 +184,7 @@ fn perft_helper(
         let mut move_position = position.clone();
         move_position.make_move(&mve).unwrap();
 
-        let mut checkers = get_checkers_hyperbola_quintessence(&move_position);
+        let mut checkers = move_gen.gen_checkers(&move_position);
         if !checkers.is_empty() {
             tot_checks += 1;
             if checkers.num_squares_set() > 1 {
@@ -200,9 +200,9 @@ fn perft_helper(
         perft_helper(
             depth_results,
             &move_position,
-            move_gen,
             max_depth,
             curr_depth + 1,
+            move_gen,
         );
     }
 
@@ -216,47 +216,37 @@ fn perft_helper(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
-
-    use crate::{
-        bitboard::Square::*,
-        move_gen::all_pieces::{GenerateLeapingMoves, GenerateSlidingMoves},
-    };
     use test_case::test_case;
 
+    use std::collections::HashSet;
+
+    use crate::bitboard::Square::*;
     use crate::position::Move;
 
-    struct AllPiecesMoveGenStub {
-        moves: HashSet<Move>,
+    #[derive(Clone, Copy)]
+    struct MoveGenStub<'a> {
+        moves: &'a [Move],
     }
 
-    impl GenerateAllMoves for AllPiecesMoveGenStub {
-        fn gen_moves(
-            &self,
-            _position: &Position,
-            leaping_pieces: impl GenerateLeapingMoves,
-            sliding_pieces: impl GenerateSlidingMoves,
-        ) -> HashSet<Move> {
-            self.moves.clone()
+    impl GenerateMoves for MoveGenStub<'_> {
+        fn gen_moves(&self, _position: &Position) -> HashSet<Move> {
+            HashSet::from_iter(self.moves.iter().cloned())
         }
+    }
 
-        fn get_checkers(
-            &self,
-            _position: &Position,
-            leaping_pieces: impl GenerateLeapingMoves,
-            sliding_pieces: impl GenerateSlidingMoves,
-        ) -> BitBoard {
+    impl GenerateCheckers for MoveGenStub<'_> {
+        fn gen_checkers(&self, _position: &Position) -> BitBoard {
             BitBoard::empty()
         }
     }
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1").unwrap(), 1)]
     fn test_count_en_passant(start_position: Position, want: u64) {
-        let move_gen = AllPiecesMoveGenStub {
-            moves: HashSet::from([Move::new(B4, A3)]),
+        let move_gen = MoveGenStub {
+            moves: &[Move::new(B4, A3)],
         };
 
-        let res = perft(&start_position, &move_gen, 1);
+        let res = perft(&start_position, 1, move_gen);
         assert_eq!(res.depth_results[0].en_passants, want);
     }
 }

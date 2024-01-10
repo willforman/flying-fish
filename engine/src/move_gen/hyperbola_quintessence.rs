@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::Piece;
 
-use crate::move_gen::all_pieces::GenerateSlidingMoves;
+use super::traits::GenerateSlidingMoves;
 
 enum MaskType {
     Bit,
@@ -227,6 +227,7 @@ const fn calc_rank_atks() -> [u8; 64 * 8] {
     rank_atks_list
 }
 
+#[derive(Clone, Copy)]
 pub struct HyperbolaQuintessence {}
 
 // o^(o-2r) trick

@@ -1,6 +1,4 @@
-use engine::move_gen::hyperbola_quintessence::HyperbolaQuintessence;
-use engine::move_gen::leaping_pieces::LeapingPiecesMoveGen;
-use engine::move_gen::AllPiecesMoveGen;
+use engine::move_gen::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 use engine::perft::{perft, PerftDepthResult};
 use engine::position::Position;
 
@@ -55,11 +53,7 @@ use test_case::test_case;
 )]
 #[ignore]
 fn test_perft(starting_position: Position, depth: usize, want: PerftDepthResult) {
-    let leaping_pieces = Box::new(LeapingPiecesMoveGen {});
-    let sliding_pieces = Box::new(HyperbolaQuintessence {});
-    let move_gen = AllPiecesMoveGen::new(leaping_pieces, sliding_pieces);
-
-    let res = perft(&starting_position, &move_gen, depth);
+    let res = perft(&starting_position, depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
     println!("{}", res);
 
     assert_eq!(res.depth_results.len(), depth.into());

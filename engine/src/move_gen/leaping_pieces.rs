@@ -4,7 +4,7 @@ use std::string::ToString;
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::{Piece, Side};
 
-use crate::move_gen::all_pieces::GenerateLeapingMoves;
+use super::traits::GenerateLeapingMoves;
 
 struct SquareToMoveDatabase([BitBoard; 64]);
 
@@ -32,6 +32,7 @@ impl ColoredSquareToMoveDatabase {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct LeapingPiecesMoveGen;
 
 impl GenerateLeapingMoves for LeapingPiecesMoveGen {
@@ -163,7 +164,7 @@ static KING_ATKS: SquareToMoveDatabase = calc_square_to_move_database(&[
     &[Direction::DecRank, Direction::DecFile],
 ]);
 
-pub(crate) static LEAPING_PIECES_MOVE_GEN: LeapingPiecesMoveGen = LeapingPiecesMoveGen {};
+pub(crate) static LEAPING_PIECES: LeapingPiecesMoveGen = LeapingPiecesMoveGen {};
 
 #[cfg(test)]
 mod tests {
