@@ -44,8 +44,13 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
             .id();
 
         let square = Square::from_str(&square_str).unwrap_throw();
-        let got_move_dests = moves_map().get(&square).cloned().unwrap_or(Vec::new());
-        set_move_dests.set(got_move_dests);
+
+        if move_dests().contains(&square) {
+            todo!();
+        } else {
+            let got_move_dests = moves_map().get(&square).cloned().unwrap_or(Vec::new());
+            set_move_dests.set(got_move_dests);
+        }
     };
 
     view! {
@@ -58,7 +63,7 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
                     } else {
                         BG_DARK
                     };
-                    let class = format!("w-full h-full {}", bg_color);
+                    let class = format!("w-full h-full {} relative", bg_color);
                     let is_piece_at = position().is_piece_at(square);
 
                     if let Some((piece, side)) = is_piece_at {
@@ -72,7 +77,7 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
                     } else if (move || move_dests().contains(&square))() {
                         view! {
                             <div class=class >
-                                <p>"TEST HERE!!!!"</p>
+                                <div class="w-2/5 h-2/5 rounded-full bg-green-900 absolute top-1/2 left-1/2 opacity-50 transform -translate-x-1/2 -translate-y-1/2" />
                             </div>
                         }
                     } else {
