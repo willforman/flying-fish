@@ -44,13 +44,13 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
             .id();
 
         let square = Square::from_str(&square_str).unwrap_throw();
-        let got_move_dests = &moves_map()[&square];
-        set_move_dests.set(got_move_dests.to_vec());
+        let got_move_dests = moves_map().get(&square).cloned().unwrap_or(Vec::new());
+        set_move_dests.set(got_move_dests);
     };
 
     view! {
         <div class="grid grid-cols-8 auto-rows-[1fr] gap-0">
-            {squares.into_iter()
+            {move || squares.into_iter()
                 .enumerate()
                 .map(|(i, square)| {
                     let bg_color = if (i % 2) == (i / 8 % 2) {
@@ -59,7 +59,7 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
                         BG_DARK
                     };
                     let class = format!("w-full h-full {}", bg_color);
-                    let is_piece_at = (move || position().is_piece_at(square))();
+                    let is_piece_at = position().is_piece_at(square);
 
                     if let Some((piece, side)) = is_piece_at {
                         let img_name = format!("{}_{}.svg", piece.to_string().to_lowercase(), side.to_string().to_lowercase());
