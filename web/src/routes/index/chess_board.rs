@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use leptos::*;
 
 use engine::bitboard::Square;
-use engine::position::{Position, Side};
+use engine::move_gen::{GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
+use engine::position::{Move, Position, Side};
 use leptos::ev::MouseEvent;
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 
@@ -12,11 +14,27 @@ const BG_LIGHT: &str = "bg-[#FFFFDD]";
 
 #[component]
 pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>) -> impl IntoView {
-    let squares = if player_side() == Side::White {
-        Square::list_white_perspective()
-    } else {
-        Square::list_black_perspective()
-    };
+    let (move_dests, set_move_dests) = create_signal(Vec::<Square>::new());
+    let moves_map = create_memo(move |_| {
+        let move_set = HYPERBOLA_QUINTESSENCE_MOVE_GEN.gen_moves(&position());
+        let mut moves_map = HashMap::new();
+
+        for mve in move_set {
+            moves_map
+                .entry(mve.src)
+                .or_insert_with(Vec::new)
+                .push(mve.dest);
+        }
+
+        moves_map
+    });
+
+    // let squares = if (move || player_side())() == Side::White {
+    //     Square::list_white_perspective()
+    // } else {
+    //     Square::list_black_perspective()
+    // };
+    let squares = Square::list_white_perspective();
 
     let handle_square_click = move |mouse_event: MouseEvent| {
         let square_str = mouse_event
@@ -26,7 +44,8 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
             .id();
 
         let square = Square::from_str(&square_str).unwrap_throw();
-        panic!("{:?}", square);
+        let got_move_dests = &moves_map()[&square];
+        set_move_dests.set(got_move_dests.to_vec());
     };
 
     view! {
@@ -40,13 +59,20 @@ pub fn ChessBoard(position: ReadSignal<Position>, player_side: ReadSignal<Side>)
                         BG_DARK
                     };
                     let class = format!("w-full h-full {}", bg_color);
+                    let is_piece_at = (move || position().is_piece_at(square))();
 
-                    if let Some((piece, side)) = position().is_piece_at(square) {
+                    if let Some((piece, side)) = is_piece_at {
                         let img_name = format!("{}_{}.svg", piece.to_string().to_lowercase(), side.to_string().to_lowercase());
                         let alt = format!("{} {}", piece.to_string(), side.to_string());
                         view! {
                             <div class=class>
                                 <img src=img_name id={square.to_string()} alt=alt height="78" width="78" on:click={handle_square_click} />
+                            </div>
+                        }
+                    } else if (move || move_dests().contains(&square))() {
+                        view! {
+                            <div class=class >
+                                <p>"TEST HERE!!!!"</p>
                             </div>
                         }
                     } else {
