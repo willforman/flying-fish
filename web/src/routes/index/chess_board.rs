@@ -85,12 +85,17 @@ pub fn ChessBoard(
                         BG_DARK
                     };
 
-                    let class = format!("w-full h-full {} relative", bg_color);
+                    let class = format!("w-full h-full {} relative p-[0.4rem]", bg_color);
                     let id = square.to_string();
 
                     if let Some((piece, side)) = position().is_piece_at(square) {
                         let img_name = format!("{}_{}.svg", piece.to_string().to_lowercase(), side.to_string().to_lowercase());
                         let alt = format!("{} {}", piece.to_string(), side.to_string());
+                        let class = if move_dests().contains(&square) {
+                            format!("{} box-border border-4 border-green-900", class)
+                        } else {
+                            class
+                        };
                         view! {
                             <div class=class on:click={handle_square_click} id={id} >
                                 <img src=img_name alt=alt height="78" width="78" />
@@ -99,7 +104,7 @@ pub fn ChessBoard(
                     } else if move_dests().contains(&square) {
                         view! {
                             <div class=class on:click={handle_square_click} id={id} >
-                                <div class="w-2/5 h-2/5 rounded-full bg-green-900 absolute top-1/2 left-1/2 opacity-50 transform -translate-x-1/2 -translate-y-1/2" />
+                                <div class="w-1/3 h-1/3 rounded-full bg-green-900 absolute top-1/2 left-1/2 opacity-50 transform -translate-x-1/2 -translate-y-1/2" />
                             </div>
                         }
                     } else {
