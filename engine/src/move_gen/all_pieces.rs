@@ -602,6 +602,9 @@ mod tests {
     #[test_case(Position::from_fen("7k/8/8/8/8/7p/7P/7K w - - 0 1").unwrap(), HashSet::from_iter([
         Move::new(H1, G1),
     ]) ; "pawn cant double push through piece")]
+    // #[test_case(Position::from_fen("rnbqkbn1/3ppPp1/8/pp6/2B1P3/2N3Pp/PP3P1P/R1BQK2R b KQq - 0 1".unwrap(), HashSet::from_iter([
+    //
+    // ])))]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         println!("{:?}", position);
         let got = gen_moves(&position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE);

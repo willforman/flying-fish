@@ -31,7 +31,11 @@ impl EvaluatePosition for PositionEvaluator {
             eval += num_white_pieces * piece_value(piece) - num_black_pieces * piece_value(piece);
         }
 
-        eval
+        if position.state.to_move == Side::White {
+            eval
+        } else {
+            -eval
+        }
     }
 }
 

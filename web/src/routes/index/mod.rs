@@ -3,22 +3,58 @@ use leptos::*;
 pub mod chess_board;
 
 use crate::routes::index::chess_board::ChessBoard;
-use engine::move_gen::{HYPERBOLA_QUINTESSENCE_MOVE_GEN, HyperbolaQuintessenceMoveGen};
+use engine::move_gen::{HYPERBOLA_QUINTESSENCE_MOVE_GEN, HyperbolaQuintessenceMoveGen, GenerateMoves};
 use engine::evaluation::POSITION_EVALUATOR;
 use engine::position::{Move, Position, Side};
 use engine::bitboard::Square;
-use engine::search::find_move;
+use engine::search::search;
+
+const SEARCH_DEPTH: u32 = 1;
 
 static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
 #[server(GenerateMove)]
-async fn generate_move(position: Position) -> Result<Move, ServerFnError> {
+async fn generate_move(position: Position, depth: u32) -> Result<Option<Move>, ServerFnError> {
     println!("Called!!!!");
-    Ok(find_move(&position, 3, MOVE_GEN, POSITION_EVALUATOR))
+    let moves = MOVE_GEN.gen_moves(&position);
+
+    if moves.is_empty() {
+        return Ok(None);
+    }
+
+    let mut best_val = if position.state.to_move == Side::White {
+        f64::MIN
+    } else {
+        f64::MAX
+    };
+
+    let mut best_move: Option<Move> = None;
+
+    for mve in moves {
+        let mut move_position = position.clone();
+        move_position.make_move(&mve)?;
+
+        let got_val = search(&move_position, depth, MOVE_GEN, POSITION_EVALUATOR);
+
+        if position.state.to_move == Side::White {
+            if got_val > best_val {
+                best_val = got_val;
+                best_move = Some(mve);
+            }
+        } else {
+            if got_val < best_val {
+                best_val = got_val;
+                best_move = Some(mve);
+            }
+        }
+    }
+
+    Ok(best_move)
 }
 
 #[component]
 pub fn IndexPage() -> impl IntoView {
+    let (game_complete, set_game_complete) = create_signal(false);
     let (position, set_position) = create_signal(Position::start());
     let (side, set_side) = create_signal(Side::White);
 
@@ -26,10 +62,16 @@ pub fn IndexPage() -> impl IntoView {
         web_sys::console::log_1(&format!("Called with {:?}", input).into());
         set_position.update(|pos| pos.make_move(&input).unwrap() );
         async move {
-            let generated_move = generate_move(position()).await.unwrap();
-            set_position.update(|pos| pos.make_move(&generated_move).unwrap() );
+            let maybe_generated_move = generate_move(position(), SEARCH_DEPTH).await.unwrap();
+            if let Some(generated_move) = maybe_generated_move {
+                set_position.update(|pos| pos.make_move(&generated_move).unwrap());
+            } else {
+                set_game_complete(true);
+            }
         }
     });
+
+    let game_title = move || game_complete().then(|| "Game over");
 
     view! {
         <div class="grid grid-cols-5">
@@ -37,6 +79,9 @@ pub fn IndexPage() -> impl IntoView {
                 <h1 class="text-xl font-bold">"vs. computer"</h1>
             </div>
             <div class="col-span-3 flex justify-center">
+                <h1 class="text-xl">
+                    {game_title}
+                </h1>
                 <ChessBoard position=position player_side=side handle_move={handle_move} />
             </div>
             <div class="bg-gray-200 p-2">
