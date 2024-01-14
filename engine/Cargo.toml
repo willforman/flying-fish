@@ -7,7 +7,7 @@ authors = ["Will Forman wf8581@gmail.com"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = "1.0.195"
+serde = { version = "1.0.195", features = ["derive"] }
 strum = "0.24.1"
 strum_macros = "0.24.3"
 tabled = "0.12.2"
