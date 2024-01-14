@@ -1,5 +1,6 @@
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
@@ -23,7 +24,7 @@ pub enum PositionError {
     MoveNotToMove(String, String, String),
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Deserialize, Serialize)]
 pub enum Side {
     White,
     Black,
@@ -39,7 +40,7 @@ impl Side {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Hash)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Hash, Deserialize, Serialize)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -87,7 +88,7 @@ impl TryFrom<char> for Piece {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Move {
     pub src: Square,
     pub dest: Square,
@@ -122,7 +123,7 @@ impl fmt::Debug for Move {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) struct Sides {
     white: BitBoard,
     black: BitBoard,
@@ -161,7 +162,7 @@ impl Sides {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) struct Pieces {
     pawns: Sides,
     knights: Sides,
@@ -234,7 +235,7 @@ impl Pieces {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct CastlingRights {
     pub white_king_side: bool,
     pub white_queen_side: bool,
@@ -267,7 +268,7 @@ impl CastlingRights {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct State {
     pub to_move: Side,
     pub half_move_clock: u8,
@@ -286,7 +287,7 @@ impl State {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Position {
     pub state: State,
     pub(crate) sides: Sides,

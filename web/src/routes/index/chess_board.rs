@@ -17,7 +17,7 @@ const BG_LIGHT: &str = "bg-[#FFFFDD]";
 pub fn ChessBoard(
     position: ReadSignal<Position>,
     player_side: ReadSignal<Side>,
-    #[prop(into)] handle_move: Callback<Move>,
+    handle_move: Action<Move, ()>,
 ) -> impl IntoView {
     let (selected_square, set_selected_square) = create_signal::<Option<Square>>(None);
 
@@ -67,7 +67,7 @@ pub fn ChessBoard(
 
         if move_dests().contains(&square) {
             let mve = Move::new(selected_square().unwrap(), square);
-            handle_move(mve);
+            handle_move.dispatch(mve);
             set_selected_square(None);
         } else {
             set_selected_square(Some(square));

@@ -6,6 +6,7 @@ pub trait EvaluatePosition {
     fn evaluate(&self, position: &Position) -> f64;
 }
 
+#[derive(Clone, Copy)]
 pub struct PositionEvaluator;
 
 impl EvaluatePosition for PositionEvaluator {
@@ -45,3 +46,5 @@ fn piece_value(piece: Piece) -> f64 {
         Piece::King => 100.0,
     }
 }
+
+pub static POSITION_EVALUATOR: PositionEvaluator = PositionEvaluator {};
