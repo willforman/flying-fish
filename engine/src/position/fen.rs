@@ -24,6 +24,9 @@ pub enum FenParseError {
 
     #[error("halfmove clock: want 0 <= x < 50 got {0}")]
     HalfmoveClock(String),
+
+    #[error("full move counter: want 0 <= x < 65_535 got {0}")]
+    FullMoveCounter(String),
 }
 
 impl Position {
@@ -52,11 +55,16 @@ impl Position {
             Err(FenParseError::HalfmoveClock(fields[4].to_string()))?
         }
 
+        let full_move_counter = fields[5]
+            .parse()
+            .map_err(|_| FenParseError::FullMoveCounter(fields[5].to_string()))?;
+
         let state = State {
             castling_rights: castling_rights_from_fen(fields[2])?,
             en_passant_target: en_passant_target_from_fen(fields[3])?,
             half_move_clock,
             to_move,
+            full_move_counter,
         };
 
         Ok(Position {
@@ -64,6 +72,71 @@ impl Position {
             pieces,
             state,
         })
+    }
+
+    pub fn to_fen(&self) -> String {
+        let mut pieces = String::with_capacity(64);
+        let mut curr_empty_count = 0;
+
+        for (idx, &sq) in Square::list_black_perspective().iter().rev().enumerate() {
+            if let Some((piece, side)) = self.is_piece_at(sq) {
+                if curr_empty_count != 0 {
+                    pieces += &curr_empty_count.to_string();
+                    curr_empty_count = 0;
+                }
+                let piece_char: char = if side == Side::White {
+                    <Piece as Into<char>>::into(piece).to_ascii_uppercase()
+                } else {
+                    <Piece as Into<char>>::into(piece)
+                };
+                pieces += &piece_char.to_string();
+            } else {
+                curr_empty_count += 1;
+            }
+            if (idx + 1) % 8 == 0 && idx != 63 {
+                if curr_empty_count != 0 {
+                    pieces += &curr_empty_count.to_string();
+                    curr_empty_count = 0;
+                }
+                pieces += "/";
+            }
+        }
+
+        let side_to_move_char = if self.state.to_move == Side::White {
+            'w'
+        } else {
+            'b'
+        };
+
+        let mut castling_rights = String::with_capacity(4);
+
+        if self.state.castling_rights.white_king_side {
+            castling_rights += "K";
+        }
+        if self.state.castling_rights.white_queen_side {
+            castling_rights += "Q";
+        }
+        if self.state.castling_rights.black_king_side {
+            castling_rights += "k";
+        }
+        if self.state.castling_rights.black_queen_side {
+            castling_rights += "q";
+        }
+
+        if castling_rights.is_empty() {
+            castling_rights += "-";
+        }
+
+        let en_passant = if let Some(ep_target) = self.state.en_passant_target {
+            ep_target.to_string().to_ascii_lowercase()
+        } else {
+            "-".to_string()
+        };
+
+        format!(
+            "{} {} {} {} {} {}",
+            pieces, side_to_move_char, castling_rights, en_passant, self.state.half_move_clock, 1
+        )
     }
 }
 
@@ -271,6 +344,25 @@ mod tests {
         assert_eq!(pieces.queens.black, pieces_want.queens.black);
         assert_eq!(pieces.kings.black, pieces_want.kings.black);
 
+        Ok(())
+    }
+
+    #[test_case(
+        Position::start(),
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".to_string() ; "starting position"
+    )]
+    fn test_to_fen_position(position: Position, want: String) {
+        let got = position.to_fen();
+        assert_eq!(got, want);
+    }
+
+    #[test_case(
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" ; "kiwipete"
+    )]
+    fn test_to_fen_string(fen: &str) -> TestResult {
+        let pos = Position::from_fen(fen)?;
+        let got = pos.to_fen();
+        assert_eq!(got, fen);
         Ok(())
     }
 }

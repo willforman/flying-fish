@@ -274,6 +274,7 @@ pub struct State {
     pub half_move_clock: u8,
     pub en_passant_target: Option<Square>,
     pub castling_rights: CastlingRights,
+    pub full_move_counter: u16,
 }
 
 impl State {
@@ -283,6 +284,7 @@ impl State {
             half_move_clock: 0,
             en_passant_target: None,
             castling_rights: CastlingRights::start(),
+            full_move_counter: 1,
         }
     }
 }
@@ -317,6 +319,10 @@ impl Position {
     }
 
     pub fn make_move(&mut self, mve: &Move) -> Result<(), PositionError> {
+        if self.state.to_move == Side::Black {
+            self.state.full_move_counter += 1;
+        }
+
         if let Some((piece, side)) = self.is_piece_at(mve.src) {
             if side != self.state.to_move {
                 Err(PositionError::MoveNotToMove(

@@ -593,7 +593,7 @@ mod tests {
         Move::new(H1, G1),
         Move::new(H1, H2),
     ]))]
-    #[test_case(Position::from_fen("7k/8/8/KPp4r/8/8/8/8 w - c6 0 17k").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("7k/8/8/KPp4r/8/8/8/8 w - c6 0 17").unwrap(), HashSet::from_iter([
 	Move::new(B5, B6),
 	Move::new(A5, A6),
 	Move::new(A5, A4),
