@@ -12,13 +12,12 @@ use engine::search::search;
 use crate::routes::index::chess_board::ChessBoard;
 use crate::routes::index::moves::Moves;
 
-const SEARCH_DEPTH: u32 = 1;
+const SEARCH_DEPTH: u32 = 3;
 
 static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
 #[server(GenerateMove)]
 async fn generate_move(position: Position, depth: u32) -> Result<Option<Move>, ServerFnError> {
-    println!("Called!!!!");
     let moves = MOVE_GEN.gen_moves(&position);
 
     if moves.is_empty() {
@@ -79,15 +78,17 @@ pub fn IndexPage() -> impl IntoView {
     let game_title = move || game_complete().then(|| "Game over");
 
     view! {
-        <div class="grid grid-cols-5">
-            <Moves moves={moves} />
-            <div class="col-span-3 flex justify-center">
+        <div class="flex">
+            <div class="flex-initial">
+                <Moves moves={moves} />
+            </div>
+            <div class="flex-1 justify-center mx-8">
                 <h1 class="text-xl">
                     {game_title}
                 </h1>
                 <ChessBoard position=position player_side=side handle_move={handle_move} />
             </div>
-            <div class="bg-gray-200 p-2">
+            <div class="flex-initial bg-gray-200 p-2">
                 <h3 class="text-xl font-bold">"move generation"</h3>
             </div>
         </div>
