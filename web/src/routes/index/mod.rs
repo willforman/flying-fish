@@ -81,7 +81,9 @@ pub fn IndexPage() -> impl IntoView {
 
     view! {
         <div class="flex items-start">
-            <Moves moves={moves} />
+            <div class="h-[40rem]">
+                <Moves moves={moves} />
+            </div>
             <div class="flex-initial justify-center mx-8">
                 <h1 class="text-xl">
                     {game_title}

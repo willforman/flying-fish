@@ -5,9 +5,9 @@ use engine::position::Move;
 #[component]
 pub fn Moves(moves: ReadSignal<Vec<Move>>) -> impl IntoView {
     view! {
-        <div class="flex-initial bg-gray-200 p-2">
+        <div class="flex-initial flex flex-col bg-gray-200 p-2 h-full">
             <h1 class="text-xl font-bold">"vs. computer"</h1>
-            <ul class="max-h-full overflow-auto">
+            <ul class="overflow-auto">
                 {move || (0..30).into_iter()
                     .map(|i| view! { <li><p class="text-xl">{i}</p></li>})
                     .collect_view()
