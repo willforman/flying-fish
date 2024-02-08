@@ -98,7 +98,7 @@ pub fn ChessBoard(
                         };
                         view! {
                             <div class=class on:click={handle_square_click} id={id} >
-                                <img src=img_name alt=alt height="78" width="78" />
+                                <img src=img_name alt=alt height="96" width="96" />
                             </div>
                         }
                     } else if move_dests().contains(&square) {

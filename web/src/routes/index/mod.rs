@@ -3,10 +3,12 @@ use leptos::*;
 pub mod chess_board;
 pub mod moves;
 
-use engine::move_gen::{HYPERBOLA_QUINTESSENCE_MOVE_GEN, HyperbolaQuintessenceMoveGen, GenerateMoves};
-use engine::evaluation::POSITION_EVALUATOR;
-use engine::position::{Move, Position, Side};
 use engine::bitboard::Square;
+use engine::evaluation::POSITION_EVALUATOR;
+use engine::move_gen::{
+    GenerateMoves, HyperbolaQuintessenceMoveGen, HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+};
+use engine::position::{Move, Position, Side};
 use engine::search::search;
 
 use crate::routes::index::chess_board::ChessBoard;
@@ -62,7 +64,7 @@ pub fn IndexPage() -> impl IntoView {
     let (moves, set_moves) = create_signal(Vec::<Move>::new());
 
     let handle_move = create_action(move |input: &Move| {
-        set_position.update(|pos| pos.make_move(&input).unwrap() );
+        set_position.update(|pos| pos.make_move(&input).unwrap());
         set_moves.update(|moves| moves.push(input.clone()));
         async move {
             let maybe_generated_move = generate_move(position(), SEARCH_DEPTH).await.unwrap();
@@ -78,18 +80,13 @@ pub fn IndexPage() -> impl IntoView {
     let game_title = move || game_complete().then(|| "Game over");
 
     view! {
-        <div class="flex">
-            <div class="flex-initial">
-                <Moves moves={moves} />
-            </div>
-            <div class="flex-1 justify-center mx-8">
+        <div class="flex items-start">
+            <Moves moves={moves} />
+            <div class="flex-initial justify-center mx-8">
                 <h1 class="text-xl">
                     {game_title}
                 </h1>
                 <ChessBoard position=position player_side=side handle_move={handle_move} />
-            </div>
-            <div class="flex-initial bg-gray-200 p-2">
-                <h3 class="text-xl font-bold">"move generation"</h3>
             </div>
         </div>
     }
