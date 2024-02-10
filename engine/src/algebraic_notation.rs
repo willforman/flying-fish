@@ -48,7 +48,7 @@ pub fn move_to_algebraic_notation(
     }
 
     // En passant
-    if src_piece == Piece::Pawn && move_abs_diff != 8 {
+    if src_piece == Piece::Pawn && (move_abs_diff != 8 && move_abs_diff != 16) {
         if position.is_piece_at(mve.dest).is_none() {
             let src_str = mve.src.to_string();
             let file_char = src_str.chars().next().unwrap().to_ascii_lowercase();
@@ -137,6 +137,7 @@ mod tests {
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(E8, G8), "O-O".to_string() ; "castle king side black")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(E8, C8), "O-O-O".to_string() ; "castle queen side black")]
     #[test_case(Position::from_fen("8/8/8/8/k2Pp3/8/8/7K b - d3 0 1").unwrap(), Move::new(E4, D3), "exd3".to_string() ; "en passant")]
+    #[test_case(Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap(), Move::new(D2, D4), "d4".to_string() ; "pawn double push")]
     #[test_case(Position::from_fen("8/8/3P4/8/k7/8/4p2K/8 b - - 0 3").unwrap(), Move::with_promotion(E2, E1, Piece::Queen), "e1Q".to_string() ; "promotion")]
     #[test_case(Position::from_fen("3R3R/8/8/8/8/8/8/K1k5 w - - 0 1").unwrap(), Move::new(D8, F8), "Rdf8".to_string() ; "ambiguous rank")]
     #[test_case(Position::from_fen("7R/8/8/8/7R/8/8/K1k5 w - - 0 1").unwrap(), Move::new(H4, H6), "R4h6".to_string() ; "ambiguous file")]

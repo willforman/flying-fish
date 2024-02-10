@@ -3,6 +3,7 @@ use leptos::*;
 pub mod chess_board;
 pub mod moves;
 
+use engine::algebraic_notation::move_to_algebraic_notation;
 use engine::bitboard::Square;
 use engine::evaluation::POSITION_EVALUATOR;
 use engine::move_gen::{
@@ -61,16 +62,23 @@ pub fn IndexPage() -> impl IntoView {
     let (game_complete, set_game_complete) = create_signal(false);
     let (position, set_position) = create_signal(Position::start());
     let (side, set_side) = create_signal(Side::White);
-    let (moves, set_moves) = create_signal(Vec::<Move>::new());
+    let (move_strs, set_move_strs) = create_signal(Vec::<String>::new());
 
     let handle_move = create_action(move |input: &Move| {
+        let move_str = move_to_algebraic_notation(&position(), input, MOVE_GEN, MOVE_GEN).unwrap();
+        set_move_strs.update(|move_strs| move_strs.push(move_str));
+
         set_position.update(|pos| pos.make_move(&input).unwrap());
-        set_moves.update(|moves| moves.push(input.clone()));
+
         async move {
             let maybe_generated_move = generate_move(position(), SEARCH_DEPTH).await.unwrap();
             if let Some(generated_move) = maybe_generated_move {
+                let move_str =
+                    move_to_algebraic_notation(&position(), &generated_move, MOVE_GEN, MOVE_GEN)
+                        .unwrap();
+                set_move_strs.update(|move_strs| move_strs.push(move_str));
+
                 set_position.update(|pos| pos.make_move(&generated_move).unwrap());
-                set_moves.update(|moves| moves.push(generated_move.to_owned()));
             } else {
                 set_game_complete(true);
             }
@@ -81,8 +89,8 @@ pub fn IndexPage() -> impl IntoView {
 
     view! {
         <div class="flex items-start">
-            <div class="h-[40rem]">
-                <Moves moves={moves} />
+            <div class="flex-initial h-[40rem] w-64">
+                <Moves move_strs={move_strs} />
             </div>
             <div class="flex-initial justify-center mx-8">
                 <h1 class="text-xl">
