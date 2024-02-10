@@ -22,6 +22,12 @@ pub enum PositionError {
 
     #[error("to_move is the other side, for move: {0} {1} -> {2}")]
     MoveNotToMove(String, String, String),
+
+    #[error("no piece at move scr {0}")]
+    AlgebraicNotationNoPieceAtSrc(String),
+
+    #[error("no piece at move dest {0}")]
+    AlgebraicNotationNoPieceAtDest(String),
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Deserialize, Serialize)]
@@ -119,6 +125,13 @@ impl fmt::Debug for Move {
         if self.promotion.is_some() {
             write!(f, " ({})", self.promotion.unwrap())?;
         }
+        Ok(())
+    }
+}
+
+impl fmt::Display for Move {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)?;
         Ok(())
     }
 }

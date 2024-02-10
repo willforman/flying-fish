@@ -3,6 +3,7 @@
 #![feature(const_trait_impl)]
 #![feature(effects)]
 
+pub mod algebraic_notation;
 pub mod bitboard;
 pub mod evaluation;
 pub mod move_gen;
