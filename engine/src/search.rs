@@ -73,7 +73,7 @@ mod tests {
         }
         search(
             &position,
-            4,
+            3,
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
         );

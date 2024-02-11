@@ -22,9 +22,6 @@ pub enum PositionError {
 
     #[error("to_move is the other side, for move: {0} {1} -> {2}")]
     MoveNotToMove(String, String, String),
-
-    #[error("somehow no king")]
-    InternalErrorNoKing,
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Deserialize, Serialize)]
@@ -440,12 +437,12 @@ impl Position {
 
                 debug_assert!(
                     !self.pieces.kings.white.is_empty(),
-                    "position somehow lost white king {:?}",
+                    "position somehow lost white king\n{:?}",
                     self
                 );
                 debug_assert!(
                     !self.pieces.kings.white.is_empty(),
-                    "position somehow lost black king {:?}",
+                    "position somehow lost black king\n{:?}",
                     self
                 );
 

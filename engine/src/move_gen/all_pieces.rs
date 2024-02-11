@@ -86,9 +86,8 @@ fn gen_attacked_squares(
     sliding_pieces: impl GenerateSlidingMoves,
 ) -> BitBoard {
     // Get occupancy but exclude king to handle kings moving away from checking sliding piece
-    let occupancy = position.sides.get(Side::White)
-        | position.sides.get(Side::Black)
-            & !position.pieces.get(Piece::King).get(side.opposite_side());
+    let occupancy = (position.sides.get(Side::White) | position.sides.get(Side::Black))
+        & !position.pieces.get(Piece::King).get(side.opposite_side());
 
     let mut attacked_squares = BitBoard::empty();
 
@@ -602,60 +601,19 @@ mod tests {
     #[test_case(Position::from_fen("7k/8/8/8/8/7p/7P/7K w - - 0 1").unwrap(), HashSet::from_iter([
         Move::new(H1, G1),
     ]) ; "pawn cant double push through piece")]
+    #[test_case(Position::from_fen("r1b1k1nr/pppp1ppp/2n1p3/8/1bPPP3/P1NB1N1P/1P2KP2/R1BQq3 w kq - 2 10").unwrap(), HashSet::from_iter([
+        Move::new(D1, E1), Move::new(E2, E1),
+        Move::new(F3, E1)
+    ]) ; "position that allowed king to get captured")]
+    #[test_case(Position::from_fen("7k/8/8/8/8/8/8/1K5q w - - 0 1").unwrap(), HashSet::from_iter([
+        Move::new(B1, A2), Move::new(B1, B2),
+        Move::new(B1, C2)
+    ]) ; "king move away from checker")]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         println!("{:?}", position);
         let got = gen_moves(&position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE);
 
         assert_eq_collections!(got, want);
-    }
-
-    #[test_case(Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap(), 
-    &[
-        Move::new(D2, D4), Move::new(E7, E6),
-        Move::new(C2, C4), Move::new(B8, C6),
-        Move::new(B1, C3), Move::new(D8, H4),
-        Move::new(G1, F3), Move::new(H4, G4),
-        Move::new(H2, H3), Move::new(G4, G6),
-        Move::new(E2, E4), Move::new(F8, B4),
-        Move::new(F1, D3), Move::new(G6, G2),
-        Move::new(A2, A3), Move::new(G2, H1),
-        Move::new(E1, E2)
-    ], HashSet::from_iter([
-        Move::new(H1, G2), Move::new(H1, G1),
-        Move::new(H1, F1), Move::new(H1, H2),
-        Move::new(H1, F3), Move::new(H1, H3),
-        Move::new(H1, D1), Move::new(H1, E1), 
-        Move::new(B4, C3), 
-        Move::new(B4, A3), Move::new(B4, A5),
-        Move::new(B4, C5), Move::new(B4, D6),
-        Move::new(B4, E7), Move::new(B4, F8),
-        Move::new(C6, A5), Move::new(C6, D4),
-        Move::new(C6, E5), Move::new(C6, E7),
-        Move::new(C6, D8), Move::new(C6, B8),
-        Move::new(G8, H6), Move::new(G8, F6),
-        Move::new(G8, E7), Move::new(A8, B8),
-        Move::new(E8, F8), Move::new(E8, D8),
-        Move::new(E8, E7), Move::new(A7, A6),
-        Move::new(A7, A5), Move::new(B7, B6),
-        Move::new(B7, B5), Move::new(D7, D6),
-        Move::new(D7, D5), Move::new(E6, E5),
-        Move::new(F7, F6), Move::new(F7, F5),
-        Move::new(G7, G6), Move::new(G7, G5),
-        Move::new(H7, H6), Move::new(H7, H5),
-    ]); "game that got want != 0, got 0")]
-    fn test_gen_moves_from_pos_moves(
-        mut position: Position,
-        moves: &[Move],
-        want: HashSet<Move>,
-    ) -> TestResult {
-        for mve in moves {
-            position.make_move(mve)?;
-        }
-
-        let got = gen_moves(&position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE);
-
-        assert_eq_collections!(got, want);
-        Ok(())
     }
 
     #[test_case(Position::start(), Side::White, BitBoard::from_squares(&[
