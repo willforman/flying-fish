@@ -43,3 +43,40 @@ fn search_helper(
     }
     best_val
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test_case::test_case;
+    use testresult::TestResult;
+
+    use crate::bitboard::Square::*;
+    use crate::evaluation::POSITION_EVALUATOR;
+    use crate::move_gen::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+    use crate::position::Move;
+
+    #[test_case(Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap(), 
+    &[
+        Move::new(D2, D4), Move::new(E7, E6),
+        Move::new(C2, C4), Move::new(B8, C6),
+        Move::new(B1, C3), Move::new(D8, H4),
+        Move::new(G1, F3), Move::new(H4, G4),
+        Move::new(H2, H3), Move::new(G4, G6),
+        Move::new(E2, E4), Move::new(F8, B4),
+        Move::new(F1, D3), Move::new(G6, G2),
+        Move::new(A2, A3), Move::new(G2, H1),
+        Move::new(E1, E2)
+    ]; "random game that caused crash")]
+    fn test_search(mut position: Position, moves: &[Move]) -> TestResult {
+        for mve in moves {
+            position.make_move(mve)?;
+        }
+        search(
+            &position,
+            4,
+            HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+            POSITION_EVALUATOR,
+        );
+        Ok(())
+    }
+}

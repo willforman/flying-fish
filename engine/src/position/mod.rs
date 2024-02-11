@@ -23,11 +23,8 @@ pub enum PositionError {
     #[error("to_move is the other side, for move: {0} {1} -> {2}")]
     MoveNotToMove(String, String, String),
 
-    #[error("no piece at move scr {0}")]
-    AlgebraicNotationNoPieceAtSrc(String),
-
-    #[error("no piece at move dest {0}")]
-    AlgebraicNotationNoPieceAtDest(String),
+    #[error("somehow no king")]
+    InternalErrorNoKing,
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Deserialize, Serialize)]
@@ -440,6 +437,17 @@ impl Position {
                     .get_mut(piece)
                     .get_mut(side)
                     .move_piece(mve.src, mve.dest);
+
+                debug_assert!(
+                    !self.pieces.kings.white.is_empty(),
+                    "position somehow lost white king {:?}",
+                    self
+                );
+                debug_assert!(
+                    !self.pieces.kings.white.is_empty(),
+                    "position somehow lost black king {:?}",
+                    self
+                );
 
                 Ok(())
             }
