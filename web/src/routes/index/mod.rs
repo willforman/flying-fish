@@ -15,7 +15,7 @@ use engine::search::search;
 use crate::routes::index::chess_board::ChessBoard;
 use crate::routes::index::moves::Moves;
 
-const SEARCH_DEPTH: u32 = 3;
+const SEARCH_DEPTH: u32 = 4;
 
 static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 

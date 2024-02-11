@@ -8,13 +8,23 @@ pub fn search(
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
 ) -> f64 {
-    search_helper(position, 0, depth, move_gen, position_eval)
+    search_helper(
+        position,
+        0,
+        depth,
+        f64::MIN,
+        f64::MAX,
+        move_gen,
+        position_eval,
+    )
 }
 
 fn search_helper(
     position: &Position,
     curr_depth: u32,
     max_depth: u32,
+    mut alpha: f64,
+    beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
 ) -> f64 {
@@ -33,12 +43,18 @@ fn search_helper(
             &move_position,
             curr_depth + 1,
             max_depth,
+            -beta,
+            -alpha,
             move_gen,
             position_eval,
         );
 
-        if got_val > best_val {
-            best_val = got_val;
+        best_val = f64::max(best_val, got_val);
+
+        alpha = f64::max(alpha, got_val);
+
+        if alpha >= beta {
+            break;
         }
     }
     best_val
