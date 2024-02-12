@@ -465,6 +465,18 @@ impl Position {
             Err(PositionError::RemoveNoPiece(square.to_string()))
         }
     }
+
+    pub fn get_piece_locs(&self) -> Vec<(Piece, Side, Square)> {
+        let mut piece_locs = vec![];
+        for side in Side::iter() {
+            for piece in Piece::iter() {
+                for sq in self.pieces.get(piece).get(side).to_squares() {
+                    piece_locs.push((piece, side, sq));
+                }
+            }
+        }
+        piece_locs
+    }
 }
 
 impl fmt::Display for Position {
