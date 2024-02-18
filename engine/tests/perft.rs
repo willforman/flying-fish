@@ -16,6 +16,18 @@ use test_case::test_case;
     400_191_963,
     ) ; "starting 6"
 )]
+#[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 3, PerftDepthResult::new(
+    97862,
+    17102,
+    45,
+    3162,
+    0,
+    993,
+    0,
+    0,
+    1,
+    ) ; "kiwipete 3"
+)]
 #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 4, PerftDepthResult::new(
     4085603,
     757163,

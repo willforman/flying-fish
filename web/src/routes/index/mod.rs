@@ -11,6 +11,9 @@ use engine::move_gen::{
 };
 use engine::position::{Move, Position, Side};
 use engine::search::search;
+use leptos::html;
+use leptos::logging::log;
+use web_sys::{Event, SubmitEvent};
 
 use crate::routes::index::chess_board::ChessBoard;
 use crate::routes::index::moves::Moves;
@@ -85,6 +88,22 @@ pub fn IndexPage() -> impl IntoView {
         }
     });
 
+    let fen_input_element: NodeRef<html::Input> = create_node_ref();
+
+    let handle_fen_submit = move |event: SubmitEvent| {
+        event.prevent_default();
+
+        let fen = fen_input_element()
+            .expect("<input> should be mounted")
+            .value();
+
+        if let Ok(pos) = Position::from_fen(&fen) {
+            set_position(pos);
+        } else {
+            log!("invalid fen given {fen}");
+        }
+    };
+
     let game_title = move || game_complete().then(|| "Game over");
 
     view! {
@@ -96,6 +115,10 @@ pub fn IndexPage() -> impl IntoView {
                 <h1 class="text-xl">
                     {game_title}
                 </h1>
+                <form on:submit=handle_fen_submit>
+                    <input type="text" node_ref=fen_input_element />
+                    <input type="submit" value="Submit FEN"/>
+                </form>
                 <ChessBoard position=position player_side=side handle_move={handle_move} />
             </div>
         </div>
