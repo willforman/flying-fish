@@ -8,3 +8,4 @@ anyhow = "1.0.80"
 engine = { path = "../engine" }
 log = "0.4.21"
 simple_logger = "4.3.3"
+statig = "0.3.0"

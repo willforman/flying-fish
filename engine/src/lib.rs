@@ -10,3 +10,6 @@ pub mod move_gen;
 pub mod perft;
 pub mod position;
 pub mod search;
+
+pub const NAME: &str = "PLACEHOLDER_NAME";
+pub const AUTHOR: &str = "Will Forman";
