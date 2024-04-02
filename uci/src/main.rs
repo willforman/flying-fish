@@ -36,7 +36,6 @@ impl UCI {
 
 fn receive_messages(uci: UCI) -> Result<()> {
     let stdin = io::stdin();
-    // let uci = UciInterface {};
     loop {
         for line in stdin.lock().lines() {
             // uci.accept_command(line.unwrap())?;

@@ -9,3 +9,6 @@ engine = { path = "../engine" }
 log = "0.4.21"
 simple_logger = "4.3.3"
 statig = "0.3.0"
+test-case = "3.3.1"
+testresult = "0.4.0"
+winnow = "0.6.5"

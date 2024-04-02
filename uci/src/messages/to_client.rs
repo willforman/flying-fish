@@ -20,6 +20,7 @@ pub(crate) enum UCIMessageToClient {
     },
 }
 
+#[derive(Debug)]
 enum Info {
     Depth {
         str: String,
@@ -83,12 +84,14 @@ enum Score {
     UpperBound,
 }
 
+#[derive(Debug)]
 struct UCIOption {
     name: String,
     type_: UCIOptionType,
     default: Option<String>,
 }
 
+#[derive(Debug)]
 enum UCIOptionType {
     Check,
     Spin { range_start: i32, range_end: i32 },
