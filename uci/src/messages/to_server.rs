@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::str::FromStr;
 
 use engine::bitboard::Square;
@@ -51,8 +52,19 @@ pub(crate) enum GoParameter {
     Ponder,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct UCIMessageToServerParseError(String);
+
+impl Display for UCIMessageToServerParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl std::error::Error for UCIMessageToServerParseError {}
+
 impl FromStr for UCIMessageToServer {
-    type Err = String;
+    type Err = UCIMessageToServerParseError;
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         alt((
             // parse_ucinewgame must go before parse_uci because they share prefix
@@ -70,7 +82,7 @@ impl FromStr for UCIMessageToServer {
             parse_go,
         ))
         .parse(input)
-        .map_err(|_| format!("cannot parse: [{}]", input))
+        .map_err(|_| UCIMessageToServerParseError(format!("cannot parse: [{}]", input)))
     }
 }
 

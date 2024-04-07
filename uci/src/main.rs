@@ -1,4 +1,5 @@
 use std::io::{self, BufRead};
+use std::str::FromStr;
 
 use anyhow::Result;
 use messages::UCIMessageToServer;
@@ -27,20 +28,17 @@ struct UCI {
 }
 
 impl UCI {
-    fn send_server(&mut self, msgs: Vec<UCIMessageToServer>) {
-        for msg in msgs {
-            self.state_machine.handle(&msg);
-        }
+    fn send_server(&mut self, msg: UCIMessageToServer) {
+        self.state_machine.handle(&msg);
     }
 }
 
-fn receive_messages(uci: UCI) -> Result<()> {
+fn receive_messages(mut uci: UCI) -> Result<()> {
     let stdin = io::stdin();
     loop {
         for line in stdin.lock().lines() {
-            // uci.accept_command(line.unwrap())?;
-
-            todo!()
+            let msg = UCIMessageToServer::from_str(line?.as_str())?;
+            uci.send_server(msg);
         }
     }
 }
@@ -56,7 +54,7 @@ fn main() -> Result<()> {
         state_machine: uci_state_machine,
     };
 
-    receive_messages(uci);
+    receive_messages(uci).unwrap();
 
     Ok(())
 }
