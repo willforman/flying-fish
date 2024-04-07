@@ -24,7 +24,8 @@ impl UCIState {
 
     #[state(entry_action = "enter_uci_enabled")]
     fn uci_enabled(event: &UCIMessageToServer) -> Response<State> {
-        todo!()
+        println!("{:?}", event);
+        Super
     }
 
     #[action]

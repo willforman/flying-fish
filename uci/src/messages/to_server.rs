@@ -11,6 +11,7 @@ use engine::position::{Move, Side};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) enum UCIMessageToServer {
+    #[allow(clippy::upper_case_acronyms)]
     UCI,
     Debug {
         on: bool,
@@ -154,10 +155,7 @@ fn parse_position(input: &mut &str) -> PResult<UCIMessageToServer> {
     preceded(
         "position ",
         (
-            alt((
-                "startpos".value(None),
-                take_until(0.., " moves").map(|fen| Some(fen)),
-            )),
+            alt(("startpos".value(None), take_until(0.., " moves").map(Some))),
             preceded(" moves ", rest),
         )
             .try_map(|(fen, moves): (Option<&str>, &str)| {

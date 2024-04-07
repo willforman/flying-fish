@@ -23,6 +23,7 @@ impl SendToUCIClient for MessagePrinter {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 struct UCI {
     state_machine: InitializedStateMachine<UCIState>,
 }
@@ -45,7 +46,7 @@ fn receive_messages(mut uci: UCI) -> Result<()> {
 
 fn main() -> Result<()> {
     SimpleLogger::new().env().init().unwrap();
-    let message_printer = MessagePrinter::default();
+    let message_printer = MessagePrinter;
     let uci_state = UCIState {
         client_sender: Box::new(message_printer),
     };
