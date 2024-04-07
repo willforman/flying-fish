@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use engine::bitboard::Square;
-use winnow::ascii::{alpha1, digit1, till_line_ending};
-use winnow::combinator::{alt, empty, opt, preceded, repeat_till, rest, separated, seq};
-use winnow::token::{take_till, take_until};
+use winnow::ascii::digit1;
+use winnow::combinator::{alt, preceded, rest, separated};
+use winnow::token::take_until;
 use winnow::{PResult, Parser};
 
 use engine::position::{Move, Side};
@@ -45,6 +45,7 @@ pub(crate) enum GoParameter {
     MovesToGo { moves: u64 },
     Depth { moves: u64 },
     Nodes { nodes: u64 },
+    Mate { moves: u64 },
     MoveTime { msec: u64 },
     Infinite,
     Ponder,
@@ -73,9 +74,11 @@ impl FromStr for UCIMessageToServer {
     }
 }
 
-// Winnow parse functions
+// ======================================================
+// Winnow Parsing functions (non go commands)
+// ======================================================
+
 fn parse_uci(input: &mut &str) -> PResult<UCIMessageToServer> {
-    println!("{}", input);
     "uci".parse_next(input).map(|_| UCIMessageToServer::UCI)
 }
 
@@ -130,7 +133,6 @@ fn parse_register_later(input: &mut &str) -> PResult<UCIMessageToServer> {
 }
 
 fn parse_ucinewgame(input: &mut &str) -> PResult<UCIMessageToServer> {
-    println!("{}", input);
     "ucinewgame"
         .value(UCIMessageToServer::UCINewGame)
         .parse_next(input)
@@ -146,24 +148,24 @@ fn parse_position(input: &mut &str) -> PResult<UCIMessageToServer> {
             )),
             preceded(" moves ", rest),
         )
-            .map(
-                |(fen, moves): (Option<&str>, &str)| UCIMessageToServer::Position {
+            .try_map(|(fen, moves): (Option<&str>, &str)| {
+                Ok::<UCIMessageToServer, <Square as FromStr>::Err>(UCIMessageToServer::Position {
                     fen: fen.map(|s: &str| s.to_string()),
                     moves: moves
                         .split(' ')
                         .map(|mve_str| {
                             let (src_str, dest_str) = mve_str.split_at(2);
-                            Move {
-                                src: Square::from_str(src_str.to_uppercase().as_str())
-                                    .expect(format!("couldn't parse string {}", src_str).as_str()),
-                                dest: Square::from_str(dest_str.to_uppercase().as_str())
-                                    .expect(format!("couldn't parse string {}", dest_str).as_str()),
+                            let src = Square::from_str(src_str.to_uppercase().as_str())?;
+                            let dest = Square::from_str(dest_str.to_uppercase().as_str())?;
+                            Ok::<Move, <Square as FromStr>::Err>(Move {
+                                src,
+                                dest,
                                 promotion: None,
-                            }
+                            })
                         })
-                        .collect(),
-                },
-            ),
+                        .collect::<Result<Vec<Move>, _>>()?,
+                })
+            }),
     )
     .parse_next(input)
 }
@@ -182,13 +184,28 @@ fn parse_quit(input: &mut &str) -> PResult<UCIMessageToServer> {
     "quit".value(UCIMessageToServer::Quit).parse_next(input)
 }
 
+// ======================================================
+// Winnow Parsing functions (go commands)
+// ======================================================
+
 fn parse_go(input: &mut &str) -> PResult<UCIMessageToServer> {
     preceded(
         "go ",
         separated(
-            0..,
-            alt((parse_go_searchmoves, parse_go_infinite, parse_go_time)),
-            opt(' '),
+            1..,
+            alt((
+                parse_go_searchmoves,
+                parse_go_ponder,
+                parse_go_time,
+                parse_go_inc,
+                parse_go_movestogo,
+                parse_go_depth,
+                parse_go_nodes,
+                parse_go_mate,
+                parse_go_movetime,
+                parse_go_infinite,
+            )),
+            ' ',
         ),
     )
     .map(|params: Vec<GoParameter>| UCIMessageToServer::Go { params })
@@ -217,6 +234,10 @@ fn parse_go_searchmoves(input: &mut &str) -> PResult<GoParameter> {
         .parse_next(input)
 }
 
+fn parse_go_ponder(input: &mut &str) -> PResult<GoParameter> {
+    "ponder".value(GoParameter::Ponder).parse_next(input)
+}
+
 fn parse_go_time(input: &mut &str) -> PResult<GoParameter> {
     alt((
         preceded("wtime ", digit1.try_map(|msec: &str| u64::from_str(msec))).map(|msec: u64| {
@@ -232,6 +253,60 @@ fn parse_go_time(input: &mut &str) -> PResult<GoParameter> {
             }
         }),
     ))
+    .parse_next(input)
+}
+
+fn parse_go_inc(input: &mut &str) -> PResult<GoParameter> {
+    alt((
+        preceded("winc ", digit1.try_map(|msec: &str| u64::from_str(msec))).map(|msec: u64| {
+            GoParameter::Inc {
+                msec,
+                side: Side::White,
+            }
+        }),
+        preceded("binc ", digit1.try_map(|msec: &str| u64::from_str(msec))).map(|msec: u64| {
+            GoParameter::Inc {
+                msec,
+                side: Side::Black,
+            }
+        }),
+    ))
+    .parse_next(input)
+}
+
+fn parse_go_movestogo(input: &mut &str) -> PResult<GoParameter> {
+    preceded(
+        "movestogo ",
+        digit1.try_map(|moves: &str| u64::from_str(moves)),
+    )
+    .map(|moves: u64| GoParameter::MovesToGo { moves })
+    .parse_next(input)
+}
+
+fn parse_go_depth(input: &mut &str) -> PResult<GoParameter> {
+    preceded("depth ", digit1.try_map(|moves: &str| u64::from_str(moves)))
+        .map(|moves: u64| GoParameter::Depth { moves })
+        .parse_next(input)
+}
+
+fn parse_go_nodes(input: &mut &str) -> PResult<GoParameter> {
+    preceded("nodes ", digit1.try_map(|nodes: &str| u64::from_str(nodes)))
+        .map(|nodes: u64| GoParameter::Nodes { nodes })
+        .parse_next(input)
+}
+
+fn parse_go_mate(input: &mut &str) -> PResult<GoParameter> {
+    preceded("mate ", digit1.try_map(|moves: &str| u64::from_str(moves)))
+        .map(|moves: u64| GoParameter::Mate { moves })
+        .parse_next(input)
+}
+
+fn parse_go_movetime(input: &mut &str) -> PResult<GoParameter> {
+    preceded(
+        "movetime ",
+        digit1.try_map(|msec: &str| u64::from_str(msec)),
+    )
+    .map(|msec: u64| GoParameter::MoveTime { msec })
     .parse_next(input)
 }
 
@@ -263,7 +338,20 @@ mod tests {
     #[test_case("stop", UCIMessageToServer::Stop)]
     #[test_case("ponderhit", UCIMessageToServer::PonderHit)]
     #[test_case("quit", UCIMessageToServer::Quit)]
+    #[test_case("go searchmoves e2e4 e7e5", UCIMessageToServer::Go { params: vec![GoParameter::SearchMoves { moves: vec![Move::new(E2, E4), Move::new(E7, E5)]}]})]
+    #[test_case("go ponder", UCIMessageToServer::Go { params: vec![GoParameter::Ponder]})]
+    #[test_case("go wtime 1000", UCIMessageToServer::Go { params: vec![GoParameter::Time { msec: 1000, side: Side::White }]})]
+    #[test_case("go btime 3", UCIMessageToServer::Go { params: vec![GoParameter::Time { msec: 3, side: Side::Black }]})]
+    #[test_case("go winc 1000", UCIMessageToServer::Go { params: vec![GoParameter::Inc { msec: 1000, side: Side::White }]})]
+    #[test_case("go binc 3", UCIMessageToServer::Go { params: vec![GoParameter::Inc { msec: 3, side: Side::Black }]})]
+    #[test_case("go movestogo 7", UCIMessageToServer::Go { params: vec![GoParameter::MovesToGo { moves: 7}]})]
+    #[test_case("go depth 6", UCIMessageToServer::Go { params: vec![GoParameter::Depth { moves: 6}]})]
+    #[test_case("go nodes 10000", UCIMessageToServer::Go { params: vec![GoParameter::Nodes { nodes: 10000}]})]
+    #[test_case("go mate 18", UCIMessageToServer::Go { params: vec![GoParameter::Mate { moves: 18}]})]
+    #[test_case("go movetime 100", UCIMessageToServer::Go { params: vec![GoParameter::MoveTime { msec: 100}]})]
     #[test_case("go infinite", UCIMessageToServer::Go { params: vec![GoParameter::Infinite]})]
+    #[test_case("go infinite wtime 1000", UCIMessageToServer::Go { params: vec![GoParameter::Infinite, GoParameter::Time { msec: 1000, side: Side::White }]})]
+    #[test_case("go depth 10 searchmoves a2a4 b2b4", UCIMessageToServer::Go { params: vec![GoParameter::Depth { moves: 10 }, GoParameter::SearchMoves { moves: vec![Move::new(A2, A4), Move::new(B2, B4)] }]})]
     fn test_from_str(input: &str, want: UCIMessageToServer) -> TestResult {
         let got = UCIMessageToServer::from_str(input)?;
 
