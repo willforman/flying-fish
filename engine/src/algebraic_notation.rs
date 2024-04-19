@@ -1,5 +1,3 @@
-use std::ascii::AsciiExt;
-
 use thiserror;
 
 use crate::move_gen::{GenerateCheckers, GenerateMoves};

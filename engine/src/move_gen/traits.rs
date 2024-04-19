@@ -14,7 +14,7 @@ pub(super) trait GenerateSlidingMoves {
     fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard;
 }
 
-pub(crate) trait GenerateCheckers {
+pub trait GenerateCheckers {
     fn gen_checkers(&self, position: &Position) -> BitBoard;
 }
 
