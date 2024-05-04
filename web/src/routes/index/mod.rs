@@ -24,39 +24,7 @@ static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
 #[server(GenerateMove)]
 async fn generate_move(position: Position, depth: u32) -> Result<Option<Move>, ServerFnError> {
-    let moves = MOVE_GEN.gen_moves(&position);
-
-    if moves.is_empty() {
-        return Ok(None);
-    }
-
-    let mut best_val = if position.state.to_move == Side::White {
-        f64::MIN
-    } else {
-        f64::MAX
-    };
-
-    let mut best_move: Option<Move> = None;
-
-    for mve in moves {
-        let mut move_position = position.clone();
-        move_position.make_move(&mve)?;
-
-        let got_val = search(&move_position, depth, MOVE_GEN, POSITION_EVALUATOR);
-
-        if position.state.to_move == Side::White {
-            if got_val > best_val {
-                best_val = got_val;
-                best_move = Some(mve);
-            }
-        } else {
-            if got_val < best_val {
-                best_val = got_val;
-                best_move = Some(mve);
-            }
-        }
-    }
-
+    let best_move = search(&position, depth, MOVE_GEN, POSITION_EVALUATOR);
     Ok(best_move)
 }
 

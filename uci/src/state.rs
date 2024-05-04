@@ -72,36 +72,7 @@ impl UCIState {
     fn in_game(&self, position: &mut Position, event: &UCIMessageToServer) -> Response<State> {
         match event {
             UCIMessageToServer::Go { params: _ } => {
-                let moves = MOVE_GEN.gen_moves(&position);
-
-                let mut best_val = if position.state.to_move == Side::White {
-                    f64::MIN
-                } else {
-                    f64::MAX
-                };
-
-                let mut best_move: Option<Move> = None;
-
-                for mve in moves {
-                    let mut move_position = position.clone();
-                    move_position.make_move(&mve).unwrap();
-
-                    let got_val =
-                        search(&move_position, SEARCH_DEPTH, MOVE_GEN, POSITION_EVALUATOR);
-
-                    if position.state.to_move == Side::White {
-                        if got_val > best_val {
-                            best_val = got_val;
-                            best_move = Some(mve);
-                        }
-                    } else {
-                        #[allow(clippy::collapsible_else_if)]
-                        if got_val < best_val {
-                            best_val = got_val;
-                            best_move = Some(mve);
-                        }
-                    }
-                }
+                let best_move = search(&position, SEARCH_DEPTH, MOVE_GEN, POSITION_EVALUATOR);
                 self.client_sender
                     .send_client(vec![UCIMessageToClient::BestMove {
                         mve: best_move.expect("Best move should have been found"),

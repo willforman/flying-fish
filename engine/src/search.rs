@@ -1,22 +1,56 @@
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
-use crate::position::Position;
+use crate::position::{Move, Position, Side};
 
 pub fn search(
     position: &Position,
     depth: u32,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-) -> f64 {
-    search_helper(
-        position,
-        0,
-        depth,
-        f64::MIN,
-        f64::MAX,
-        move_gen,
-        position_eval,
-    )
+) -> Option<Move> {
+    let moves = move_gen.gen_moves(position);
+
+    if moves.is_empty() {
+        return None;
+    }
+
+    let mut best_val = if position.state.to_move == Side::White {
+        f64::MIN
+    } else {
+        f64::MAX
+    };
+
+    let mut best_move: Option<Move> = None;
+
+    for mve in moves {
+        let mut move_position = position.clone();
+        move_position.make_move(&mve).unwrap();
+
+        let got_val = search_helper(
+            &move_position,
+            0,
+            depth - 1,
+            f64::MIN,
+            f64::MAX,
+            move_gen,
+            position_eval,
+        );
+
+        if position.state.to_move == Side::White {
+            if got_val > best_val {
+                best_val = got_val;
+                best_move = Some(mve);
+            }
+        } else {
+            #[allow(clippy::collapsible_else_if)]
+            if got_val < best_val {
+                best_val = got_val;
+                best_move = Some(mve);
+            }
+        }
+    }
+
+    best_move
 }
 
 fn search_helper(
@@ -29,7 +63,7 @@ fn search_helper(
     position_eval: impl EvaluatePosition + std::marker::Copy,
 ) -> f64 {
     if curr_depth == max_depth {
-        return position_eval.evaluate(&position);
+        return position_eval.evaluate(position);
     }
 
     let moves = move_gen.gen_moves(position);
