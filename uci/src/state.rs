@@ -2,7 +2,7 @@ use engine::position::{Move, Side};
 use engine::search::search;
 use statig::prelude::*;
 
-use engine::evaluation::{EvaluatePosition, POSITION_EVALUATOR};
+use engine::evaluation::POSITION_EVALUATOR;
 use engine::move_gen::{
     GenerateMoves, HyperbolaQuintessenceMoveGen, HYPERBOLA_QUINTESSENCE_MOVE_GEN,
 };
@@ -52,14 +52,13 @@ impl UCIState {
 
     #[action]
     fn enter_uci_enabled(&self) {
-        let msgs = vec![
+        self.client_sender.send_client(vec![
             UCIMessageToClient::ID {
                 name: Some(NAME.to_string()),
                 author: Some(AUTHOR.to_string()),
             },
             UCIMessageToClient::UCIOk,
-        ];
-        self.client_sender.send_client(msgs);
+        ]);
     }
 
     #[state]
@@ -72,7 +71,7 @@ impl UCIState {
     #[state]
     fn in_game(&self, position: &mut Position, event: &UCIMessageToServer) -> Response<State> {
         match event {
-            UCIMessageToServer::Go { params } => {
+            UCIMessageToServer::Go { params: _ } => {
                 let moves = MOVE_GEN.gen_moves(&position);
 
                 let mut best_val = if position.state.to_move == Side::White {
@@ -96,12 +95,18 @@ impl UCIState {
                             best_move = Some(mve);
                         }
                     } else {
+                        #[allow(clippy::collapsible_else_if)]
                         if got_val < best_val {
                             best_val = got_val;
                             best_move = Some(mve);
                         }
                     }
                 }
+                self.client_sender
+                    .send_client(vec![UCIMessageToClient::BestMove {
+                        mve: best_move.expect("Best move should have been found"),
+                        ponder: None,
+                    }]);
                 Super
             }
             _ => Super,
