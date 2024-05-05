@@ -1,6 +1,6 @@
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
-use crate::position::{Move, Position, Side};
+use crate::position::{Move, Position};
 
 pub fn search(
     position: &Position,
@@ -8,48 +8,15 @@ pub fn search(
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
 ) -> Option<Move> {
-    let moves = move_gen.gen_moves(position);
-
-    if moves.is_empty() {
-        return None;
-    }
-
-    let mut best_val = if position.state.to_move == Side::White {
-        f64::MIN
-    } else {
-        f64::MAX
-    };
-
-    let mut best_move: Option<Move> = None;
-
-    for mve in moves {
-        let mut move_position = position.clone();
-        move_position.make_move(&mve).unwrap();
-
-        let got_val = search_helper(
-            &move_position,
-            0,
-            depth - 1,
-            f64::MIN,
-            f64::MAX,
-            move_gen,
-            position_eval,
-        );
-
-        if position.state.to_move == Side::White {
-            if got_val > best_val {
-                best_val = got_val;
-                best_move = Some(mve);
-            }
-        } else {
-            #[allow(clippy::collapsible_else_if)]
-            if got_val < best_val {
-                best_val = got_val;
-                best_move = Some(mve);
-            }
-        }
-    }
-
+    let (best_move, _best_val) = search_helper(
+        position,
+        0,
+        depth,
+        f64::MIN,
+        f64::MAX,
+        move_gen,
+        position_eval,
+    );
     best_move
 }
 
@@ -61,19 +28,21 @@ fn search_helper(
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-) -> f64 {
-    if curr_depth == max_depth {
-        return position_eval.evaluate(position);
-    }
-
+) -> (Option<Move>, f64) {
     let moves = move_gen.gen_moves(position);
 
     let mut best_val = f64::MIN;
+    let mut best_move: Option<Move> = None;
     for mve in moves {
         let mut move_position = position.clone();
         move_position.make_move(&mve).unwrap();
 
-        let got_val = -search_helper(
+        if curr_depth + 1 == max_depth {
+            let val = position_eval.evaluate(&move_position);
+            return (Some(mve), val);
+        }
+
+        let (_move, got_val) = search_helper(
             &move_position,
             curr_depth + 1,
             max_depth,
@@ -83,6 +52,13 @@ fn search_helper(
             position_eval,
         );
 
+        let got_val = -got_val;
+
+        if got_val >= best_val {
+            best_val = got_val;
+            best_move = Some(mve);
+        }
+
         best_val = f64::max(best_val, got_val);
 
         alpha = f64::max(alpha, got_val);
@@ -91,7 +67,8 @@ fn search_helper(
             break;
         }
     }
-    best_val
+
+    (best_move, best_val)
 }
 
 #[cfg(test)]

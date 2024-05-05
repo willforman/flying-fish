@@ -39,7 +39,7 @@ pub fn IndexPage() -> impl IntoView {
         let move_str = move_to_algebraic_notation(&position(), input, MOVE_GEN, MOVE_GEN).unwrap();
         set_move_strs.update(|move_strs| move_strs.push(move_str));
 
-        set_position.update(|pos| pos.make_move(&input).unwrap());
+        set_position.update(|pos| pos.make_move(input).unwrap());
 
         async move {
             let maybe_generated_move = generate_move(position(), SEARCH_DEPTH).await.unwrap();
