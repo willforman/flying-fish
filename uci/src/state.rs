@@ -1,6 +1,8 @@
 use engine::position::{Move, Side};
 use engine::search::search;
 use statig::prelude::*;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use engine::evaluation::POSITION_EVALUATOR;
 use engine::move_gen::{
@@ -69,9 +71,15 @@ impl UCIState {
     }
 
     #[state]
-    fn in_game(&self, position: &mut Position, event: &UCIMessageToServer) -> Response<State> {
+    fn in_game(
+        &self,
+        position: &mut Position,
+        maybe_terminate: &Option<Arc<AtomicBool>>,
+        event: &UCIMessageToServer,
+    ) -> Response<State> {
         match event {
             UCIMessageToServer::Go { params: _ } => {
+                assert!(maybe_terminate.is_none());
                 let best_move = search(&position, SEARCH_DEPTH, MOVE_GEN, POSITION_EVALUATOR);
                 self.client_sender
                     .send_client(vec![UCIMessageToClient::BestMove {

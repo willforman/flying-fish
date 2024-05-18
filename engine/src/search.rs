@@ -1,3 +1,6 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
@@ -7,6 +10,7 @@ pub fn search(
     depth: u32,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
+    terminate: Arc<AtomicBool>,
 ) -> Option<Move> {
     let (best_move, _best_val) = search_helper(
         position,
@@ -16,10 +20,12 @@ pub fn search(
         f64::MAX,
         move_gen,
         position_eval,
+        terminate.clone(),
     );
     best_move
 }
 
+#[allow(clippy::too_many_arguments)]
 fn search_helper(
     position: &Position,
     curr_depth: u32,
@@ -28,6 +34,7 @@ fn search_helper(
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
+    terminate: Arc<AtomicBool>,
 ) -> (Option<Move>, f64) {
     let moves = move_gen.gen_moves(position);
 
@@ -50,6 +57,7 @@ fn search_helper(
             -alpha,
             move_gen,
             position_eval,
+            terminate.clone(),
         );
 
         let got_val = -got_val;
@@ -103,6 +111,7 @@ mod tests {
             3,
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
+            Arc::new(AtomicBool::new(false)),
         );
         Ok(())
     }
