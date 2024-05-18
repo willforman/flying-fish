@@ -20,7 +20,7 @@ pub fn search(
         f64::MAX,
         move_gen,
         position_eval,
-        terminate.clone(),
+        Arc::clone(&terminate),
     );
     best_move
 }
@@ -36,6 +36,11 @@ fn search_helper(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     terminate: Arc<AtomicBool>,
 ) -> (Option<Move>, f64) {
+    // If this search has been terminated, return early
+    if terminate.load(std::sync::atomic::Ordering::Relaxed) {
+        return (None, 0.0);
+    }
+
     let moves = move_gen.gen_moves(position);
 
     let mut best_val = f64::MIN;
@@ -49,7 +54,7 @@ fn search_helper(
             return (Some(mve), val);
         }
 
-        let (_move, got_val) = search_helper(
+        let (got_mve, got_val) = search_helper(
             &move_position,
             curr_depth + 1,
             max_depth,
@@ -57,8 +62,13 @@ fn search_helper(
             -alpha,
             move_gen,
             position_eval,
-            terminate.clone(),
+            Arc::clone(&terminate),
         );
+
+        // Search has been terminated, return best move we found
+        if got_mve.is_none() && got_val == 0.0 {
+            break;
+        }
 
         let got_val = -got_val;
 

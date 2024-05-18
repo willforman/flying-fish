@@ -1,7 +1,21 @@
+use std::io::{self, Write};
+
 use engine::position::Move;
 
+pub trait WriteUCIResponse {
+    fn write_uci_response(&self, uci_response: String);
+}
+
+pub struct UCIResponseStdoutWriter;
+
+impl WriteUCIResponse for UCIResponseStdoutWriter {
+    fn write_uci_response(&self, uci_response: String) {
+        io::stdout().write(uci_response.as_bytes()).unwrap();
+    }
+}
+
 #[derive(Debug)]
-pub(crate) enum UCIMessageToClient {
+pub(crate) enum UCIResponse {
     ID {
         name: Option<String>,
         author: Option<String>,
@@ -21,7 +35,7 @@ pub(crate) enum UCIMessageToClient {
 }
 
 #[derive(Debug)]
-enum Info {
+pub enum Info {
     Depth {
         str: String,
     },
@@ -85,17 +99,23 @@ enum Score {
 }
 
 #[derive(Debug)]
-struct UCIOption {
+pub struct UCIOption {
     name: String,
     type_: UCIOptionType,
     default: Option<String>,
 }
 
 #[derive(Debug)]
-enum UCIOptionType {
+pub enum UCIOptionType {
     Check,
     Spin { range_start: i32, range_end: i32 },
     Combo { options: Vec<String> },
     Button,
     String { str: String },
+}
+
+impl Into<String> for UCIResponse {
+    fn into(self) -> String {
+        "test".to_string()
+    }
 }

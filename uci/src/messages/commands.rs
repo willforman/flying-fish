@@ -1,6 +1,8 @@
 use std::fmt::Display;
+use std::io;
 use std::str::FromStr;
 
+use anyhow::Result;
 use engine::bitboard::Square;
 use winnow::ascii::digit1;
 use winnow::combinator::{alt, preceded, rest, separated};
@@ -9,8 +11,22 @@ use winnow::{PResult, Parser};
 
 use engine::position::{Move, Side};
 
+pub trait ReadUCICommand {
+    fn read_uci_command(&self) -> Result<String>;
+}
+
+pub struct UCICommandStdinReader;
+
+impl ReadUCICommand for UCICommandStdinReader {
+    fn read_uci_command(&self) -> Result<String> {
+        let mut buffer = String::new();
+        io::stdin().read_line(&mut buffer);
+        Ok(buffer)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) enum UCIMessageToServer {
+pub(crate) enum UCICommand {
     #[allow(clippy::upper_case_acronyms)]
     UCI,
     Debug {
@@ -54,18 +70,18 @@ pub(crate) enum GoParameter {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct UCIMessageToServerParseError(String);
+pub struct UCICommandParseError(String);
 
-impl Display for UCIMessageToServerParseError {
+impl Display for UCICommandParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.0)
     }
 }
 
-impl std::error::Error for UCIMessageToServerParseError {}
+impl std::error::Error for UCICommandParseError {}
 
-impl FromStr for UCIMessageToServer {
-    type Err = UCIMessageToServerParseError;
+impl FromStr for UCICommand {
+    type Err = UCICommandParseError;
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         alt((
             // parse_ucinewgame must go before parse_uci because they share prefix
@@ -83,7 +99,7 @@ impl FromStr for UCIMessageToServer {
             parse_go,
         ))
         .parse(input)
-        .map_err(|_| UCIMessageToServerParseError(format!("cannot parse: [{}]", input)))
+        .map_err(|_| UCICommandParseError(format!("cannot parse: [{}]", input)))
     }
 }
 
@@ -91,33 +107,31 @@ impl FromStr for UCIMessageToServer {
 // Winnow Parsing functions (non go commands)
 // ======================================================
 
-fn parse_uci(input: &mut &str) -> PResult<UCIMessageToServer> {
-    "uci".parse_next(input).map(|_| UCIMessageToServer::UCI)
+fn parse_uci(input: &mut &str) -> PResult<UCICommand> {
+    "uci".parse_next(input).map(|_| UCICommand::UCI)
 }
 
-fn parse_debug(input: &mut &str) -> PResult<UCIMessageToServer> {
+fn parse_debug(input: &mut &str) -> PResult<UCICommand> {
     preceded("debug ", alt(("on".value(true), "off".value(false))))
         .parse_next(input)
-        .map(|on| UCIMessageToServer::Debug { on })
+        .map(|on| UCICommand::Debug { on })
 }
 
-fn parse_isready(input: &mut &str) -> PResult<UCIMessageToServer> {
-    "isready"
-        .parse_next(input)
-        .map(|_| UCIMessageToServer::IsReady)
+fn parse_isready(input: &mut &str) -> PResult<UCICommand> {
+    "isready".parse_next(input).map(|_| UCICommand::IsReady)
 }
 
-fn parse_setoption(input: &mut &str) -> PResult<UCIMessageToServer> {
+fn parse_setoption(input: &mut &str) -> PResult<UCICommand> {
     preceded(
         "setoption name ",
         alt((
             (take_until(0.., " value"), preceded(" value ", rest)).map(
-                |(name, value): (&str, &str)| UCIMessageToServer::SetOption {
+                |(name, value): (&str, &str)| UCICommand::SetOption {
                     name: name.to_string(),
                     value: Some(value.to_string()),
                 },
             ),
-            rest.map(|name: &str| UCIMessageToServer::SetOption {
+            rest.map(|name: &str| UCICommand::SetOption {
                 name: name.to_string(),
                 value: None,
             }),
@@ -126,11 +140,11 @@ fn parse_setoption(input: &mut &str) -> PResult<UCIMessageToServer> {
     .parse_next(input)
 }
 
-fn parse_register(input: &mut &str) -> PResult<UCIMessageToServer> {
+fn parse_register(input: &mut &str) -> PResult<UCICommand> {
     preceded(
         "register name ",
         (take_until(0.., " code"), preceded(" code ", rest)).map(|(name, code): (&str, &str)| {
-            UCIMessageToServer::Register {
+            UCICommand::Register {
                 name: name.to_string(),
                 code: code.to_string(),
             }
@@ -139,19 +153,17 @@ fn parse_register(input: &mut &str) -> PResult<UCIMessageToServer> {
     .parse_next(input)
 }
 
-fn parse_register_later(input: &mut &str) -> PResult<UCIMessageToServer> {
+fn parse_register_later(input: &mut &str) -> PResult<UCICommand> {
     "register later"
-        .value(UCIMessageToServer::RegisterLater)
+        .value(UCICommand::RegisterLater)
         .parse_next(input)
 }
 
-fn parse_ucinewgame(input: &mut &str) -> PResult<UCIMessageToServer> {
-    "ucinewgame"
-        .value(UCIMessageToServer::UCINewGame)
-        .parse_next(input)
+fn parse_ucinewgame(input: &mut &str) -> PResult<UCICommand> {
+    "ucinewgame".value(UCICommand::UCINewGame).parse_next(input)
 }
 
-fn parse_position(input: &mut &str) -> PResult<UCIMessageToServer> {
+fn parse_position(input: &mut &str) -> PResult<UCICommand> {
     preceded(
         "position ",
         (
@@ -159,7 +171,7 @@ fn parse_position(input: &mut &str) -> PResult<UCIMessageToServer> {
             preceded(" moves ", rest),
         )
             .try_map(|(fen, moves): (Option<&str>, &str)| {
-                Ok::<UCIMessageToServer, <Square as FromStr>::Err>(UCIMessageToServer::Position {
+                Ok::<UCICommand, <Square as FromStr>::Err>(UCICommand::Position {
                     fen: fen.map(|s: &str| s.to_string()),
                     moves: moves
                         .split(' ')
@@ -180,25 +192,23 @@ fn parse_position(input: &mut &str) -> PResult<UCIMessageToServer> {
     .parse_next(input)
 }
 
-fn parse_stop(input: &mut &str) -> PResult<UCIMessageToServer> {
-    "stop".value(UCIMessageToServer::Stop).parse_next(input)
+fn parse_stop(input: &mut &str) -> PResult<UCICommand> {
+    "stop".value(UCICommand::Stop).parse_next(input)
 }
 
-fn parse_ponderhit(input: &mut &str) -> PResult<UCIMessageToServer> {
-    "ponderhit"
-        .value(UCIMessageToServer::PonderHit)
-        .parse_next(input)
+fn parse_ponderhit(input: &mut &str) -> PResult<UCICommand> {
+    "ponderhit".value(UCICommand::PonderHit).parse_next(input)
 }
 
-fn parse_quit(input: &mut &str) -> PResult<UCIMessageToServer> {
-    "quit".value(UCIMessageToServer::Quit).parse_next(input)
+fn parse_quit(input: &mut &str) -> PResult<UCICommand> {
+    "quit".value(UCICommand::Quit).parse_next(input)
 }
 
 // ======================================================
 // Winnow Parsing functions (go commands)
 // ======================================================
 
-fn parse_go(input: &mut &str) -> PResult<UCIMessageToServer> {
+fn parse_go(input: &mut &str) -> PResult<UCICommand> {
     preceded(
         "go ",
         separated(
@@ -218,7 +228,7 @@ fn parse_go(input: &mut &str) -> PResult<UCIMessageToServer> {
             ' ',
         ),
     )
-    .map(|params: Vec<GoParameter>| UCIMessageToServer::Go { params })
+    .map(|params: Vec<GoParameter>| UCICommand::Go { params })
     .parse_next(input)
 }
 
@@ -333,37 +343,37 @@ mod tests {
 
     use engine::bitboard::Square::*;
 
-    #[test_case("uci", UCIMessageToServer::UCI)]
-    #[test_case("debug on", UCIMessageToServer::Debug { on: true })]
-    #[test_case("debug off", UCIMessageToServer::Debug { on: false })]
-    #[test_case("isready", UCIMessageToServer::IsReady)]
-    #[test_case("setoption name style value risky", UCIMessageToServer::SetOption { name: "style".to_string(), value: Some("risky".to_string()) })]
-    #[test_case("setoption name multi word name value yes", UCIMessageToServer::SetOption { name: "multi word name".to_string(), value: Some("yes".to_string()) })]
-    #[test_case("setoption name clear hash", UCIMessageToServer::SetOption { name: "clear hash".to_string(), value: None })]
-    #[test_case("register name Will code 1234", UCIMessageToServer::Register { name: "Will".to_string(), code: "1234".to_string() })]
-    #[test_case("register later", UCIMessageToServer::RegisterLater)]
-    #[test_case("ucinewgame", UCIMessageToServer::UCINewGame)]
-    #[test_case("position startpos moves e2e4 e7e5", UCIMessageToServer::Position { fen: None, moves: vec![Move::new(E2, E4), Move::new(E7, E5)]})]
-    #[test_case("position r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves f3f6", UCIMessageToServer::Position { fen: Some("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".to_string()), moves: vec![Move::new(F3, F6)]})]
-    #[test_case("stop", UCIMessageToServer::Stop)]
-    #[test_case("ponderhit", UCIMessageToServer::PonderHit)]
-    #[test_case("quit", UCIMessageToServer::Quit)]
-    #[test_case("go searchmoves e2e4 e7e5", UCIMessageToServer::Go { params: vec![GoParameter::SearchMoves { moves: vec![Move::new(E2, E4), Move::new(E7, E5)]}]})]
-    #[test_case("go ponder", UCIMessageToServer::Go { params: vec![GoParameter::Ponder]})]
-    #[test_case("go wtime 1000", UCIMessageToServer::Go { params: vec![GoParameter::Time { msec: 1000, side: Side::White }]})]
-    #[test_case("go btime 3", UCIMessageToServer::Go { params: vec![GoParameter::Time { msec: 3, side: Side::Black }]})]
-    #[test_case("go winc 1000", UCIMessageToServer::Go { params: vec![GoParameter::Inc { msec: 1000, side: Side::White }]})]
-    #[test_case("go binc 3", UCIMessageToServer::Go { params: vec![GoParameter::Inc { msec: 3, side: Side::Black }]})]
-    #[test_case("go movestogo 7", UCIMessageToServer::Go { params: vec![GoParameter::MovesToGo { moves: 7}]})]
-    #[test_case("go depth 6", UCIMessageToServer::Go { params: vec![GoParameter::Depth { moves: 6}]})]
-    #[test_case("go nodes 10000", UCIMessageToServer::Go { params: vec![GoParameter::Nodes { nodes: 10000}]})]
-    #[test_case("go mate 18", UCIMessageToServer::Go { params: vec![GoParameter::Mate { moves: 18}]})]
-    #[test_case("go movetime 100", UCIMessageToServer::Go { params: vec![GoParameter::MoveTime { msec: 100}]})]
-    #[test_case("go infinite", UCIMessageToServer::Go { params: vec![GoParameter::Infinite]})]
-    #[test_case("go infinite wtime 1000", UCIMessageToServer::Go { params: vec![GoParameter::Infinite, GoParameter::Time { msec: 1000, side: Side::White }]})]
-    #[test_case("go depth 10 searchmoves a2a4 b2b4", UCIMessageToServer::Go { params: vec![GoParameter::Depth { moves: 10 }, GoParameter::SearchMoves { moves: vec![Move::new(A2, A4), Move::new(B2, B4)] }]})]
-    fn test_from_str(input: &str, want: UCIMessageToServer) -> TestResult {
-        let got = UCIMessageToServer::from_str(input)?;
+    #[test_case("uci", UCICommand::UCI)]
+    #[test_case("debug on", UCICommand::Debug { on: true })]
+    #[test_case("debug off", UCICommand::Debug { on: false })]
+    #[test_case("isready", UCICommand::IsReady)]
+    #[test_case("setoption name style value risky", UCICommand::SetOption { name: "style".to_string(), value: Some("risky".to_string()) })]
+    #[test_case("setoption name multi word name value yes", UCICommand::SetOption { name: "multi word name".to_string(), value: Some("yes".to_string()) })]
+    #[test_case("setoption name clear hash", UCICommand::SetOption { name: "clear hash".to_string(), value: None })]
+    #[test_case("register name Will code 1234", UCICommand::Register { name: "Will".to_string(), code: "1234".to_string() })]
+    #[test_case("register later", UCICommand::RegisterLater)]
+    #[test_case("ucinewgame", UCICommand::UCINewGame)]
+    #[test_case("position startpos moves e2e4 e7e5", UCICommand::Position { fen: None, moves: vec![Move::new(E2, E4), Move::new(E7, E5)]})]
+    #[test_case("position r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves f3f6", UCICommand::Position { fen: Some("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".to_string()), moves: vec![Move::new(F3, F6)]})]
+    #[test_case("stop", UCICommand::Stop)]
+    #[test_case("ponderhit", UCICommand::PonderHit)]
+    #[test_case("quit", UCICommand::Quit)]
+    #[test_case("go searchmoves e2e4 e7e5", UCICommand::Go { params: vec![GoParameter::SearchMoves { moves: vec![Move::new(E2, E4), Move::new(E7, E5)]}]})]
+    #[test_case("go ponder", UCICommand::Go { params: vec![GoParameter::Ponder]})]
+    #[test_case("go wtime 1000", UCICommand::Go { params: vec![GoParameter::Time { msec: 1000, side: Side::White }]})]
+    #[test_case("go btime 3", UCICommand::Go { params: vec![GoParameter::Time { msec: 3, side: Side::Black }]})]
+    #[test_case("go winc 1000", UCICommand::Go { params: vec![GoParameter::Inc { msec: 1000, side: Side::White }]})]
+    #[test_case("go binc 3", UCICommand::Go { params: vec![GoParameter::Inc { msec: 3, side: Side::Black }]})]
+    #[test_case("go movestogo 7", UCICommand::Go { params: vec![GoParameter::MovesToGo { moves: 7}]})]
+    #[test_case("go depth 6", UCICommand::Go { params: vec![GoParameter::Depth { moves: 6}]})]
+    #[test_case("go nodes 10000", UCICommand::Go { params: vec![GoParameter::Nodes { nodes: 10000}]})]
+    #[test_case("go mate 18", UCICommand::Go { params: vec![GoParameter::Mate { moves: 18}]})]
+    #[test_case("go movetime 100", UCICommand::Go { params: vec![GoParameter::MoveTime { msec: 100}]})]
+    #[test_case("go infinite", UCICommand::Go { params: vec![GoParameter::Infinite]})]
+    #[test_case("go infinite wtime 1000", UCICommand::Go { params: vec![GoParameter::Infinite, GoParameter::Time { msec: 1000, side: Side::White }]})]
+    #[test_case("go depth 10 searchmoves a2a4 b2b4", UCICommand::Go { params: vec![GoParameter::Depth { moves: 10 }, GoParameter::SearchMoves { moves: vec![Move::new(A2, A4), Move::new(B2, B4)] }]})]
+    fn test_from_str(input: &str, want: UCICommand) -> TestResult {
+        let got = UCICommand::from_str(input)?;
 
         assert_eq!(got, want);
         Ok(())

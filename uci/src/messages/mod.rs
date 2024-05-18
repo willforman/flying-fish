@@ -1,5 +1,8 @@
-mod to_client;
-mod to_server;
+mod commands;
+mod responses;
 
-pub(crate) use to_client::UCIMessageToClient;
-pub(crate) use to_server::UCIMessageToServer;
+pub use commands::{ReadUCICommand, UCICommandParseError, UCICommandStdinReader};
+pub use responses::{UCIResponseStdoutWriter, WriteUCIResponse};
+
+pub(crate) use commands::UCICommand;
+pub(crate) use responses::UCIResponse;
