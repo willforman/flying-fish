@@ -10,28 +10,19 @@ pub struct UCIResponseStdoutWriter;
 
 impl WriteUCIResponse for UCIResponseStdoutWriter {
     fn write_uci_response(&self, uci_response: String) {
-        io::stdout().write(uci_response.as_bytes()).unwrap();
+        io::stdout().write_all(uci_response.as_bytes()).unwrap();
     }
 }
 
 #[derive(Debug)]
 pub(crate) enum UCIResponse {
-    ID {
-        name: Option<String>,
-        author: Option<String>,
-    },
+    IDName { name: String },
+    IDAuthor { author: String },
     UCIOk,
     ReadyOk,
-    BestMove {
-        mve: Move,
-        ponder: Option<Move>,
-    },
-    Info {
-        info: Info,
-    },
-    Option {
-        option: UCIOption,
-    },
+    BestMove { mve: Move, ponder: Option<Move> },
+    Info { info: Info },
+    Option { option: UCIOption },
 }
 
 #[derive(Debug)]
@@ -116,6 +107,22 @@ pub enum UCIOptionType {
 
 impl Into<String> for UCIResponse {
     fn into(self) -> String {
-        "test".to_string()
+        match self {
+            UCIResponse::IDName { name } => format!("id name {}", name),
+            UCIResponse::IDAuthor { author } => format!("id author {}", author),
+            UCIResponse::UCIOk => "uciok".to_string(),
+            UCIResponse::ReadyOk => "readyok".to_string(),
+            _ => format!("{:?} not implemented", self),
+        }
     }
+    // BestMove {
+    //     mve: Move,
+    //     ponder: Option<Move>,
+    // },
+    // Info {
+    //     info: Info,
+    // },
+    // Option {
+    //     option: UCIOption,
+    // },
 }

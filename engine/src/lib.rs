@@ -11,7 +11,7 @@ mod perft;
 mod position;
 mod search;
 
-pub const NAME: &str = "PLACEHOLDER_NAME";
+pub const NAME: &str = "Will's Engine";
 pub const AUTHOR: &str = "Will Forman";
 
 pub use algebraic_notation::move_to_algebraic_notation;

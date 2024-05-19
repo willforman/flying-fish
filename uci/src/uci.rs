@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 use engine::GenerateMoves;
 use statig::prelude::{InitializedStateMachine, IntoStateMachineExt};
@@ -23,7 +23,7 @@ where
     T: GenerateMoves + Copy,
     U: WriteUCIResponse,
 {
-    pub fn new(move_gen: T, response_writer: U) -> Self {
+    pub fn new(move_gen: T, response_writer: Arc<U>) -> Self {
         let uci_state = UCIState::new(move_gen, response_writer);
         let uci_state_machine = uci_state.uninitialized_state_machine().init();
         Self {

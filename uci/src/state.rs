@@ -12,7 +12,7 @@ where
     U: WriteUCIResponse,
 {
     move_gen: T,
-    response_writer: U,
+    response_writer: Arc<U>,
     debug: bool,
     // We need a way to terminate when running Go, but unfortunately don't seem
     // to be able store this as state local storage because that requires the
@@ -25,7 +25,7 @@ where
     T: GenerateMoves + Copy,
     U: WriteUCIResponse,
 {
-    pub(crate) fn new(move_gen: T, response_writer: U) -> Self {
+    pub(crate) fn new(move_gen: T, response_writer: Arc<U>) -> Self {
         Self {
             move_gen,
             response_writer,
@@ -63,7 +63,7 @@ where
                     None => Position::start(),
                 };
                 for mve in moves {
-                    pos.make_move(mve);
+                    pos.make_move(mve).unwrap();
                 }
                 Transition(State::in_game(pos))
             }
@@ -73,9 +73,11 @@ where
 
     #[action]
     fn enter_uci_enabled(&self) {
-        self.write_response(UCIResponse::ID {
-            name: Some(NAME.to_string()),
-            author: Some(AUTHOR.to_string()),
+        self.write_response(UCIResponse::IDName {
+            name: NAME.to_string(),
+        });
+        self.write_response(UCIResponse::IDAuthor {
+            author: AUTHOR.to_string(),
         });
         self.write_response(UCIResponse::UCIOk);
     }
@@ -96,7 +98,7 @@ where
                 self.maybe_terminate = Some(Arc::clone(&terminate));
 
                 let best_move = search(
-                    &position,
+                    position,
                     10,
                     self.move_gen,
                     POSITION_EVALUATOR,
