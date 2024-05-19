@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use engine::position::Move;
+use engine::Move;
 
 pub trait WriteUCIResponse {
     fn write_uci_response(&self, uci_response: String);

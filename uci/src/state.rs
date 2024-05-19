@@ -1,11 +1,8 @@
-use engine::search::search;
 use statig::prelude::*;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use engine::evaluation::POSITION_EVALUATOR;
-use engine::move_gen::GenerateMoves;
-use engine::{position::Position, AUTHOR, NAME};
+use engine::{search, GenerateMoves, Position, AUTHOR, NAME, POSITION_EVALUATOR};
 
 use crate::messages::{UCICommand, UCIResponse, WriteUCIResponse};
 

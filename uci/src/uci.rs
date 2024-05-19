@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use engine::move_gen::GenerateMoves;
+use engine::GenerateMoves;
 use statig::prelude::{InitializedStateMachine, IntoStateMachineExt};
 
 use crate::{

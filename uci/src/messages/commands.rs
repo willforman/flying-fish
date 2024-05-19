@@ -3,13 +3,11 @@ use std::io;
 use std::str::FromStr;
 
 use anyhow::Result;
-use engine::bitboard::Square;
+use engine::{Move, Side, Square};
 use winnow::ascii::digit1;
 use winnow::combinator::{alt, preceded, rest, separated};
 use winnow::token::take_until;
 use winnow::{PResult, Parser};
-
-use engine::position::{Move, Side};
 
 pub trait ReadUCICommand {
     fn read_uci_command(&self) -> Result<String>;
@@ -341,7 +339,7 @@ mod tests {
     use test_case::test_case;
     use testresult::TestResult;
 
-    use engine::bitboard::Square::*;
+    use engine::Square::*;
 
     #[test_case("uci", UCICommand::UCI)]
     #[test_case("debug on", UCICommand::Debug { on: true })]
