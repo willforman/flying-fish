@@ -1,6 +1,4 @@
-use engine::move_gen::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-use engine::perft::{perft, PerftDepthResult};
-use engine::position::Position;
+use engine::{perft, PerftDepthResult, Position, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
 
 use test_case::test_case;
 
@@ -68,6 +66,6 @@ fn test_perft(starting_position: Position, depth: usize, want: PerftDepthResult)
     let res = perft(&starting_position, depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
     println!("{}", res);
 
-    assert_eq!(res.depth_results.len(), depth.into());
+    assert_eq!(res.depth_results.len(), depth);
     assert_eq!(res.depth_results.last().unwrap(), &want);
 }

@@ -1,5 +1,5 @@
-use engine::bitboard::Square::*;
-use engine::position::{Move, Piece, Position};
+use engine::Square::*;
+use engine::{Move, Piece, Position};
 
 use test_case::test_case;
 use testresult::TestResult;

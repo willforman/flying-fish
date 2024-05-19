@@ -1,12 +1,9 @@
 use std::collections::HashMap;
-use std::fmt::format;
 use std::str::FromStr;
 
 use leptos::*;
 
-use engine::bitboard::{Square, SquareIter};
-use engine::move_gen::{GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
-use engine::position::{Move, Position, Side};
+use engine::{GenerateMoves, Move, Position, Side, Square, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
 use leptos::ev::MouseEvent;
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 
@@ -61,7 +58,7 @@ pub fn ChessBoard(
             target.parent_element().unwrap().id()
         };
 
-        web_sys::console::log_1(&format!("{}", square_str).into());
+        web_sys::console::log_1(&square_str.to_string().into());
 
         let square = Square::from_str(&square_str).unwrap_throw();
 
@@ -90,25 +87,25 @@ pub fn ChessBoard(
 
                     if let Some((piece, side)) = position().is_piece_at(square) {
                         let img_name = format!("{}_{}.svg", piece.to_string().to_lowercase(), side.to_string().to_lowercase());
-                        let alt = format!("{} {}", piece.to_string(), side.to_string());
+                        let alt = format!("{} {}", piece, side);
                         let class = if move_dests().contains(&square) {
                             format!("{} box-border border-4 border-green-900", class)
                         } else {
                             class
                         };
                         view! {
-                            <div class=class on:click={handle_square_click} id={id} >
+                            <div class=class on:click=handle_square_click id={id} >
                                 <img src=img_name alt=alt height="78" width="78" />
                             </div>
                         }
                     } else if move_dests().contains(&square) {
                         view! {
-                            <div class=class on:click={handle_square_click} id={id} >
+                            <div class=class on:click=handle_square_click id={id} >
                                 <div class="w-1/3 h-1/3 rounded-full bg-green-900 absolute top-1/2 left-1/2 opacity-50 transform -translate-x-1/2 -translate-y-1/2" />
                             </div>
                         }
                     } else {
-                        view! { <div class=class on:click={handle_square_click} id={id} /> }
+                        view! { <div class=class on:click=handle_square_click id={id} /> }
                     }
 
                 }).collect_view()

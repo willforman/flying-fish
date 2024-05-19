@@ -1,19 +1,18 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+
 use leptos::*;
 
 pub mod chess_board;
 pub mod moves;
 
-use engine::algebraic_notation::move_to_algebraic_notation;
-use engine::bitboard::Square;
-use engine::evaluation::POSITION_EVALUATOR;
-use engine::move_gen::{
-    GenerateMoves, HyperbolaQuintessenceMoveGen, HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+use engine::{
+    move_to_algebraic_notation, search, HyperbolaQuintessenceMoveGen, Move, Position, Side,
+    HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
 };
-use engine::position::{Move, Position, Side};
-use engine::search::search;
 use leptos::html;
 use leptos::logging::log;
-use web_sys::{Event, SubmitEvent};
+use web_sys::SubmitEvent;
 
 use crate::routes::index::chess_board::ChessBoard;
 use crate::routes::index::moves::Moves;
@@ -24,7 +23,14 @@ static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
 #[server(GenerateMove)]
 async fn generate_move(position: Position, depth: u32) -> Result<Option<Move>, ServerFnError> {
-    let best_move = search(&position, depth, MOVE_GEN, POSITION_EVALUATOR);
+    let terminate = Arc::new(AtomicBool::new(false));
+    let best_move = search(
+        &position,
+        depth,
+        MOVE_GEN,
+        POSITION_EVALUATOR,
+        Arc::clone(&terminate),
+    );
     Ok(best_move)
 }
 

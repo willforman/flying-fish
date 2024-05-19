@@ -1,7 +1,5 @@
 use leptos::*;
 
-use engine::position::Move;
-
 #[component]
 pub fn Moves(move_strs: ReadSignal<Vec<String>>) -> impl IntoView {
     let move_turns = move || {
