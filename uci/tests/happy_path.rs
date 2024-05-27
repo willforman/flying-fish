@@ -1,8 +1,6 @@
 use std::{
-    borrow::Borrow,
-    cell::RefCell,
-    sync::{Arc, Mutex, RwLock},
-    thread::{self, sleep, sleep_ms},
+    sync::{Arc, Mutex},
+    thread,
     time::Duration,
 };
 
@@ -50,20 +48,22 @@ fn test_happy_path() {
     assert_eq!(&responses[0..2], &[id_name, id_author]);
     assert_eq!(responses.last().unwrap(), "uciok");
 
+    uci.handle_command("debug on").unwrap();
+
     for resp in responses[2..responses.len() - 1].iter() {
         assert!(resp.starts_with("option"));
     }
 
-    uci.handle_command("isready");
+    uci.handle_command("isready").unwrap();
 
     assert_eq!(response_saver.get_new_responses(), vec!["readyok"]);
 
-    uci.handle_command("ucinewgame");
-    uci.handle_command("go depth 6");
+    uci.handle_command("ucinewgame").unwrap();
+    uci.handle_command("go infinite").unwrap();
 
-    thread::sleep(Duration::new(0, 1000000)); // 1 ms
-    uci.handle_command("stop");
-    thread::sleep(Duration::new(0, 1000000));
+    thread::sleep(Duration::new(0, 1_000_000)); // 1 ms
+    uci.handle_command("stop").unwrap();
+    thread::sleep(Duration::new(0, 1_000_000));
 
     let responses = response_saver.get_new_responses();
     assert_eq!(responses, vec!["b4"]);

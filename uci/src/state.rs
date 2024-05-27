@@ -52,8 +52,18 @@ where
             _ => Super,
         }
     }
-
     #[superstate]
+    fn debug(&mut self, event: &UCICommand) -> Response<State> {
+        match event {
+            UCICommand::Debug { on } => {
+                self.debug = *on;
+                Super
+            }
+            _ => Super,
+        }
+    }
+
+    #[superstate(superstate = "debug")]
     fn is_ready(&mut self, event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::IsReady => {
@@ -103,7 +113,6 @@ where
                 let search_position = position.clone();
                 let move_gen = self.move_gen;
                 let response_writer = self.response_writer.clone();
-                let write_response = |res: UCIResponse| self.write_response(res);
 
                 thread::spawn(move || {
                     let best_move = search(
