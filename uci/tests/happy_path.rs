@@ -2,9 +2,11 @@ use std::{
     borrow::Borrow,
     cell::RefCell,
     sync::{Arc, Mutex, RwLock},
+    thread::{self, sleep, sleep_ms},
+    time::Duration,
 };
 
-use engine::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+use engine::{AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME};
 use uci::{WriteUCIResponse, UCI};
 
 struct UCIResponseSaver {
@@ -18,8 +20,11 @@ impl UCIResponseSaver {
         }
     }
 
-    fn get_responses(&self) -> Vec<String> {
-        self.responses.lock().unwrap().clone()
+    fn get_new_responses(&self) -> Vec<String> {
+        let mut responses = self.responses.lock().unwrap();
+        let result = responses.clone();
+        responses.clear();
+        result
     }
 }
 
@@ -32,13 +37,34 @@ impl WriteUCIResponse for UCIResponseSaver {
 #[test]
 fn test_happy_path() {
     let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-
     let response_saver = Arc::new(UCIResponseSaver::new());
-
     let mut uci = UCI::new(move_gen, Arc::clone(&response_saver));
-    uci.handle_command("uci".to_string()).unwrap();
 
-    let responses = response_saver.get_responses();
-    let a: Vec<String> = Vec::new();
-    assert_eq!(responses, a);
+    uci.handle_command("uci").unwrap();
+
+    let responses = response_saver.get_new_responses();
+
+    let id_name = format!("id name {}", NAME);
+    let id_author = format!("id author {}", AUTHOR);
+
+    assert_eq!(&responses[0..2], &[id_name, id_author]);
+    assert_eq!(responses.last().unwrap(), "uciok");
+
+    for resp in responses[2..responses.len() - 1].iter() {
+        assert!(resp.starts_with("option"));
+    }
+
+    uci.handle_command("isready");
+
+    assert_eq!(response_saver.get_new_responses(), vec!["readyok"]);
+
+    uci.handle_command("ucinewgame");
+    uci.handle_command("go depth 6");
+
+    thread::sleep(Duration::new(0, 1000000)); // 1 ms
+    uci.handle_command("stop");
+    thread::sleep(Duration::new(0, 1000000));
+
+    let responses = response_saver.get_new_responses();
+    assert_eq!(responses, vec!["b4"]);
 }

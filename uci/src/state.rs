@@ -1,6 +1,6 @@
 use statig::prelude::*;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::{sync::atomic::AtomicBool, thread};
 
 use engine::{search, GenerateMoves, Position, AUTHOR, NAME, POSITION_EVALUATOR};
 
@@ -8,8 +8,8 @@ use crate::messages::{UCICommand, UCIResponse, WriteUCIResponse};
 
 pub(crate) struct UCIState<T, U>
 where
-    T: GenerateMoves,
-    U: WriteUCIResponse,
+    T: GenerateMoves + Copy + Send + Sync,
+    U: WriteUCIResponse + Send + Sync,
 {
     move_gen: T,
     response_writer: Arc<U>,
@@ -22,8 +22,8 @@ where
 
 impl<T, U> UCIState<T, U>
 where
-    T: GenerateMoves + Copy,
-    U: WriteUCIResponse,
+    T: GenerateMoves + Copy + Send + Sync,
+    U: WriteUCIResponse + Send + Sync + 'static,
 {
     pub(crate) fn new(move_gen: T, response_writer: Arc<U>) -> Self {
         Self {
@@ -42,8 +42,8 @@ where
 #[state_machine(initial = "State::initial()", state(derive(PartialEq, Eq, Debug)))]
 impl<T, U> UCIState<T, U>
 where
-    T: GenerateMoves + Copy,
-    U: WriteUCIResponse,
+    T: GenerateMoves + Copy + Send + Sync + 'static,
+    U: WriteUCIResponse + Send + Sync + 'static,
 {
     #[state]
     fn initial(event: &UCICommand) -> Response<State> {
@@ -53,20 +53,21 @@ where
         }
     }
 
-    #[state(entry_action = "enter_uci_enabled")]
+    #[superstate]
+    fn is_ready(&mut self, event: &UCICommand) -> Response<State> {
+        match event {
+            UCICommand::IsReady => {
+                self.write_response(UCIResponse::ReadyOk);
+                Super
+            }
+            _ => Super,
+        }
+    }
+
+    #[state(entry_action = "enter_uci_enabled", superstate = "is_ready")]
     fn uci_enabled(event: &UCICommand) -> Response<State> {
         match event {
-            UCICommand::UCINewGame => Transition(State::new_game()),
-            UCICommand::Position { fen, moves } => {
-                let mut pos = match fen {
-                    Some(fen) => Position::from_fen(fen).unwrap(),
-                    None => Position::start(),
-                };
-                for mve in moves {
-                    pos.make_move(mve).unwrap();
-                }
-                Transition(State::in_game(pos))
-            }
+            UCICommand::UCINewGame => Transition(State::in_game(Position::start())),
             _ => Super,
         }
     }
@@ -82,32 +83,52 @@ where
         self.write_response(UCIResponse::UCIOk);
     }
 
-    #[state]
-    fn new_game(event: &UCICommand) -> Response<State> {
-        match event {
-            _ => Super,
-        }
-    }
-
-    #[state]
+    #[state(superstate = "is_ready")]
     fn in_game(&mut self, position: &mut Position, event: &UCICommand) -> Response<State> {
         match event {
+            UCICommand::Position { fen, moves } => {
+                let mut pos = match fen {
+                    Some(fen) => Position::from_fen(fen).unwrap(),
+                    None => Position::start(),
+                };
+                for mve in moves {
+                    pos.make_move(mve).unwrap();
+                }
+                Transition(State::in_game(pos))
+            }
             UCICommand::Go { params: _ } => {
                 assert!(self.maybe_terminate.is_none());
                 let terminate = Arc::new(AtomicBool::new(false));
                 self.maybe_terminate = Some(Arc::clone(&terminate));
+                let search_position = position.clone();
+                let move_gen = self.move_gen;
+                let response_writer = self.response_writer.clone();
+                let write_response = |res: UCIResponse| self.write_response(res);
 
-                let best_move = search(
-                    position,
-                    10,
-                    self.move_gen,
-                    POSITION_EVALUATOR,
-                    Arc::clone(&terminate),
-                );
-                self.write_response(UCIResponse::BestMove {
-                    mve: best_move.expect("Best move should have been found"),
-                    ponder: None,
+                thread::spawn(move || {
+                    let best_move = search(
+                        &search_position,
+                        10,
+                        move_gen,
+                        POSITION_EVALUATOR,
+                        Arc::clone(&terminate),
+                    );
+                    let res = UCIResponse::BestMove {
+                        position: search_position,
+                        mve: best_move.expect("Best move should have been found"),
+                        ponder: None,
+                    };
+                    response_writer.write_uci_response(res.into());
                 });
+                Super
+            }
+            UCICommand::Stop => {
+                if let Some(terminate) = &self.maybe_terminate {
+                    terminate.store(true, std::sync::atomic::Ordering::Relaxed);
+                    self.maybe_terminate = None;
+                } else {
+                    panic!("maybe_terminate should not be None when stop is received");
+                }
                 Super
             }
             _ => Super,

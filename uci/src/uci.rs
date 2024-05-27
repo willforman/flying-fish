@@ -12,16 +12,16 @@ use crate::{
 #[allow(clippy::upper_case_acronyms)]
 pub struct UCI<T, U>
 where
-    T: GenerateMoves + Copy,
-    U: WriteUCIResponse,
+    T: GenerateMoves + Copy + Send + Sync + 'static,
+    U: WriteUCIResponse + Send + Sync + 'static,
 {
     state_machine: InitializedStateMachine<UCIState<T, U>>,
 }
 
 impl<T, U> UCI<T, U>
 where
-    T: GenerateMoves + Copy,
-    U: WriteUCIResponse,
+    T: GenerateMoves + Copy + Send + Sync + 'static,
+    U: WriteUCIResponse + Send + Sync + 'static,
 {
     pub fn new(move_gen: T, response_writer: Arc<U>) -> Self {
         let uci_state = UCIState::new(move_gen, response_writer);
@@ -31,8 +31,8 @@ where
         }
     }
 
-    pub fn handle_command(&mut self, command: String) -> Result<(), UCICommandParseError> {
-        let command = UCICommand::from_str(&command)?;
+    pub fn handle_command(&mut self, command: &str) -> Result<(), UCICommandParseError> {
+        let command = UCICommand::from_str(command)?;
         self.state_machine.handle(&command);
         Ok(())
     }
