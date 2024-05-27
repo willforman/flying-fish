@@ -123,7 +123,6 @@ where
                         Arc::clone(&terminate),
                     );
                     let res = UCIResponse::BestMove {
-                        position: search_position,
                         mve: best_move.expect("Best move should have been found"),
                         ponder: None,
                     };

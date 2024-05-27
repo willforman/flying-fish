@@ -1,6 +1,7 @@
+use core::panic;
 use std::io::{self, Write};
 
-use engine::{move_to_algebraic_notation, Move, Position, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
+use engine::Move;
 
 pub trait WriteUCIResponse {
     fn write_uci_response(&self, uci_response: String);
@@ -16,25 +17,13 @@ impl WriteUCIResponse for UCIResponseStdoutWriter {
 
 #[derive(Debug)]
 pub(crate) enum UCIResponse {
-    IDName {
-        name: String,
-    },
-    IDAuthor {
-        author: String,
-    },
+    IDName { name: String },
+    IDAuthor { author: String },
     UCIOk,
     ReadyOk,
-    BestMove {
-        position: Position,
-        mve: Move,
-        ponder: Option<Move>,
-    },
-    Info {
-        info: Info,
-    },
-    Option {
-        option: UCIOption,
-    },
+    BestMove { mve: Move, ponder: Option<Move> },
+    Info { info: Info },
+    Option { option: UCIOption },
 }
 
 #[derive(Debug)]
@@ -124,35 +113,18 @@ impl Into<String> for UCIResponse {
             UCIResponse::IDAuthor { author } => format!("id author {}", author),
             UCIResponse::UCIOk => "uciok".to_string(),
             UCIResponse::ReadyOk => "readyok".to_string(),
-            UCIResponse::BestMove {
-                position,
-                mve,
-                ponder: None,
-            } => {
-                format!(
-                    "bestmove {}",
-                    move_to_algebraic_notation(
-                        &position,
-                        &mve,
-                        HYPERBOLA_QUINTESSENCE_MOVE_GEN,
-                        HYPERBOLA_QUINTESSENCE_MOVE_GEN
-                    )
-                    .expect(
-                        format!("Invalid move given: {} {:?}", position.to_fen(), mve).as_str()
-                    )
-                )
+            UCIResponse::BestMove { mve, ponder: None } => {
+                let mut move_str = format!(
+                    "{}{}",
+                    mve.src.to_string().to_ascii_lowercase(),
+                    mve.dest.to_string().to_ascii_lowercase()
+                );
+                if let Some(promotion) = mve.promotion {
+                    move_str.push(promotion.into());
+                }
+                format!("bestmove {}", move_str)
             }
             _ => format!("{:?} not implemented", self),
         }
     }
-    // BestMove {
-    //     mve: Move,
-    //     ponder: Option<Move>,
-    // },
-    // Info {
-    //     info: Info,
-    // },
-    // Option {
-    //     option: UCIOption,
-    // },
 }
