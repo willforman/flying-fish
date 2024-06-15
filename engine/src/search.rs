@@ -44,6 +44,7 @@ pub fn search(
         params,
         0,
         &mut positions_processed,
+        &start,
         f64::MIN,
         f64::MAX,
         move_gen,
@@ -64,6 +65,7 @@ fn search_helper(
     params: &SearchParams,
     curr_depth: u64,
     positions_processed: &mut u64,
+    start_time: &Instant,
     mut alpha: f64,
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
@@ -78,6 +80,12 @@ fn search_helper(
     if let Some(max_nodes) = params.max_nodes {
         debug_assert!(*positions_processed <= max_nodes);
         if *positions_processed == max_nodes {
+            return (None, 0.0);
+        }
+    }
+    // If search has exceeded total time, return early
+    if let Some(move_time_msec) = params.move_time_msec {
+        if start_time.elapsed().as_millis() >= u128::from(move_time_msec) {
             return (None, 0.0);
         }
     }
@@ -102,6 +110,7 @@ fn search_helper(
             params,
             curr_depth + 1,
             positions_processed,
+            start_time,
             -beta,
             -alpha,
             move_gen,

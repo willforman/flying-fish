@@ -17,8 +17,6 @@ use web_sys::SubmitEvent;
 use crate::routes::index::chess_board::ChessBoard;
 use crate::routes::index::moves::Moves;
 
-const SEARCH_DEPTH: u32 = 3;
-
 static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
 #[server(GenerateMove)]
@@ -45,7 +43,7 @@ pub fn IndexPage() -> impl IntoView {
     let (move_strs, set_move_strs) = create_signal(Vec::<String>::new());
 
     let search_params = SearchParams {
-        max_depth: Some(3),
+        move_time_msec: Some(1000 * 10),
         ..SearchParams::default()
     };
 
