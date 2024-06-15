@@ -22,6 +22,9 @@ pub enum PositionError {
 
     #[error("to_move is the other side, for move: {0} {1} -> {2}")]
     MoveNotToMove(String, String, String),
+
+    #[error("game is over, half move clock is at 50: move {0}")]
+    GameOverHalfMoveClock(String),
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Deserialize, Serialize)]
@@ -326,6 +329,10 @@ impl Position {
     }
 
     pub fn make_move(&mut self, mve: &Move) -> Result<(), PositionError> {
+        if self.state.half_move_clock >= 50 {
+            return Err(PositionError::GameOverHalfMoveClock(mve.to_string()));
+        }
+
         if self.state.to_move == Side::Black {
             self.state.full_move_counter += 1;
         }
@@ -343,6 +350,10 @@ impl Position {
                 if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
                     self.state.half_move_clock = 0;
                 } else {
+                    debug_assert!(
+                        self.state.half_move_clock != 255,
+                        "half move clock handling is incorrect, would have overflowed"
+                    );
                     self.state.half_move_clock += 1;
                 }
 

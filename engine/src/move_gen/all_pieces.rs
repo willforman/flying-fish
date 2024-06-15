@@ -198,6 +198,12 @@ pub(super) fn gen_moves(
     leaping_pieces: impl GenerateLeapingMoves + std::marker::Copy,
     sliding_pieces: impl GenerateSlidingMoves + std::marker::Copy,
 ) -> HashSet<Move> {
+    debug_assert!(position.state.half_move_clock <= 50);
+    let mut moves = HashSet::new();
+
+    if position.state.half_move_clock == 50 {
+        return moves;
+    }
     let side = position.state.to_move;
 
     let friendly_pieces = position.sides.get(side);
@@ -258,8 +264,6 @@ pub(super) fn gen_moves(
             BitBoard::empty()
         }
     }
-
-    let mut moves = HashSet::new();
 
     for piece_type in Piece::iter() {
         let pieces = position.pieces.get(piece_type).get(side);

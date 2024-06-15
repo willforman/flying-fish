@@ -107,6 +107,10 @@ fn get_piece_square_bonus(
 
 impl EvaluatePosition for PositionEvaluator {
     fn evaluate(&self, position: &Position) -> f64 {
+        if position.state.half_move_clock == 50 {
+            return 0.0;
+        }
+
         let val = position
             .get_piece_locs()
             .into_iter()
