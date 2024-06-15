@@ -66,5 +66,5 @@ fn test_happy_path() {
     thread::sleep(Duration::new(0, 1_000_000));
 
     let responses = response_saver.get_new_responses();
-    assert_eq!(responses, vec!["b4"]);
+    assert_eq!(responses, vec!["bestmove b2b4"]);
 }

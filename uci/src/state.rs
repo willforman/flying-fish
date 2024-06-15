@@ -106,18 +106,19 @@ where
                 }
                 Transition(State::in_game(pos))
             }
-            UCICommand::Go { params: _ } => {
+            UCICommand::Go { params } => {
                 assert!(self.maybe_terminate.is_none());
                 let terminate = Arc::new(AtomicBool::new(false));
                 self.maybe_terminate = Some(Arc::clone(&terminate));
                 let search_position = position.clone();
                 let move_gen = self.move_gen;
                 let response_writer = self.response_writer.clone();
+                let params = params.clone();
 
                 thread::spawn(move || {
-                    let best_move = search(
+                    let (best_move, _) = search(
                         &search_position,
-                        10,
+                        &params,
                         move_gen,
                         POSITION_EVALUATOR,
                         Arc::clone(&terminate),

@@ -4,22 +4,21 @@ use std::{
     time::{Duration, Instant},
 };
 
-use engine::{search, Position, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR};
-
-// Then, write test that engine stops searching soon after it's terminated
+use engine::{search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR};
 
 #[test]
 fn test_search_terminates() {
-    const DEPTH: u32 = 10;
-
     let terminate = Arc::new(AtomicBool::new(false));
     let (tx_best_move, rx_best_move) = mpsc::channel();
 
     let terminate_cloned = Arc::clone(&terminate);
     let handle = thread::spawn(move || {
-        let best_move = search(
+        let (best_move, _) = search(
             &Position::start(),
-            DEPTH,
+            &SearchParams {
+                move_time_msec: Some(2000),
+                ..SearchParams::default()
+            },
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
             Arc::clone(&terminate_cloned),

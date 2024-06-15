@@ -1,35 +1,69 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use serde::{Deserialize, Serialize};
 
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+pub struct SearchParams {
+    pub search_moves: Option<Vec<Move>>,
+    pub ponder: bool,
+    pub white_time_msec: Option<u64>,
+    pub black_time_msec: Option<u64>,
+    pub white_inc_msec: Option<u64>,
+    pub black_inc_msec: Option<u64>,
+    pub moves_to_go: Option<u64>,
+    pub max_depth: Option<u64>,
+    pub max_nodes: Option<u64>,
+    pub mate: Option<u64>,
+    pub move_time_msec: Option<u64>,
+    pub infinite: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SearchInfo {
+    pub positions_processed: u64,
+    pub time_elapsed: Duration,
+}
+
 pub fn search(
     position: &Position,
-    depth: u32,
+    params: &SearchParams,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
     terminate: Arc<AtomicBool>,
-) -> Option<Move> {
+) -> (Option<Move>, SearchInfo) {
+    let mut positions_processed: u64 = 0;
+    let start = Instant::now();
     let (best_move, _best_val) = search_helper(
         position,
+        params,
         0,
-        depth,
+        &mut positions_processed,
         f64::MIN,
         f64::MAX,
         move_gen,
         position_eval,
         Arc::clone(&terminate),
     );
-    best_move
+    let search_info = SearchInfo {
+        positions_processed,
+        time_elapsed: start.elapsed(),
+    };
+
+    (best_move, search_info)
 }
 
 #[allow(clippy::too_many_arguments)]
 fn search_helper(
     position: &Position,
-    curr_depth: u32,
-    max_depth: u32,
+    params: &SearchParams,
+    curr_depth: u64,
+    positions_processed: &mut u64,
     mut alpha: f64,
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
@@ -40,6 +74,13 @@ fn search_helper(
     if terminate.load(std::sync::atomic::Ordering::Relaxed) {
         return (None, 0.0);
     }
+    // If this search is at the max number of nodes, return early
+    if let Some(max_nodes) = params.max_nodes {
+        debug_assert!(*positions_processed <= max_nodes);
+        if *positions_processed == max_nodes {
+            return (None, 0.0);
+        }
+    }
 
     let moves = move_gen.gen_moves(position);
 
@@ -49,15 +90,18 @@ fn search_helper(
         let mut move_position = position.clone();
         move_position.make_move(&mve).unwrap();
 
-        if curr_depth + 1 == max_depth {
-            let val = position_eval.evaluate(&move_position);
-            return (Some(mve), val);
+        if let Some(max_depth) = params.max_depth {
+            if curr_depth + 1 == max_depth {
+                let val = position_eval.evaluate(&move_position);
+                return (Some(mve), val);
+            }
         }
 
         let (got_mve, got_val) = search_helper(
             &move_position,
+            params,
             curr_depth + 1,
-            max_depth,
+            positions_processed,
             -beta,
             -alpha,
             move_gen,
@@ -118,7 +162,10 @@ mod tests {
         }
         search(
             &position,
-            3,
+            &SearchParams {
+                max_depth: Some(3),
+                ..SearchParams::default()
+            },
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
             Arc::new(AtomicBool::new(false)),

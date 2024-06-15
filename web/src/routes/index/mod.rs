@@ -7,8 +7,8 @@ pub mod chess_board;
 pub mod moves;
 
 use engine::{
-    move_to_algebraic_notation, search, HyperbolaQuintessenceMoveGen, Move, Position, Side,
-    HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
+    move_to_algebraic_notation, search, HyperbolaQuintessenceMoveGen, Move, Position, SearchInfo,
+    SearchParams, Side, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
 };
 use leptos::html;
 use leptos::logging::log;
@@ -22,16 +22,19 @@ const SEARCH_DEPTH: u32 = 3;
 static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
 #[server(GenerateMove)]
-async fn generate_move(position: Position, depth: u32) -> Result<Option<Move>, ServerFnError> {
+async fn generate_move(
+    position: Position,
+    search_params: SearchParams,
+) -> Result<(Option<Move>, SearchInfo), ServerFnError> {
     let terminate = Arc::new(AtomicBool::new(false));
-    let best_move = search(
+    let (best_move, positions_processed) = search(
         &position,
-        depth,
+        &search_params,
         MOVE_GEN,
         POSITION_EVALUATOR,
         Arc::clone(&terminate),
     );
-    Ok(best_move)
+    Ok((best_move, positions_processed))
 }
 
 #[component]
@@ -41,14 +44,24 @@ pub fn IndexPage() -> impl IntoView {
     let (side, set_side) = create_signal(Side::White);
     let (move_strs, set_move_strs) = create_signal(Vec::<String>::new());
 
+    let search_params = SearchParams {
+        max_depth: Some(3),
+        ..SearchParams::default()
+    };
+
     let handle_move = create_action(move |input: &Move| {
         let move_str = move_to_algebraic_notation(&position(), input, MOVE_GEN, MOVE_GEN).unwrap();
         set_move_strs.update(|move_strs| move_strs.push(move_str));
 
         set_position.update(|pos| pos.make_move(input).unwrap());
 
+        let search_params_clone = search_params.clone();
+
         async move {
-            let maybe_generated_move = generate_move(position(), SEARCH_DEPTH).await.unwrap();
+            let (maybe_generated_move, search_info) =
+                generate_move(position(), search_params_clone)
+                    .await
+                    .unwrap();
             if let Some(generated_move) = maybe_generated_move {
                 let move_str =
                     move_to_algebraic_notation(&position(), &generated_move, MOVE_GEN, MOVE_GEN)
