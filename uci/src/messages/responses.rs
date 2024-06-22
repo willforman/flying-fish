@@ -113,17 +113,7 @@ impl Into<String> for UCIResponse {
             UCIResponse::IDAuthor { author } => format!("id author {}", author),
             UCIResponse::UCIOk => "uciok".to_string(),
             UCIResponse::ReadyOk => "readyok".to_string(),
-            UCIResponse::BestMove { mve, ponder: None } => {
-                let mut move_str = format!(
-                    "{}{}",
-                    mve.src.to_string().to_ascii_lowercase(),
-                    mve.dest.to_string().to_ascii_lowercase()
-                );
-                if let Some(promotion) = mve.promotion {
-                    move_str.push(promotion.into());
-                }
-                format!("bestmove {}", move_str)
-            }
+            UCIResponse::BestMove { mve, ponder: None } => format!("bestmove {}", mve),
             _ => format!("{:?} not implemented", self),
         }
     }

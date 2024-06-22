@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -6,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
+use crate::move_to_algebraic_notation;
 use crate::position::{Move, Position};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
@@ -17,17 +19,138 @@ pub struct SearchParams {
     pub white_inc_msec: Option<u64>,
     pub black_inc_msec: Option<u64>,
     pub moves_to_go: Option<u64>,
-    pub max_depth: Option<u64>,
-    pub max_nodes: Option<u64>,
+    pub max_depth: Option<u64>, // Done
+    pub max_nodes: Option<u64>, // Done
     pub mate: Option<u64>,
-    pub move_time_msec: Option<u64>,
-    pub infinite: bool,
+    pub move_time_msec: Option<u64>, // Done
+    pub infinite: bool,              // Done
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SearchInfo {
+pub struct SearchResultInfo {
     pub positions_processed: u64,
     pub time_elapsed: Duration,
+}
+
+enum SearchInfo {
+    Depth {
+        plies: u32,
+    },
+    SelDepth {
+        plies: u32,
+    },
+    Time {
+        msec: u64,
+    },
+    Nodes {
+        nodes: u64,
+    },
+    Pv {
+        moves: Vec<Move>,
+    },
+    MultiPv {
+        num: u8,
+    },
+    Score {
+        centipawns: f32,
+        mate_moves: Option<i32>,
+        lower_bound: Option<bool>,
+        upper_bound: Option<bool>,
+    },
+    CurrMove {
+        mve: Move,
+    },
+    CurrMoveNumber {
+        move_num: u32,
+    },
+    HashFull {
+        per_mill_full: u16,
+    },
+    NodesPerSecond {
+        nodes_per_sec: f32,
+    },
+    TableHits {
+        hits: u64,
+    },
+    ShredderHits {
+        hits: u64,
+    },
+    CPULoad {
+        cpu_usage_per_mill: u16,
+    },
+    String {
+        str: String,
+    },
+    Refutation {
+        moves: Vec<Move>,
+    },
+    CurrLine {
+        moves: Vec<Move>,
+        cpu_num: Option<u8>,
+    },
+}
+
+fn moves_to_string(moves: &[Move]) -> String {
+    moves
+        .iter()
+        .map(|mve| mve.to_string())
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+impl Display for SearchInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let info_str = match self {
+            SearchInfo::Depth { plies } => format!("depth {}", plies),
+            SearchInfo::SelDepth { plies } => format!("seldepth {}", plies),
+            SearchInfo::Time { msec } => format!("time {}", msec),
+            SearchInfo::Nodes { nodes } => format!("nodes {}", nodes),
+            SearchInfo::Pv { moves } => format!("pv {}", moves_to_string(moves)),
+            SearchInfo::MultiPv { num } => format!("multipv {}", num),
+            SearchInfo::Score {
+                centipawns,
+                mate_moves,
+                lower_bound,
+                upper_bound,
+            } => {
+                let mut score_str = format!("score cp {}", centipawns);
+
+                if let Some(mate_moves) = mate_moves {
+                    score_str.push_str(format!(" mate {}", mate_moves).as_str());
+                };
+
+                if lower_bound.is_some() {
+                    score_str.push_str(" lowerbound");
+                }
+                if upper_bound.is_some() {
+                    score_str.push_str(" upperbound");
+                }
+
+                score_str
+            }
+            SearchInfo::CurrMove { mve } => format!("currmove {}", mve),
+            SearchInfo::CurrMoveNumber { move_num } => format!("currmovenumber {}", move_num),
+            SearchInfo::HashFull { per_mill_full } => format!("hashfull {}", per_mill_full),
+            SearchInfo::NodesPerSecond { nodes_per_sec } => format!("nps {}", nodes_per_sec),
+            SearchInfo::TableHits { hits } => format!("tbhits {}", hits),
+            SearchInfo::ShredderHits { hits } => format!("sbhits {}", hits),
+            SearchInfo::CPULoad { cpu_usage_per_mill } => format!("cpuload {}", cpu_usage_per_mill),
+            SearchInfo::String { str } => format!("string {}", str),
+            SearchInfo::Refutation { moves } => format!("refutation {}", moves_to_string(moves)),
+            SearchInfo::CurrLine { moves, cpu_num } => {
+                if let Some(cpu_num) = cpu_num {
+                    format!("currline {} {}", cpu_num, moves_to_string(moves))
+                } else {
+                    format!("currline {}", moves_to_string(moves))
+                }
+            }
+        };
+        write!(f, "{}", info_str)
+    }
+}
+
+pub trait WriteSearchInfo {
+    fn write_search_info(&self, info: Vec<String>);
 }
 
 pub fn search(
@@ -35,11 +158,12 @@ pub fn search(
     params: &SearchParams,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
+    write_search_info: impl WriteSearchInfo + std::marker::Copy,
     terminate: Arc<AtomicBool>,
-) -> (Option<Move>, SearchInfo) {
+) -> (Option<Move>, SearchResultInfo) {
     let mut positions_processed: u64 = 0;
     let start = Instant::now();
-    let (best_move, _best_val) = search_helper(
+    let (mut best_move, best_val) = search_helper(
         position,
         params,
         0,
@@ -49,9 +173,16 @@ pub fn search(
         f64::MAX,
         move_gen,
         position_eval,
+        write_search_info,
         Arc::clone(&terminate),
     );
-    let search_info = SearchInfo {
+
+    // If mate is passed, only return a move if it's a mate
+    if params.mate.is_some() && (best_val == f64::MIN || best_val == f64::MAX) {
+        best_move = None;
+    }
+
+    let search_info = SearchResultInfo {
         positions_processed,
         time_elapsed: start.elapsed(),
     };
@@ -70,6 +201,7 @@ fn search_helper(
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
+    write_search_info: impl WriteSearchInfo + std::marker::Copy,
     terminate: Arc<AtomicBool>,
 ) -> (Option<Move>, f64) {
     // If this search has been terminated, return early
@@ -105,6 +237,13 @@ fn search_helper(
             }
         }
 
+        if let Some(mate) = params.mate {
+            if curr_depth + 1 == mate {
+                let val = position_eval.evaluate(&move_position);
+                return (Some(mve), val);
+            }
+        }
+
         let (got_mve, got_val) = search_helper(
             &move_position,
             params,
@@ -115,6 +254,7 @@ fn search_helper(
             -alpha,
             move_gen,
             position_eval,
+            write_search_info,
             Arc::clone(&terminate),
         );
 
@@ -153,6 +293,17 @@ mod tests {
     use crate::move_gen::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
     use crate::position::Move;
 
+    #[derive(Clone, Copy)]
+    struct DummyWriteSearchInfo;
+
+    impl WriteSearchInfo for DummyWriteSearchInfo {
+        fn write_search_info(&self, info: Vec<String>) {
+            for info_str in info {
+                println!("{}", info_str);
+            }
+        }
+    }
+
     #[test_case(Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap(), 
     &[
         Move::new(D2, D4), Move::new(E7, E6),
@@ -177,8 +328,32 @@ mod tests {
             },
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
+            DummyWriteSearchInfo,
             Arc::new(AtomicBool::new(false)),
         );
+        Ok(())
+    }
+
+    #[test_case(Position::from_fen("k7/7R/6R1/8/8/8/8/K7 b - - 0 1").unwrap(), 2, Some(Move::new(A8, B8)))]
+    #[test_case(Position::from_fen("k7/7R/8/8/8/8/8/K7 b - - 0 1").unwrap(), 2, None)]
+    fn test_search_mate(
+        position: Position,
+        mate_moves: u64,
+        move_want: Option<Move>,
+    ) -> TestResult {
+        let params = SearchParams {
+            mate: Some(mate_moves),
+            ..Default::default()
+        };
+        let (move_got, _) = search(
+            &position,
+            &params,
+            HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+            POSITION_EVALUATOR,
+            DummyWriteSearchInfo,
+            Arc::new(AtomicBool::new(false)),
+        );
+        assert_eq!(move_got, move_want);
         Ok(())
     }
 }

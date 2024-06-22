@@ -128,8 +128,12 @@ impl fmt::Debug for Move {
 
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)?;
-        Ok(())
+        if let Some(promotion) = self.promotion {
+            let promotion_ch: char = promotion.into();
+            write!(f, "{}{}{}", self.src, self.dest, promotion_ch)
+        } else {
+            write!(f, "{}{}", self.src, self.dest)
+        }
     }
 }
 
