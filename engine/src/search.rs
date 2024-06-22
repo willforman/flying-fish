@@ -150,7 +150,7 @@ impl Display for SearchInfo {
 }
 
 pub trait WriteSearchInfo {
-    fn write_search_info(&self, info: Vec<String>);
+    fn write_search_info(&self, info: &str);
 }
 
 pub fn search(
@@ -201,7 +201,7 @@ fn search_helper(
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-    write_search_info: impl WriteSearchInfo + std::marker::Copy,
+    search_info_writer: impl WriteSearchInfo + std::marker::Copy,
     terminate: Arc<AtomicBool>,
 ) -> (Option<Move>, f64) {
     // If this search has been terminated, return early
@@ -220,6 +220,10 @@ fn search_helper(
         if start_time.elapsed().as_millis() >= u128::from(move_time_msec) {
             return (None, 0.0);
         }
+    }
+
+    if *positions_processed % 10000 == 0 {
+        write_search_info(*positions_processed, start_time, search_info_writer);
     }
 
     let moves = move_gen.gen_moves(position);
@@ -254,7 +258,7 @@ fn search_helper(
             -alpha,
             move_gen,
             position_eval,
-            write_search_info,
+            search_info_writer,
             Arc::clone(&terminate),
         );
 
@@ -282,6 +286,18 @@ fn search_helper(
     (best_move, best_val)
 }
 
+fn write_search_info(
+    nodes_processed: u64,
+    start_time: &Instant,
+    search_info_writer: impl WriteSearchInfo + std::marker::Copy,
+) {
+    // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
+    let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
+    let score_str = format!("score mate 3");
+    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", 1, 1, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
+    search_info_writer.write_search_info(&info);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,10 +313,8 @@ mod tests {
     struct DummyWriteSearchInfo;
 
     impl WriteSearchInfo for DummyWriteSearchInfo {
-        fn write_search_info(&self, info: Vec<String>) {
-            for info_str in info {
-                println!("{}", info_str);
-            }
+        fn write_search_info(&self, info: &str) {
+            println!("{}", info);
         }
     }
 
