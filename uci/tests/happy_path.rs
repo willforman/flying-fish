@@ -1,12 +1,14 @@
 use std::{
+    io::Write,
     sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
 
 use engine::{AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME};
-use uci::{WriteUCIResponse, UCI};
+use uci::UCI;
 
+#[derive(Clone, Copy, Debug)]
 struct UCIResponseSaver {
     responses: Arc<Mutex<Vec<String>>>,
 }
@@ -26,17 +28,23 @@ impl UCIResponseSaver {
     }
 }
 
-impl WriteUCIResponse for UCIResponseSaver {
-    fn write_uci_response(&self, uci_response: String) {
-        self.responses.lock().unwrap().push(uci_response);
+impl Write for UCIResponseSaver {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let uci_res = String::from_utf8(buf.to_vec())?;
+        self.responses.lock().unwrap().push(uci_res);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
 
 #[test]
 fn test_happy_path() {
     let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-    let response_saver = Arc::new(UCIResponseSaver::new());
-    let mut uci = UCI::new(move_gen, Arc::clone(&response_saver));
+    let response_saver = UCIResponseSaver::new();
+    let mut uci = UCI::new(move_gen, &response_saver);
 
     uci.handle_command("uci").unwrap();
 

@@ -1,18 +1,19 @@
 use statig::prelude::*;
+use std::io::Write;
 use std::sync::Arc;
 use std::{sync::atomic::AtomicBool, thread};
 
 use engine::{search, GenerateMoves, Position, AUTHOR, NAME, POSITION_EVALUATOR};
 
-use crate::messages::{UCICommand, UCIResponse, WriteUCIResponse};
+use crate::messages::{UCICommand, UCIResponse};
 
 pub(crate) struct UCIState<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync,
-    U: WriteUCIResponse + Send + Sync,
+    U: Write + Copy + Send + Sync,
 {
     move_gen: T,
-    response_writer: Arc<U>,
+    response_writer: U,
     debug: bool,
     // We need a way to terminate when running Go, but unfortunately don't seem
     // to be able store this as state local storage because that requires the
@@ -23,9 +24,9 @@ where
 impl<T, U> UCIState<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync,
-    U: WriteUCIResponse + Send + Sync + 'static,
+    U: Write + Copy + Send + Sync + 'static,
 {
-    pub(crate) fn new(move_gen: T, response_writer: Arc<U>) -> Self {
+    pub(crate) fn new(move_gen: T, response_writer: U) -> Self {
         Self {
             move_gen,
             response_writer,
@@ -34,8 +35,9 @@ where
         }
     }
 
-    fn write_response(&self, uci_response: UCIResponse) {
-        self.response_writer.write_uci_response(uci_response.into());
+    fn write_response(&mut self, uci_response: UCIResponse) {
+        let res_str: String = uci_response.into();
+        self.response_writer.write(res_str.as_bytes());
     }
 }
 
@@ -43,7 +45,7 @@ where
 impl<T, U> UCIState<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: WriteUCIResponse + Send + Sync + 'static,
+    U: Write + Copy + Send + Sync + 'static,
 {
     #[state]
     fn initial(event: &UCICommand) -> Response<State> {
@@ -83,7 +85,7 @@ where
     }
 
     #[action]
-    fn enter_uci_enabled(&self) {
+    fn enter_uci_enabled(&mut self) {
         self.write_response(UCIResponse::IDName {
             name: NAME.to_string(),
         });
@@ -112,7 +114,7 @@ where
                 self.maybe_terminate = Some(Arc::clone(&terminate));
                 let search_position = position.clone();
                 let move_gen = self.move_gen;
-                let response_writer = self.response_writer.clone();
+                let mut response_writer = self.response_writer;
                 let params = params.clone();
 
                 thread::spawn(move || {
@@ -121,13 +123,15 @@ where
                         &params,
                         move_gen,
                         POSITION_EVALUATOR,
+                        response_writer,
                         Arc::clone(&terminate),
                     );
                     let res = UCIResponse::BestMove {
                         mve: best_move.expect("Best move should have been found"),
                         ponder: None,
                     };
-                    response_writer.write_uci_response(res.into());
+                    let res_str: String = res.into();
+                    response_writer.write_all(res_str.as_bytes()).unwrap();
                 });
                 Super
             }

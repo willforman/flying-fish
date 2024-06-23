@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::{io::Write, str::FromStr};
 
 use engine::GenerateMoves;
 use statig::prelude::{InitializedStateMachine, IntoStateMachineExt};
@@ -6,14 +6,13 @@ use statig::prelude::{InitializedStateMachine, IntoStateMachineExt};
 use crate::{
     messages::{UCICommand, UCICommandParseError},
     state::UCIState,
-    WriteUCIResponse,
 };
 
 #[allow(clippy::upper_case_acronyms)]
 pub struct UCI<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: WriteUCIResponse + Send + Sync + 'static,
+    U: Write + Copy + Send + Sync + 'static,
 {
     state_machine: InitializedStateMachine<UCIState<T, U>>,
 }
@@ -21,9 +20,9 @@ where
 impl<T, U> UCI<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: WriteUCIResponse + Send + Sync + 'static,
+    U: Write + Copy + Send + Sync + 'static,
 {
-    pub fn new(move_gen: T, response_writer: Arc<U>) -> Self {
+    pub fn new(move_gen: T, response_writer: U) -> Self {
         let uci_state = UCIState::new(move_gen, response_writer);
         let uci_state_machine = uci_state.uninitialized_state_machine().init();
         Self {

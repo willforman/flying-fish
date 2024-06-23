@@ -1,19 +1,4 @@
-use core::panic;
-use std::io::{self, Write};
-
 use engine::Move;
-
-pub trait WriteUCIResponse {
-    fn write_uci_response(&self, uci_response: String);
-}
-
-pub struct UCIResponseStdoutWriter;
-
-impl WriteUCIResponse for UCIResponseStdoutWriter {
-    fn write_uci_response(&self, uci_response: String) {
-        io::stdout().write_all(uci_response.as_bytes()).unwrap();
-    }
-}
 
 #[derive(Debug)]
 pub(crate) enum UCIResponse {

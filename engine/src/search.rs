@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::io::Write;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -7,7 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
-use crate::move_to_algebraic_notation;
 use crate::position::{Move, Position};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
@@ -149,16 +149,12 @@ impl Display for SearchInfo {
     }
 }
 
-pub trait WriteSearchInfo {
-    fn write_search_info(&self, info: &str);
-}
-
 pub fn search(
     position: &Position,
     params: &SearchParams,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-    write_search_info: impl WriteSearchInfo + std::marker::Copy,
+    info_writer: impl Write + std::marker::Copy,
     terminate: Arc<AtomicBool>,
 ) -> (Option<Move>, SearchResultInfo) {
     let mut positions_processed: u64 = 0;
@@ -173,7 +169,7 @@ pub fn search(
         f64::MAX,
         move_gen,
         position_eval,
-        write_search_info,
+        info_writer,
         Arc::clone(&terminate),
     );
 
@@ -201,7 +197,7 @@ fn search_helper(
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-    search_info_writer: impl WriteSearchInfo + std::marker::Copy,
+    info_writer: impl Write + std::marker::Copy,
     terminate: Arc<AtomicBool>,
 ) -> (Option<Move>, f64) {
     // If this search has been terminated, return early
@@ -223,7 +219,7 @@ fn search_helper(
     }
 
     if *positions_processed % 10000 == 0 {
-        write_search_info(*positions_processed, start_time, search_info_writer);
+        write_search_info(*positions_processed, start_time, info_writer);
     }
 
     let moves = move_gen.gen_moves(position);
@@ -258,7 +254,7 @@ fn search_helper(
             -alpha,
             move_gen,
             position_eval,
-            search_info_writer,
+            info_writer,
             Arc::clone(&terminate),
         );
 
@@ -289,13 +285,13 @@ fn search_helper(
 fn write_search_info(
     nodes_processed: u64,
     start_time: &Instant,
-    search_info_writer: impl WriteSearchInfo + std::marker::Copy,
+    mut info_writer: impl Write + std::marker::Copy,
 ) {
     // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
     let score_str = format!("score mate 3");
     let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", 1, 1, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
-    search_info_writer.write_search_info(&info);
+    info_writer.write_all(info.as_bytes()).unwrap();
 }
 
 #[cfg(test)]
@@ -310,11 +306,17 @@ mod tests {
     use crate::position::Move;
 
     #[derive(Clone, Copy)]
-    struct DummyWriteSearchInfo;
+    struct DummyInfoWriter;
 
-    impl WriteSearchInfo for DummyWriteSearchInfo {
-        fn write_search_info(&self, info: &str) {
-            println!("{}", info);
+    impl Write for DummyInfoWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            let string = String::from_utf8(buf.to_vec()).unwrap();
+            println!("{}", string);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
         }
     }
 
@@ -342,7 +344,7 @@ mod tests {
             },
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
-            DummyWriteSearchInfo,
+            DummyInfoWriter,
             Arc::new(AtomicBool::new(false)),
         );
         Ok(())
@@ -364,7 +366,7 @@ mod tests {
             &params,
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
-            DummyWriteSearchInfo,
+            DummyInfoWriter,
             Arc::new(AtomicBool::new(false)),
         );
         assert_eq!(move_got, move_want);
