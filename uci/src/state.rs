@@ -10,13 +10,13 @@ use crate::messages::{UCICommand, UCIResponse};
 pub(crate) struct UCIState<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync,
-    U: Write + Copy + Send + Sync,
+    U: Write + Send + Sync,
 {
     move_gen: T,
     response_writer: U,
     debug: bool,
     // We need a way to terminate when running Go, but unfortunately don't seem
-    // to be able store this as state local storage because that requires the
+    // to be able store this as statig state local storage because that requires the
     // item to be a reference.
     maybe_terminate: Option<Arc<AtomicBool>>,
 }
@@ -24,7 +24,7 @@ where
 impl<T, U> UCIState<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync,
-    U: Write + Copy + Send + Sync + 'static,
+    U: Write + Clone + Send + Sync + 'static,
 {
     pub(crate) fn new(move_gen: T, response_writer: U) -> Self {
         Self {
@@ -37,7 +37,7 @@ where
 
     fn write_response(&mut self, uci_response: UCIResponse) {
         let res_str: String = uci_response.into();
-        self.response_writer.write(res_str.as_bytes());
+        self.response_writer.write_all(res_str.as_bytes()).unwrap();
     }
 }
 
@@ -45,7 +45,7 @@ where
 impl<T, U> UCIState<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Copy + Send + Sync + 'static,
+    U: Write + Clone + Send + Sync + 'static,
 {
     #[state]
     fn initial(event: &UCICommand) -> Response<State> {
@@ -114,7 +114,7 @@ where
                 self.maybe_terminate = Some(Arc::clone(&terminate));
                 let search_position = position.clone();
                 let move_gen = self.move_gen;
-                let mut response_writer = self.response_writer;
+                let mut response_writer = self.response_writer.clone();
                 let params = params.clone();
 
                 thread::spawn(move || {
@@ -123,7 +123,7 @@ where
                         &params,
                         move_gen,
                         POSITION_EVALUATOR,
-                        response_writer,
+                        &mut response_writer,
                         Arc::clone(&terminate),
                     );
                     let res = UCIResponse::BestMove {

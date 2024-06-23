@@ -8,7 +8,7 @@ use std::{
 use engine::{AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME};
 use uci::UCI;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 struct UCIResponseSaver {
     responses: Arc<Mutex<Vec<String>>>,
 }
@@ -30,7 +30,7 @@ impl UCIResponseSaver {
 
 impl Write for UCIResponseSaver {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let uci_res = String::from_utf8(buf.to_vec())?;
+        let uci_res = String::from_utf8(buf.to_vec()).unwrap();
         self.responses.lock().unwrap().push(uci_res);
         Ok(buf.len())
     }
@@ -44,7 +44,7 @@ impl Write for UCIResponseSaver {
 fn test_happy_path() {
     let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
     let response_saver = UCIResponseSaver::new();
-    let mut uci = UCI::new(move_gen, &response_saver);
+    let mut uci = UCI::new(move_gen, response_saver);
 
     uci.handle_command("uci").unwrap();
 

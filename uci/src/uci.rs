@@ -1,4 +1,7 @@
-use std::{io::Write, str::FromStr};
+use std::{
+    io::{self, Write},
+    str::FromStr,
+};
 
 use engine::GenerateMoves;
 use statig::prelude::{InitializedStateMachine, IntoStateMachineExt};
@@ -12,7 +15,7 @@ use crate::{
 pub struct UCI<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Copy + Send + Sync + 'static,
+    U: Write + Clone + Send + Sync + 'static,
 {
     state_machine: InitializedStateMachine<UCIState<T, U>>,
 }
@@ -20,7 +23,7 @@ where
 impl<T, U> UCI<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Copy + Send + Sync + 'static,
+    U: Write + Clone + Send + Sync + 'static,
 {
     pub fn new(move_gen: T, response_writer: U) -> Self {
         let uci_state = UCIState::new(move_gen, response_writer);

@@ -154,7 +154,7 @@ pub fn search(
     params: &SearchParams,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-    info_writer: impl Write + std::marker::Copy,
+    info_writer: &mut impl Write,
     terminate: Arc<AtomicBool>,
 ) -> (Option<Move>, SearchResultInfo) {
     let mut positions_processed: u64 = 0;
@@ -197,7 +197,7 @@ fn search_helper(
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-    info_writer: impl Write + std::marker::Copy,
+    info_writer: &mut impl Write,
     terminate: Arc<AtomicBool>,
 ) -> (Option<Move>, f64) {
     // If this search has been terminated, return early
@@ -282,11 +282,7 @@ fn search_helper(
     (best_move, best_val)
 }
 
-fn write_search_info(
-    nodes_processed: u64,
-    start_time: &Instant,
-    mut info_writer: impl Write + std::marker::Copy,
-) {
+fn write_search_info(nodes_processed: u64, start_time: &Instant, info_writer: &mut impl Write) {
     // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
     let score_str = format!("score mate 3");
@@ -344,7 +340,7 @@ mod tests {
             },
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
-            DummyInfoWriter,
+            &mut DummyInfoWriter,
             Arc::new(AtomicBool::new(false)),
         );
         Ok(())
@@ -366,7 +362,7 @@ mod tests {
             &params,
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
-            DummyInfoWriter,
+            &mut DummyInfoWriter,
             Arc::new(AtomicBool::new(false)),
         );
         assert_eq!(move_got, move_want);
