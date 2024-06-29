@@ -1,6 +1,7 @@
 use std::{
     io::{self, Write},
     str::FromStr,
+    sync::{Arc, Mutex},
 };
 
 use engine::GenerateMoves;
@@ -15,7 +16,7 @@ use crate::{
 pub struct UCI<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Clone + Send + Sync + 'static,
+    U: Write + Send + Sync + 'static,
 {
     state_machine: InitializedStateMachine<UCIState<T, U>>,
 }
@@ -23,9 +24,9 @@ where
 impl<T, U> UCI<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Clone + Send + Sync + 'static,
+    U: Write + Send + Sync + 'static,
 {
-    pub fn new(move_gen: T, response_writer: U) -> Self {
+    pub fn new(move_gen: T, response_writer: Arc<Mutex<U>>) -> Self {
         let uci_state = UCIState::new(move_gen, response_writer);
         let uci_state_machine = uci_state.uninitialized_state_machine().init();
         Self {

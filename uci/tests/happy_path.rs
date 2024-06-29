@@ -43,12 +43,12 @@ impl Write for UCIResponseSaver {
 #[test]
 fn test_happy_path() {
     let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-    let response_saver = UCIResponseSaver::new();
-    let mut uci = UCI::new(move_gen, response_saver);
+    let response_saver = Arc::new(Mutex::new(UCIResponseSaver::new()));
+    let mut uci = UCI::new(move_gen, Arc::clone(&response_saver));
 
     uci.handle_command("uci").unwrap();
 
-    let responses = response_saver.get_new_responses();
+    let responses = response_saver.lock().unwrap().get_new_responses();
 
     let id_name = format!("id name {}", NAME);
     let id_author = format!("id author {}", AUTHOR);
@@ -64,7 +64,8 @@ fn test_happy_path() {
 
     uci.handle_command("isready").unwrap();
 
-    assert_eq!(response_saver.get_new_responses(), vec!["readyok"]);
+    let responses = response_saver.lock().unwrap().get_new_responses();
+    assert_eq!(responses, vec!["readyok"]);
 
     uci.handle_command("ucinewgame").unwrap();
     uci.handle_command("go infinite").unwrap();
@@ -73,6 +74,6 @@ fn test_happy_path() {
     uci.handle_command("stop").unwrap();
     thread::sleep(Duration::new(0, 1_000_000));
 
-    let responses = response_saver.get_new_responses();
+    let responses = response_saver.lock().unwrap().get_new_responses();
     assert_eq!(responses, vec!["bestmove b2b4"]);
 }
