@@ -1,10 +1,43 @@
 use std::{
-    sync::{atomic::AtomicBool, mpsc, Arc},
+    io::Write,
+    sync::{atomic::AtomicBool, mpsc, Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
 
 use engine::{search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR};
+
+#[derive(Clone, Debug)]
+struct UCIResponseSaver {
+    responses: Arc<Mutex<Vec<String>>>,
+}
+
+impl UCIResponseSaver {
+    fn new() -> Self {
+        Self {
+            responses: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn get_new_responses(&self) -> Vec<String> {
+        let mut responses = self.responses.lock().unwrap();
+        let result = responses.clone();
+        responses.clear();
+        result
+    }
+}
+
+impl Write for UCIResponseSaver {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let uci_res = String::from_utf8(buf.to_vec()).unwrap();
+        self.responses.lock().unwrap().push(uci_res);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
 
 #[test]
 fn test_search_terminates() {
@@ -21,6 +54,7 @@ fn test_search_terminates() {
             },
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,
             POSITION_EVALUATOR,
+            Arc::new(Mutex::new(&mut UCIResponseSaver::new())),
             Arc::clone(&terminate_cloned),
         );
         tx_best_move.send(best_move).unwrap();

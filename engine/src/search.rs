@@ -289,7 +289,7 @@ fn write_search_info(
 ) {
     // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    let score_str = format!("score mate 3");
+    let score_str = format!("mate 3");
     let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", 1, 1, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
     info_writer
         .lock()
