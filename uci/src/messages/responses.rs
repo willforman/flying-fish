@@ -91,15 +91,22 @@ pub enum UCIOptionType {
     String { str: String },
 }
 
-impl Into<String> for UCIResponse {
-    fn into(self) -> String {
-        match self {
+impl std::fmt::Display for UCIResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let res_str = match self {
             UCIResponse::IDName { name } => format!("id name {}", name),
             UCIResponse::IDAuthor { author } => format!("id author {}", author),
             UCIResponse::UCIOk => "uciok".to_string(),
             UCIResponse::ReadyOk => "readyok".to_string(),
             UCIResponse::BestMove { mve, ponder: None } => format!("bestmove {}", mve),
             _ => format!("{:?} not implemented", self),
-        }
+        };
+        write!(f, "{}", res_str)
+    }
+}
+
+impl Into<String> for UCIResponse {
+    fn into(self) -> String {
+        self.to_string()
     }
 }

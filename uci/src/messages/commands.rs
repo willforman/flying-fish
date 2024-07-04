@@ -4,9 +4,9 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use engine::{Move, SearchParams, Side, Square};
-use winnow::ascii::digit1;
-use winnow::combinator::{alt, preceded, rest, separated};
-use winnow::token::take_until;
+use winnow::ascii::{alphanumeric1, digit1};
+use winnow::combinator::{alt, opt, preceded, rest, separated, terminated};
+use winnow::token::{one_of, take_until, take_while};
 use winnow::{PResult, Parser};
 
 pub trait ReadUCICommand {
@@ -43,7 +43,7 @@ pub(crate) enum UCICommand {
     UCINewGame,
     Position {
         fen: Option<String>,
-        moves: Vec<Move>,
+        moves: Option<Vec<Move>>,
     },
     Go {
         params: SearchParams,
@@ -165,29 +165,53 @@ fn parse_position(input: &mut &str) -> PResult<UCICommand> {
     preceded(
         "position ",
         (
-            alt(("startpos".value(None), take_until(0.., " moves").map(Some))),
-            preceded(" moves ", rest),
+            alt((
+                "startpos".value(None),
+                preceded("fen ", parse_position_fen.map(Some)),
+            )),
+            opt(preceded(" moves ", rest)),
         )
-            .try_map(|(fen, moves): (Option<&str>, &str)| {
+            .try_map(|(fen, moves): (Option<String>, Option<&str>)| {
                 Ok::<UCICommand, <Square as FromStr>::Err>(UCICommand::Position {
-                    fen: fen.map(|s: &str| s.to_string()),
-                    moves: moves
-                        .split(' ')
-                        .map(|mve_str| {
-                            let (src_str, dest_str) = mve_str.split_at(2);
-                            let src = Square::from_str(src_str.to_uppercase().as_str())?;
-                            let dest = Square::from_str(dest_str.to_uppercase().as_str())?;
-                            Ok::<Move, <Square as FromStr>::Err>(Move {
-                                src,
-                                dest,
-                                promotion: None,
+                    fen: fen.map(|s: String| s.to_string()),
+                    moves: moves.map(|moves: &str| {
+                        {
+                            moves.split(' ').map(|mve_str| {
+                                let (src_str, dest_str) = mve_str.split_at(2);
+                                let src = Square::from_str(src_str.to_uppercase().as_str())?;
+                                let dest = Square::from_str(dest_str.to_uppercase().as_str())?;
+                                Ok::<Move, <Square as FromStr>::Err>(Move {
+                                    src,
+                                    dest,
+                                    promotion: None,
+                                })
                             })
-                        })
-                        .collect::<Result<Vec<Move>, _>>()?,
+                        }
+                        .collect::<Result<Vec<Move>, _>>()
+                        .unwrap()
+                    }),
                 })
             }),
     )
     .parse_next(input)
+}
+
+fn parse_position_fen(input: &mut &str) -> PResult<String> {
+    (
+        terminated(separated(8, alphanumeric1, '/'), ' '),
+        terminated(one_of(['w', 'b']), ' '),
+        terminated(take_while(0.., ('K', 'k', 'Q', 'q', '-')), ' '),
+        terminated(alt((alphanumeric1, "-")), ' '),
+        terminated(digit1, ' '),
+        digit1,
+    )
+        .map(
+            |(s1, s2, s3, s4, s5, s6): (Vec<&str>, char, &str, &str, &str, &str)| {
+                let pieces_str = s1.join("/");
+                format!("{} {} {} {} {} {}", pieces_str, s2, s3, s4, s5, s6)
+            },
+        )
+        .parse_next(input)
 }
 
 fn parse_stop(input: &mut &str) -> PResult<UCICommand> {
@@ -427,8 +451,9 @@ mod tests {
     #[test_case("register name Will code 1234", UCICommand::Register { name: "Will".to_string(), code: "1234".to_string() })]
     #[test_case("register later", UCICommand::RegisterLater)]
     #[test_case("ucinewgame", UCICommand::UCINewGame)]
-    #[test_case("position startpos moves e2e4 e7e5", UCICommand::Position { fen: None, moves: vec![Move::new(E2, E4), Move::new(E7, E5)]})]
-    #[test_case("position r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves f3f6", UCICommand::Position { fen: Some("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".to_string()), moves: vec![Move::new(F3, F6)]})]
+    #[test_case("position startpos moves e2e4 e7e5", UCICommand::Position { fen: None, moves: Some(vec![Move::new(E2, E4), Move::new(E7, E5)])} ; "position startpos moves e2e4 e7e5")]
+    #[test_case("position fen 8/8/4Rp2/5P2/1PP1pkP1/7P/1P1r4/7K b - - 0 40", UCICommand::Position { fen: Some("8/8/4Rp2/5P2/1PP1pkP1/7P/1P1r4/7K b - - 0 40".to_string()), moves: None} ; "position fen 8/8/4Rp2/5P2/1PP1pkP1/7P/1P1r4/7K b - - 0 40")]
+    #[test_case("position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves f3f6", UCICommand::Position { fen: Some("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1".to_string()), moves: Some(vec![Move::new(F3, F6)])} ; "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves f3f6")]
     #[test_case("stop", UCICommand::Stop)]
     #[test_case("ponderhit", UCICommand::PonderHit)]
     #[test_case("quit", UCICommand::Quit)]
@@ -448,6 +473,17 @@ mod tests {
     #[test_case("go depth 10 searchmoves a2a4 b2b4", UCICommand::Go { params: SearchParams { max_depth: Some(10), search_moves: Some(vec![Move::new(Square::A2, Square::A4), Move::new(Square::B2, Square::B4)]), ..SearchParams::default() }} ; "go depth 10 searchmoves a2a4 b2b4")]
     fn test_from_str(input: &str, want: UCICommand) -> TestResult {
         let got = UCICommand::from_str(input)?;
+
+        assert_eq!(got, want);
+        Ok(())
+    }
+
+    #[test_case(
+        "8/8/4Rp2/5P2/1PP1pkP1/7P/1P1r4/7K b - - 0 40".to_string(),
+        "8/8/4Rp2/5P2/1PP1pkP1/7P/1P1r4/7K b - - 0 40".to_string()
+    )]
+    fn test_from_str_fen(input: String, want: String) -> TestResult {
+        let got = parse_position_fen(&mut input.as_str())?;
 
         assert_eq!(got, want);
         Ok(())

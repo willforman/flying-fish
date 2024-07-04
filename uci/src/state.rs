@@ -34,15 +34,6 @@ where
             maybe_terminate: None,
         }
     }
-
-    fn write_response(&mut self, uci_response: UCIResponse) {
-        let res_str: String = uci_response.into();
-        self.response_writer
-            .lock()
-            .unwrap()
-            .write_all(res_str.as_bytes())
-            .unwrap();
-    }
 }
 
 #[state_machine(initial = "State::initial()", state(derive(PartialEq, Eq, Debug)))]
@@ -51,19 +42,27 @@ where
     T: GenerateMoves + Copy + Send + Sync + 'static,
     U: Write + Send + Sync + 'static,
 {
-    #[state]
+    #[superstate]
+    fn unexpected_command(&mut self, event: &UCICommand) -> Response<State> {
+        write_str_response(
+            Arc::clone(&self.response_writer),
+            &format!("Unexpected command for current state: {:?}", event),
+        );
+        Super
+    }
+    #[state(superstate = "unexpected_command")]
     fn initial(event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::UCI => Transition(State::uci_enabled()),
             _ => Super,
         }
     }
-    #[superstate]
+    #[superstate(superstate = "unexpected_command")]
     fn debug(&mut self, event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::Debug { on } => {
                 self.debug = *on;
-                Super
+                Handled
             }
             _ => Super,
         }
@@ -73,8 +72,8 @@ where
     fn is_ready(&mut self, event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::IsReady => {
-                self.write_response(UCIResponse::ReadyOk);
-                Super
+                write_response(Arc::clone(&self.response_writer), UCIResponse::ReadyOk);
+                Handled
             }
             _ => Super,
         }
@@ -90,13 +89,19 @@ where
 
     #[action]
     fn enter_uci_enabled(&mut self) {
-        self.write_response(UCIResponse::IDName {
-            name: NAME.to_string(),
-        });
-        self.write_response(UCIResponse::IDAuthor {
-            author: AUTHOR.to_string(),
-        });
-        self.write_response(UCIResponse::UCIOk);
+        write_response(
+            Arc::clone(&self.response_writer),
+            UCIResponse::IDName {
+                name: NAME.to_string(),
+            },
+        );
+        write_response(
+            Arc::clone(&self.response_writer),
+            UCIResponse::IDAuthor {
+                author: AUTHOR.to_string(),
+            },
+        );
+        write_response(Arc::clone(&self.response_writer), UCIResponse::UCIOk);
     }
 
     #[state(superstate = "is_ready")]
@@ -107,8 +112,10 @@ where
                     Some(fen) => Position::from_fen(fen).unwrap(),
                     None => Position::start(),
                 };
-                for mve in moves {
-                    pos.make_move(mve).unwrap();
+                if let Some(moves) = moves {
+                    for mve in moves {
+                        pos.make_move(mve).unwrap();
+                    }
                 }
                 Transition(State::in_game(pos))
             }
@@ -130,18 +137,15 @@ where
                         Arc::clone(&response_writer),
                         Arc::clone(&terminate),
                     );
-                    let res = UCIResponse::BestMove {
-                        mve: best_move.expect("Best move should have been found"),
-                        ponder: None,
-                    };
-                    let res_str: String = res.into();
-                    response_writer
-                        .lock()
-                        .unwrap()
-                        .write_all(res_str.as_bytes())
-                        .unwrap();
+                    write_response(
+                        response_writer,
+                        UCIResponse::BestMove {
+                            mve: best_move.expect("Best move should have been found"),
+                            ponder: None,
+                        },
+                    );
                 });
-                Super
+                Handled
             }
             UCICommand::Stop => {
                 if let Some(terminate) = &self.maybe_terminate {
@@ -150,9 +154,20 @@ where
                 } else {
                     panic!("maybe_terminate should not be None when stop is received");
                 }
-                Super
+                Handled
             }
             _ => Super,
         }
     }
+}
+
+fn write_response(response_writer: Arc<Mutex<impl Write>>, uci_response: UCIResponse) {
+    // Helper method to reduce boilerplate for writing response
+    let res_str: String = uci_response.into();
+    write_str_response(response_writer, &res_str);
+}
+
+fn write_str_response(response_writer: Arc<Mutex<impl Write>>, str_response: &str) {
+    let mut response_writer = response_writer.lock().unwrap();
+    writeln!(response_writer, "{}", str_response).unwrap();
 }

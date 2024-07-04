@@ -1,5 +1,5 @@
 use std::{
-    io::{self, Write},
+    io::{self, BufRead, Write},
     sync::{Arc, Mutex},
 };
 
@@ -17,18 +17,12 @@ fn main() -> Result<()> {
 
     let mut uci = UCI::new(move_gen, Arc::clone(&response_writer));
 
-    let mut command_str = String::new();
-    loop {
-        io::stdin().read_line(&mut command_str)?;
-
-        let cmd_res = uci.handle_command(&command_str);
+    for line in io::stdin().lock().lines().map(|r| r.unwrap()) {
+        let cmd_res = uci.handle_command(&line);
 
         if let Err(err) = cmd_res {
-            println!("HERE!");
-            response_writer
-                .lock()
-                .unwrap()
-                .write_all(err.to_string().as_bytes())?;
+            println!("{}", err);
         }
     }
+    Ok(())
 }
