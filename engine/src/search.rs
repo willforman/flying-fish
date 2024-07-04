@@ -217,9 +217,15 @@ fn search_helper(
             return (None, 0.0);
         }
     }
+    *positions_processed += 1;
 
-    if *positions_processed % 10000 == 0 {
-        write_search_info(*positions_processed, start_time, Arc::clone(&info_writer));
+    if *positions_processed % 250_000 == 0 {
+        write_search_info(
+            *positions_processed,
+            curr_depth,
+            start_time,
+            Arc::clone(&info_writer),
+        );
     }
 
     let moves = move_gen.gen_moves(position);
@@ -284,18 +290,16 @@ fn search_helper(
 
 fn write_search_info(
     nodes_processed: u64,
+    curr_depth: u64,
     start_time: &Instant,
     info_writer: Arc<Mutex<impl Write>>,
 ) {
     // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    let score_str = format!("mate 3");
-    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", 1, 1, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
-    info_writer
-        .lock()
-        .unwrap()
-        .write_all(info.as_bytes())
-        .unwrap();
+    let score_str = format!("mate 0");
+    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", 1, curr_depth, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
+    let mut info_writer = info_writer.lock().unwrap();
+    writeln!(info_writer, "{}", info).unwrap();
 }
 
 #[cfg(test)]

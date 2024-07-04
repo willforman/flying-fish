@@ -107,6 +107,7 @@ where
     #[state(superstate = "is_ready")]
     fn in_game(&mut self, position: &mut Position, event: &UCICommand) -> Response<State> {
         match event {
+            UCICommand::UCINewGame => Transition(State::in_game(Position::start())),
             UCICommand::Position { fen, moves } => {
                 let mut pos = match fen {
                     Some(fen) => Position::from_fen(fen).unwrap(),
@@ -120,7 +121,12 @@ where
                 Transition(State::in_game(pos))
             }
             UCICommand::Go { params } => {
-                assert!(self.maybe_terminate.is_none());
+                if self.maybe_terminate.is_some() {
+                    write_str_response(
+                        Arc::clone(&self.response_writer),
+                        "Can't start new search until previous search completes",
+                    );
+                }
                 let terminate = Arc::new(AtomicBool::new(false));
                 self.maybe_terminate = Some(Arc::clone(&terminate));
                 let search_position = position.clone();
@@ -144,6 +150,7 @@ where
                             ponder: None,
                         },
                     );
+                    terminate.store(true, std::sync::atomic::Ordering::Relaxed);
                 });
                 Handled
             }
