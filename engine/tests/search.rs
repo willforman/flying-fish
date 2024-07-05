@@ -6,7 +6,6 @@ use std::{
 };
 
 use engine::{search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR};
-use testresult::TestResult;
 
 #[derive(Clone, Debug)]
 struct UCIResponseSaver {
@@ -50,7 +49,7 @@ fn test_search_terminates() {
         let (best_move, _) = search(
             &Position::start(),
             &SearchParams {
-                move_time_msec: Some(2000),
+                move_time: Some(Duration::from_secs(2)),
                 ..SearchParams::default()
             },
             HYPERBOLA_QUINTESSENCE_MOVE_GEN,

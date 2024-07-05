@@ -17,16 +17,16 @@ use crate::Side;
 pub struct SearchParams {
     pub search_moves: Option<Vec<Move>>,
     pub ponder: bool,
-    pub white_time_msec: Option<u64>,
-    pub black_time_msec: Option<u64>,
-    pub white_inc_msec: Option<u64>,
-    pub black_inc_msec: Option<u64>,
+    pub white_time: Option<Duration>,
+    pub black_time: Option<Duration>,
+    pub white_inc: Option<Duration>,
+    pub black_inc: Option<Duration>,
     pub moves_to_go: Option<u64>,
-    pub max_depth: Option<u64>, // Done
-    pub max_nodes: Option<u64>, // Done
+    pub max_depth: Option<u64>,
+    pub max_nodes: Option<u64>,
     pub mate: Option<u64>,
-    pub move_time_msec: Option<u64>, // Done
-    pub infinite: bool,              // Done
+    pub move_time: Option<Duration>,
+    pub infinite: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -156,6 +156,14 @@ impl Display for SearchInfo {
 pub enum SearchError {
     #[error("Parameters depth and mate are mutually exclusive, both passed: {0}, {1}")]
     DepthAndMatePassed(u64, u64),
+}
+
+fn calc_time_per_move_msec(
+    time_left: Duration,
+    time_inc_msec: Duration,
+    moves_to_go: u16,
+) -> Duration {
+    return time_left / moves_to_go.into();
 }
 
 pub fn search(
@@ -288,8 +296,8 @@ fn search_helper(
         }
     }
     // If search has exceeded total time, return early
-    if let Some(move_time_msec) = params.move_time_msec {
-        if start_time.elapsed().as_millis() >= u128::from(move_time_msec) {
+    if let Some(move_time) = params.move_time {
+        if start_time.elapsed() >= move_time {
             return (0.0, true);
         }
     }

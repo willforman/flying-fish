@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::io;
 use std::str::FromStr;
+use std::time::Duration;
 
 use anyhow::Result;
 use engine::{Move, SearchParams, Side, Square};
@@ -56,13 +57,13 @@ pub(crate) enum UCICommand {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) enum GoParameter {
     SearchMoves { moves: Vec<Move> },
-    Time { msec: u64, side: Side },
-    Inc { msec: u64, side: Side },
+    Time { time: Duration, side: Side },
+    Inc { time: Duration, side: Side },
     MovesToGo { moves: u64 },
     Depth { moves: u64 },
     Nodes { nodes: u64 },
     Mate { moves: u64 },
-    MoveTime { msec: u64 },
+    MoveTime { time: Duration },
     Infinite,
     Ponder,
 }
@@ -259,32 +260,32 @@ fn parse_go(input: &mut &str) -> PResult<UCICommand> {
             }
         }),
         ponder: params.iter().any(|i| matches!(i, GoParameter::Ponder)),
-        white_time_msec: params.iter().find_map(|param| match param {
+        white_time: params.iter().find_map(|param| match param {
             GoParameter::Time {
-                msec,
+                time,
                 side: Side::White,
-            } => Some(*msec),
+            } => Some(*time),
             _ => None,
         }),
-        black_time_msec: params.iter().find_map(|param| match param {
+        black_time: params.iter().find_map(|param| match param {
             GoParameter::Time {
-                msec,
+                time,
                 side: Side::Black,
-            } => Some(*msec),
+            } => Some(*time),
             _ => None,
         }),
-        white_inc_msec: params.iter().find_map(|param| match param {
+        white_inc: params.iter().find_map(|param| match param {
             GoParameter::Inc {
-                msec,
+                time,
                 side: Side::White,
-            } => Some(*msec),
+            } => Some(*time),
             _ => None,
         }),
-        black_inc_msec: params.iter().find_map(|param| match param {
+        black_inc: params.iter().find_map(|param| match param {
             GoParameter::Inc {
-                msec,
+                time,
                 side: Side::Black,
-            } => Some(*msec),
+            } => Some(*time),
             _ => None,
         }),
         moves_to_go: params.iter().find_map(|param| {
@@ -315,9 +316,9 @@ fn parse_go(input: &mut &str) -> PResult<UCICommand> {
                 None
             }
         }),
-        move_time_msec: params.iter().find_map(|param| {
-            if let GoParameter::MoveTime { msec } = param {
-                Some(*msec)
+        move_time: params.iter().find_map(|param| {
+            if let GoParameter::MoveTime { time } = param {
+                Some(*time)
             } else {
                 None
             }
@@ -358,36 +359,36 @@ fn parse_go_ponder(input: &mut &str) -> PResult<GoParameter> {
 
 fn parse_go_time(input: &mut &str) -> PResult<GoParameter> {
     alt((
-        preceded("wtime ", digit1.try_map(|msec: &str| u64::from_str(msec))).map(|msec: u64| {
-            GoParameter::Time {
-                msec,
+        preceded("wtime ", digit1.try_map(|msec: &str| u64::from_str(msec)))
+            .map(|msec: u64| Duration::from_millis(msec))
+            .map(|time: Duration| GoParameter::Time {
+                time,
                 side: Side::White,
-            }
-        }),
-        preceded("btime ", digit1.try_map(|msec: &str| u64::from_str(msec))).map(|msec: u64| {
-            GoParameter::Time {
-                msec,
+            }),
+        preceded("btime ", digit1.try_map(|msec: &str| u64::from_str(msec)))
+            .map(|msec: u64| Duration::from_millis(msec))
+            .map(|time: Duration| GoParameter::Time {
+                time,
                 side: Side::Black,
-            }
-        }),
+            }),
     ))
     .parse_next(input)
 }
 
 fn parse_go_inc(input: &mut &str) -> PResult<GoParameter> {
     alt((
-        preceded("winc ", digit1.try_map(|msec: &str| u64::from_str(msec))).map(|msec: u64| {
-            GoParameter::Inc {
-                msec,
+        preceded("winc ", digit1.try_map(|msec: &str| u64::from_str(msec)))
+            .map(|msec: u64| Duration::from_millis(msec))
+            .map(|time: Duration| GoParameter::Inc {
+                time,
                 side: Side::White,
-            }
-        }),
-        preceded("binc ", digit1.try_map(|msec: &str| u64::from_str(msec))).map(|msec: u64| {
-            GoParameter::Inc {
-                msec,
+            }),
+        preceded("binc ", digit1.try_map(|msec: &str| u64::from_str(msec)))
+            .map(|msec: u64| Duration::from_millis(msec))
+            .map(|time: Duration| GoParameter::Inc {
+                time,
                 side: Side::Black,
-            }
-        }),
+            }),
     ))
     .parse_next(input)
 }
@@ -424,7 +425,8 @@ fn parse_go_movetime(input: &mut &str) -> PResult<GoParameter> {
         "movetime ",
         digit1.try_map(|msec: &str| u64::from_str(msec)),
     )
-    .map(|msec: u64| GoParameter::MoveTime { msec })
+    .map(|msec: u64| Duration::from_millis(msec))
+    .map(|time: Duration| GoParameter::MoveTime { time })
     .parse_next(input)
 }
 
@@ -459,17 +461,17 @@ mod tests {
     #[test_case("quit", UCICommand::Quit)]
     #[test_case("go searchmoves e2e4 e7e5", UCICommand::Go { params: SearchParams{ search_moves: Some(vec![Move::new(Square::E2, Square::E4), Move::new(Square::E7, Square::E5)]), ..SearchParams::default()}} ; "go searchmoves e2e4 e7e5")]
     #[test_case("go ponder", UCICommand::Go { params: SearchParams { ponder: true, ..SearchParams::default() }} ; "go ponder")]
-    #[test_case("go wtime 1000", UCICommand::Go { params: SearchParams { white_time_msec: Some(1000), ..SearchParams::default() }} ; "go wtime 1000")]
-    #[test_case("go btime 3", UCICommand::Go { params: SearchParams { black_time_msec: Some(3), ..SearchParams::default() }} ; "go btime 3")]
-    #[test_case("go winc 1000", UCICommand::Go { params: SearchParams { white_inc_msec: Some(1000), ..SearchParams::default() }} ; "go winc 1000")]
-    #[test_case("go binc 3", UCICommand::Go { params: SearchParams { black_inc_msec: Some(3), ..SearchParams::default() }} ; "go binc 3 ")]
+    #[test_case("go wtime 1000", UCICommand::Go { params: SearchParams { white_time: Some(Duration::from_millis(1000)), ..SearchParams::default() }} ; "go wtime 1000")]
+    #[test_case("go btime 3", UCICommand::Go { params: SearchParams { black_time: Some(Duration::from_millis(3)), ..SearchParams::default() }} ; "go btime 3")]
+    #[test_case("go winc 1000", UCICommand::Go { params: SearchParams { white_inc: Some(Duration::from_millis(1000)), ..SearchParams::default() }} ; "go winc 1000")]
+    #[test_case("go binc 3", UCICommand::Go { params: SearchParams { black_inc: Some(Duration::from_millis(3)), ..SearchParams::default() }} ; "go binc 3 ")]
     #[test_case("go movestogo 7", UCICommand::Go { params: SearchParams { moves_to_go: Some(7), ..SearchParams::default() }} ; "go movestogo 7")]
     #[test_case("go depth 6", UCICommand::Go { params: SearchParams { max_depth: Some(6), ..SearchParams::default() }} ; "go depth 6")]
     #[test_case("go nodes 10000", UCICommand::Go { params: SearchParams { max_nodes: Some(10000), ..SearchParams::default() }} ; "go nodes 10000")]
     #[test_case("go mate 18", UCICommand::Go { params: SearchParams { mate: Some(18), ..SearchParams::default() }} ; "go mate 18")]
-    #[test_case("go movetime 100", UCICommand::Go { params: SearchParams { move_time_msec: Some(100), ..SearchParams::default() }} ; "go movetime 100")]
+    #[test_case("go movetime 100", UCICommand::Go { params: SearchParams { move_time: Some(Duration::from_millis(100)), ..SearchParams::default() }} ; "go movetime 100")]
     #[test_case("go infinite", UCICommand::Go { params: SearchParams { infinite: true, ..SearchParams::default() }} ; "go infinite")]
-    #[test_case("go infinite wtime 1000", UCICommand::Go { params: SearchParams { infinite: true, white_time_msec: Some(1000), ..SearchParams::default() }} ; "go infinite wtime 1000")]
+    #[test_case("go infinite wtime 1000", UCICommand::Go { params: SearchParams { infinite: true, white_time: Some(Duration::from_millis(1000)), ..SearchParams::default() }} ; "go infinite wtime 1000")]
     #[test_case("go depth 10 searchmoves a2a4 b2b4", UCICommand::Go { params: SearchParams { max_depth: Some(10), search_moves: Some(vec![Move::new(Square::A2, Square::A4), Move::new(Square::B2, Square::B4)]), ..SearchParams::default() }} ; "go depth 10 searchmoves a2a4 b2b4")]
     fn test_from_str(input: &str, want: UCICommand) -> TestResult {
         let got = UCICommand::from_str(input)?;
