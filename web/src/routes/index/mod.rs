@@ -1,5 +1,5 @@
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use leptos::*;
 
@@ -7,8 +7,8 @@ pub mod chess_board;
 pub mod moves;
 
 use engine::{
-    move_to_algebraic_notation, search, HyperbolaQuintessenceMoveGen, Move, Position, SearchInfo,
-    SearchParams, Side, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
+    move_to_algebraic_notation, search, HyperbolaQuintessenceMoveGen, Move, Position, SearchParams,
+    SearchResultInfo, Side, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
 };
 use leptos::html;
 use leptos::logging::log;
@@ -23,15 +23,17 @@ static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 async fn generate_move(
     position: Position,
     search_params: SearchParams,
-) -> Result<(Option<Move>, SearchInfo), ServerFnError> {
+) -> Result<(Option<Move>, SearchResultInfo), ServerFnError> {
     let terminate = Arc::new(AtomicBool::new(false));
+    let info_holder: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
     let (best_move, positions_processed) = search(
         &position,
         &search_params,
         MOVE_GEN,
         POSITION_EVALUATOR,
+        Arc::clone(&info_holder),
         Arc::clone(&terminate),
-    );
+    )?;
     Ok((best_move, positions_processed))
 }
 
@@ -43,7 +45,7 @@ pub fn IndexPage() -> impl IntoView {
     let (move_strs, set_move_strs) = create_signal(Vec::<String>::new());
 
     let search_params = SearchParams {
-        move_time_msec: Some(1000 * 10),
+        move_time_msec: Some(1000 * 5),
         ..SearchParams::default()
     };
 

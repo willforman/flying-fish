@@ -121,11 +121,14 @@ where
                 Transition(State::in_game(pos))
             }
             UCICommand::Go { params } => {
-                if self.maybe_terminate.is_some() {
-                    write_str_response(
-                        Arc::clone(&self.response_writer),
-                        "Can't start new search until previous search completes",
-                    );
+                if let Some(terminate) = &self.maybe_terminate {
+                    if !terminate.load(std::sync::atomic::Ordering::Relaxed) {
+                        write_str_response(
+                            Arc::clone(&self.response_writer),
+                            "Can't start new search until previous search completes",
+                        );
+                        return Handled;
+                    }
                 }
                 let terminate = Arc::new(AtomicBool::new(false));
                 self.maybe_terminate = Some(Arc::clone(&terminate));

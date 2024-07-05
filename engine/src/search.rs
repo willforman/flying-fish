@@ -191,6 +191,19 @@ pub fn search(
         })
         .collect();
 
+    if max_depth == 1 {
+        let best_move = moves.clone().into_iter().max_by(|move1, move2| {
+            let val1 = position_eval.evaluate(&move_positions[move1]);
+            let val2 = position_eval.evaluate(&move_positions[move2]);
+            val2.partial_cmp(&val1).unwrap()
+        });
+        let search_info = SearchResultInfo {
+            positions_processed: moves.len().try_into().unwrap(),
+            time_elapsed: start.elapsed(),
+        };
+        return Ok((best_move, search_info));
+    }
+
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
         let iterative_deepening_max_depth: u64 = iterative_deepening_max_depth.try_into().unwrap();
 
@@ -227,10 +240,14 @@ pub fn search(
         });
 
         // The moves are sorted by value from white's perspective. We need to reverse the list
-        // if the position given is black
-        if position.state.to_move == Side::Black {
+        // if the position given is black to move
+        if position.state.to_move == Side::White {
             moves.reverse();
         }
+        for mve in &moves {
+            println!("{}: {}", mve, move_vals[mve]);
+        }
+        println!("\n=============================================\n");
 
         // Find best move
         best_move = Some(moves[0]);
@@ -293,9 +310,21 @@ fn search_helper(
     let mut best_val = f64::MIN;
     for mve in moves {
         let mut move_position = position.clone();
-        move_position.make_move(&mve).unwrap();
+        let move_res = move_position.make_move(&mve);
+        if let Err(err) = move_res {
+            write_search_info(
+                iterative_deepening_max_depth,
+                *positions_processed,
+                curr_depth,
+                start_time,
+                Arc::clone(&info_writer),
+            );
+            let mut info_writer = info_writer.lock().unwrap();
+            writeln!(info_writer, "Error for move {}: {}", mve, err).unwrap();
+            panic!("Err encountered searching, exiting");
+        }
 
-        if curr_depth + 1 >= iterative_deepening_max_depth {
+        if curr_depth >= iterative_deepening_max_depth {
             let val = position_eval.evaluate(&move_position);
             return (val, false);
         }
@@ -315,20 +344,17 @@ fn search_helper(
             Arc::clone(&terminate),
         );
 
-        // Search has been terminated, return best move we found
+        // If child node is signaling search is terminated, better terminate self
         if search_complete && got_val == 0.0 {
-            break;
+            return (best_val, true);
         }
 
         let got_val = -got_val;
 
         if got_val >= best_val {
             best_val = got_val;
+            alpha = f64::max(alpha, got_val);
         }
-
-        best_val = f64::max(best_val, got_val);
-
-        alpha = f64::max(alpha, got_val);
 
         if alpha >= beta {
             break;
@@ -348,7 +374,7 @@ fn write_search_info(
     // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
     let score_str = format!("mate 0");
-    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
+    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth + 1, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
     let mut info_writer = info_writer.lock().unwrap();
     writeln!(info_writer, "{}", info).unwrap();
 }
