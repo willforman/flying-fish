@@ -31,6 +31,7 @@ pub struct PerftResult {
 }
 
 impl PerftDepthResult {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         tot: u64,
         captures: u64,
@@ -218,8 +219,6 @@ mod tests {
     use super::*;
     use test_case::test_case;
 
-    use std::collections::HashSet;
-
     use crate::bitboard::Square::*;
     use crate::position::Move;
 
@@ -229,8 +228,8 @@ mod tests {
     }
 
     impl GenerateMoves for MoveGenStub<'_> {
-        fn gen_moves(&self, _position: &Position) -> HashSet<Move> {
-            HashSet::from_iter(self.moves.iter().cloned())
+        fn gen_moves(&self, _position: &Position) -> Vec<Move> {
+            Vec::from_iter(self.moves.iter().cloned())
         }
     }
 

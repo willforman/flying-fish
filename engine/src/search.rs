@@ -1,3 +1,5 @@
+use core::panic;
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::io::Write;
 use std::sync::atomic::AtomicBool;
@@ -9,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
+use crate::Side;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct SearchParams {
@@ -149,6 +152,12 @@ impl Display for SearchInfo {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum SearchError {
+    #[error("Parameters depth and mate are mutually exclusive, both passed: {0}, {1}")]
+    DepthAndMatePassed(u64, u64),
+}
+
 pub fn search(
     position: &Position,
     params: &SearchParams,
@@ -156,26 +165,75 @@ pub fn search(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
-) -> (Option<Move>, SearchResultInfo) {
+) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
+    let mut best_move: Option<Move> = None;
+    let mut best_val: Option<Move> = None;
+
     let mut positions_processed: u64 = 0;
     let start = Instant::now();
-    let (mut best_move, best_val) = search_helper(
-        position,
-        params,
-        0,
-        &mut positions_processed,
-        &start,
-        f64::MIN,
-        f64::MAX,
-        move_gen,
-        position_eval,
-        info_writer,
-        Arc::clone(&terminate),
-    );
 
-    // If mate is passed, only return a move if it's a mate
-    if params.mate.is_some() && (best_val == f64::MIN || best_val == f64::MAX) {
-        best_move = None;
+    let max_depth: usize = match (params.max_depth, params.mate) {
+        (Some(max_depth), None) => max_depth.try_into().unwrap(),
+        (None, Some(mate)) => mate.try_into().unwrap(),
+        (Some(max_depth), Some(mate)) => {
+            return Err(SearchError::DepthAndMatePassed(max_depth, mate))
+        }
+        (None, None) => 300,
+    };
+
+    let mut moves = move_gen.gen_moves(position);
+    let move_positions: HashMap<Move, Position> = moves
+        .iter()
+        .map(|mve| {
+            let mut move_position = position.clone();
+            move_position.make_move(mve).unwrap();
+            (*mve, move_position)
+        })
+        .collect();
+
+    'outer: for iterative_deepening_max_depth in 1..=max_depth {
+        let iterative_deepening_max_depth: u64 = iterative_deepening_max_depth.try_into().unwrap();
+
+        // Find value of each move up to current depth
+        let mut move_vals = HashMap::with_capacity(moves.len());
+        for mve in moves.clone() {
+            let move_position = &move_positions[&mve];
+            let (move_val, search_complete) = search_helper(
+                move_position,
+                params,
+                1,
+                iterative_deepening_max_depth,
+                &mut positions_processed,
+                &start,
+                f64::MIN,
+                f64::MAX,
+                move_gen,
+                position_eval,
+                Arc::clone(&info_writer),
+                Arc::clone(&terminate),
+            );
+            move_vals.insert(mve, move_val);
+
+            if search_complete {
+                break 'outer;
+            }
+        }
+
+        // Sort moves by value at this depth
+        moves.sort_by(|move1, move2| {
+            let val1 = move_vals[move1];
+            let val2 = move_vals[move2];
+            val1.partial_cmp(&val2).unwrap()
+        });
+
+        // The moves are sorted by value from white's perspective. We need to reverse the list
+        // if the position given is black
+        if position.state.to_move == Side::Black {
+            moves.reverse();
+        }
+
+        // Find best move
+        best_move = Some(moves[0]);
     }
 
     let search_info = SearchResultInfo {
@@ -183,7 +241,7 @@ pub fn search(
         time_elapsed: start.elapsed(),
     };
 
-    (best_move, search_info)
+    Ok((best_move, search_info))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -191,6 +249,7 @@ fn search_helper(
     position: &Position,
     params: &SearchParams,
     curr_depth: u64,
+    iterative_deepening_max_depth: u64,
     positions_processed: &mut u64,
     start_time: &Instant,
     mut alpha: f64,
@@ -199,28 +258,29 @@ fn search_helper(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
-) -> (Option<Move>, f64) {
+) -> (f64, bool) {
     // If this search has been terminated, return early
     if terminate.load(std::sync::atomic::Ordering::Relaxed) {
-        return (None, 0.0);
+        return (0.0, true);
     }
     // If this search is at the max number of nodes, return early
     if let Some(max_nodes) = params.max_nodes {
         debug_assert!(*positions_processed <= max_nodes);
         if *positions_processed == max_nodes {
-            return (None, 0.0);
+            return (0.0, true);
         }
     }
     // If search has exceeded total time, return early
     if let Some(move_time_msec) = params.move_time_msec {
         if start_time.elapsed().as_millis() >= u128::from(move_time_msec) {
-            return (None, 0.0);
+            return (0.0, true);
         }
     }
     *positions_processed += 1;
 
     if *positions_processed % 250_000 == 0 {
         write_search_info(
+            iterative_deepening_max_depth,
             *positions_processed,
             curr_depth,
             start_time,
@@ -231,29 +291,20 @@ fn search_helper(
     let moves = move_gen.gen_moves(position);
 
     let mut best_val = f64::MIN;
-    let mut best_move: Option<Move> = None;
     for mve in moves {
         let mut move_position = position.clone();
         move_position.make_move(&mve).unwrap();
 
-        if let Some(max_depth) = params.max_depth {
-            if curr_depth + 1 == max_depth {
-                let val = position_eval.evaluate(&move_position);
-                return (Some(mve), val);
-            }
+        if curr_depth + 1 >= iterative_deepening_max_depth {
+            let val = position_eval.evaluate(&move_position);
+            return (val, false);
         }
 
-        if let Some(mate) = params.mate {
-            if curr_depth + 1 == mate {
-                let val = position_eval.evaluate(&move_position);
-                return (Some(mve), val);
-            }
-        }
-
-        let (got_mve, got_val) = search_helper(
+        let (got_val, search_complete) = search_helper(
             &move_position,
             params,
             curr_depth + 1,
+            iterative_deepening_max_depth,
             positions_processed,
             start_time,
             -beta,
@@ -265,7 +316,7 @@ fn search_helper(
         );
 
         // Search has been terminated, return best move we found
-        if got_mve.is_none() && got_val == 0.0 {
+        if search_complete && got_val == 0.0 {
             break;
         }
 
@@ -273,7 +324,6 @@ fn search_helper(
 
         if got_val >= best_val {
             best_val = got_val;
-            best_move = Some(mve);
         }
 
         best_val = f64::max(best_val, got_val);
@@ -285,10 +335,11 @@ fn search_helper(
         }
     }
 
-    (best_move, best_val)
+    (best_val, false)
 }
 
 fn write_search_info(
+    iterative_deepening_max_depth: u64,
     nodes_processed: u64,
     curr_depth: u64,
     start_time: &Instant,
@@ -297,7 +348,7 @@ fn write_search_info(
     // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
     let score_str = format!("mate 0");
-    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", 1, curr_depth, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
+    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
     let mut info_writer = info_writer.lock().unwrap();
     writeln!(info_writer, "{}", info).unwrap();
 }
@@ -354,7 +405,7 @@ mod tests {
             POSITION_EVALUATOR,
             Arc::new(Mutex::new(DummyInfoWriter)),
             Arc::new(AtomicBool::new(false)),
-        );
+        )?;
         Ok(())
     }
 
@@ -376,7 +427,7 @@ mod tests {
             POSITION_EVALUATOR,
             Arc::new(Mutex::new(DummyInfoWriter)),
             Arc::new(AtomicBool::new(false)),
-        );
+        )?;
         assert_eq!(move_got, move_want);
         Ok(())
     }

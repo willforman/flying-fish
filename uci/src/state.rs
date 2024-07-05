@@ -142,7 +142,8 @@ where
                         POSITION_EVALUATOR,
                         Arc::clone(&response_writer),
                         Arc::clone(&terminate),
-                    );
+                    )
+                    .unwrap();
                     write_response(
                         response_writer,
                         UCIResponse::BestMove {

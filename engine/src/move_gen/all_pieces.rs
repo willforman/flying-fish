@@ -197,9 +197,9 @@ pub(super) fn gen_moves(
     position: &Position,
     leaping_pieces: impl GenerateLeapingMoves + std::marker::Copy,
     sliding_pieces: impl GenerateSlidingMoves + std::marker::Copy,
-) -> HashSet<Move> {
+) -> Vec<Move> {
     debug_assert!(position.state.half_move_clock <= 50);
-    let mut moves = HashSet::new();
+    let mut moves = Vec::new();
 
     if position.state.half_move_clock == 50 {
         return moves;
@@ -233,12 +233,11 @@ pub(super) fn gen_moves(
             sliding_pieces,
         );
         moves_bb &= !friendly_pieces;
-        let moves: HashSet<Move> = moves_bb
+        return moves_bb
             .to_squares()
             .iter()
             .map(|&sq| Move::new(king_square, sq))
             .collect();
-        return moves;
     }
 
     if num_checkers == 1 {

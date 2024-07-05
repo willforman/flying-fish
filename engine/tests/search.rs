@@ -6,6 +6,7 @@ use std::{
 };
 
 use engine::{search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR};
+use testresult::TestResult;
 
 #[derive(Clone, Debug)]
 struct UCIResponseSaver {
@@ -56,7 +57,8 @@ fn test_search_terminates() {
             POSITION_EVALUATOR,
             Arc::new(Mutex::new(&mut UCIResponseSaver::new())),
             Arc::clone(&terminate_cloned),
-        );
+        )
+        .unwrap();
         tx_best_move.send(best_move).unwrap();
     });
 

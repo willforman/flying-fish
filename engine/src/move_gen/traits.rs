@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::bitboard::{BitBoard, Square};
 use crate::position::{Move, Piece, Position, Side};
 
@@ -19,5 +17,5 @@ pub trait GenerateCheckers {
 }
 
 pub trait GenerateMoves {
-    fn gen_moves(&self, position: &Position) -> HashSet<Move>;
+    fn gen_moves(&self, position: &Position) -> Vec<Move>;
 }

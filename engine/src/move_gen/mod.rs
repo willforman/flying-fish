@@ -16,7 +16,7 @@ pub use self::traits::GenerateMoves;
 pub struct HyperbolaQuintessenceMoveGen;
 
 impl GenerateMoves for HyperbolaQuintessenceMoveGen {
-    fn gen_moves(&self, position: &Position) -> HashSet<Move> {
+    fn gen_moves(&self, position: &Position) -> Vec<Move> {
         all_pieces::gen_moves(position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE)
     }
 }
