@@ -1,5 +1,6 @@
 use statig::prelude::*;
 use std::io::Write;
+use std::process;
 use std::sync::{Arc, Mutex};
 use std::{sync::atomic::AtomicBool, thread};
 
@@ -30,7 +31,7 @@ where
         Self {
             move_gen,
             response_writer,
-            debug: false,
+            debug: true,
             maybe_terminate: None,
         }
     }
@@ -43,21 +44,21 @@ where
     U: Write + Send + Sync + 'static,
 {
     #[superstate]
-    fn unexpected_command(&mut self, event: &UCICommand) -> Response<State> {
+    fn top_level(&mut self, event: &UCICommand) -> Response<State> {
         write_str_response(
             Arc::clone(&self.response_writer),
             &format!("Unexpected command for current state: {:?}", event),
         );
         Super
     }
-    #[state(superstate = "unexpected_command")]
+    #[state(superstate = "top_level")]
     fn initial(event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::UCI => Transition(State::uci_enabled()),
             _ => Super,
         }
     }
-    #[superstate(superstate = "unexpected_command")]
+    #[superstate(superstate = "top_level")]
     fn debug(&mut self, event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::Debug { on } => {
@@ -135,7 +136,10 @@ where
                 let search_position = position.clone();
                 let move_gen = self.move_gen;
                 let response_writer = Arc::clone(&self.response_writer);
-                let params = params.clone();
+                let params = engine::SearchParams {
+                    debug: self.debug,
+                    ..params.clone()
+                };
 
                 thread::spawn(move || {
                     let (best_move, _) = search(
@@ -166,6 +170,10 @@ where
                     panic!("maybe_terminate should not be None when stop is received");
                 }
                 Handled
+            }
+            UCICommand::Quit => {
+                log::debug!("Exiting with position fen: {}", position.to_fen());
+                process::exit(0);
             }
             _ => Super,
         }

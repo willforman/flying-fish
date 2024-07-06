@@ -6,6 +6,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use log;
 use serde::{Deserialize, Serialize};
 
 use crate::evaluation::EvaluatePosition;
@@ -21,12 +22,74 @@ pub struct SearchParams {
     pub black_time: Option<Duration>,
     pub white_inc: Option<Duration>,
     pub black_inc: Option<Duration>,
-    pub moves_to_go: Option<u64>,
+    pub moves_to_go: Option<u16>,
     pub max_depth: Option<u64>,
     pub max_nodes: Option<u64>,
     pub mate: Option<u64>,
     pub move_time: Option<Duration>,
     pub infinite: bool,
+    pub debug: bool,
+}
+
+impl Display for SearchParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Print out only non default fields
+        let default = SearchParams::default();
+        let mut parts = vec![];
+
+        if self.search_moves != default.search_moves {
+            parts.push(format!(
+                "search_moves: {:?}",
+                self.search_moves.as_ref().unwrap()
+            ));
+        }
+        if self.ponder != default.ponder {
+            parts.push(format!("ponder: {:?}", self.ponder));
+        }
+        if self.white_time != default.white_time {
+            parts.push(format!(
+                "white_time: {:?}",
+                self.white_time.as_ref().unwrap()
+            ));
+        }
+        if self.black_time != default.black_time {
+            parts.push(format!(
+                "black_time: {:?}",
+                self.black_time.as_ref().unwrap()
+            ));
+        }
+        if self.white_inc != default.white_inc {
+            parts.push(format!("white_inc: {:?}", self.white_inc.as_ref().unwrap()));
+        }
+        if self.black_inc != default.black_inc {
+            parts.push(format!("black_inc: {:?}", self.black_inc.as_ref().unwrap()));
+        }
+        if self.moves_to_go != default.moves_to_go {
+            parts.push(format!(
+                "moves_to_go: {:?}",
+                self.moves_to_go.as_ref().unwrap()
+            ));
+        }
+        if self.max_depth != default.max_depth {
+            parts.push(format!("max_depth: {:?}", self.max_depth.as_ref().unwrap()));
+        }
+        if self.max_nodes != default.max_nodes {
+            parts.push(format!("max_nodes: {:?}", self.max_nodes.as_ref().unwrap()));
+        }
+        if self.mate != default.mate {
+            parts.push(format!("mate: {:?}", self.mate.as_ref().unwrap()));
+        }
+        if self.move_time != default.move_time {
+            parts.push(format!("move_time: {:?}", self.move_time.as_ref().unwrap()));
+        }
+        if self.infinite != default.infinite {
+            parts.push(format!("infinite: {:?}", self.infinite));
+        }
+        if self.debug != default.debug {
+            parts.push(format!("debug: {:?}", self.debug));
+        }
+        write!(f, "SearchParams: {}", parts.join(", "))
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -158,12 +221,8 @@ pub enum SearchError {
     DepthAndMatePassed(u64, u64),
 }
 
-fn calc_time_per_move_msec(
-    time_left: Duration,
-    time_inc_msec: Duration,
-    moves_to_go: u16,
-) -> Duration {
-    return time_left / moves_to_go.into();
+fn calc_time_per_move(time_left: Duration, time_inc: Duration, moves_to_go: u16) -> Duration {
+    time_left / moves_to_go.into()
 }
 
 pub fn search(
@@ -174,6 +233,10 @@ pub fn search(
     info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
+    if params.debug {
+        write!(info_writer.lock().unwrap(), "info string {}", params).unwrap();
+        // log::debug!("{}", params);
+    }
     let mut best_move: Option<Move> = None;
     let mut best_val: Option<Move> = None;
 
@@ -188,6 +251,31 @@ pub fn search(
         }
         (None, None) => 300,
     };
+
+    let time_to_use = if position.state.to_move == Side::White {
+        calc_time_per_move(
+            params.white_time.unwrap_or(Duration::from_secs(60)),
+            params.white_inc.unwrap_or(Duration::from_secs(0)),
+            params.moves_to_go.unwrap_or(1),
+        )
+    } else {
+        calc_time_per_move(
+            params.black_time.unwrap_or(Duration::from_secs(60)),
+            params.black_inc.unwrap_or(Duration::from_secs(0)),
+            params.moves_to_go.unwrap_or(1),
+        )
+    };
+    if params.debug {
+        write!(
+            info_writer.lock().unwrap(),
+            "info string time_for_this_move {:?}",
+            time_to_use
+        )
+        .unwrap();
+        // log::debug!("time to use: {:?}", time_to_use);
+    }
+
+    println!("time to use: {:?}", time_to_use);
 
     let mut moves = move_gen.gen_moves(position);
     let move_positions: HashMap<Move, Position> = moves
@@ -252,13 +340,17 @@ pub fn search(
         if position.state.to_move == Side::White {
             moves.reverse();
         }
-        for mve in &moves {
-            println!("{}: {}", mve, move_vals[mve]);
-        }
-        println!("\n=============================================\n");
+        // for mve in &moves {
+        //     println!("{}: {}", mve, move_vals[mve]);
+        // }
+        // println!("\n=============================================\n");
 
         // Find best move
         best_move = Some(moves[0]);
+
+        if start.elapsed() > time_to_use {
+            break;
+        }
     }
 
     let search_info = SearchResultInfo {

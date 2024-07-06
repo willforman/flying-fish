@@ -59,7 +59,7 @@ pub(crate) enum GoParameter {
     SearchMoves { moves: Vec<Move> },
     Time { time: Duration, side: Side },
     Inc { time: Duration, side: Side },
-    MovesToGo { moves: u64 },
+    MovesToGo { moves: u16 },
     Depth { moves: u64 },
     Nodes { nodes: u64 },
     Mate { moves: u64 },
@@ -324,6 +324,7 @@ fn parse_go(input: &mut &str) -> PResult<UCICommand> {
             }
         }),
         infinite: params.iter().any(|i| matches!(i, GoParameter::Infinite)),
+        debug: false, // The UCI server stores state of `debug`, default to false
     })
     .map(|search_params: SearchParams| UCICommand::Go {
         params: search_params,
@@ -396,9 +397,9 @@ fn parse_go_inc(input: &mut &str) -> PResult<GoParameter> {
 fn parse_go_movestogo(input: &mut &str) -> PResult<GoParameter> {
     preceded(
         "movestogo ",
-        digit1.try_map(|moves: &str| u64::from_str(moves)),
+        digit1.try_map(|moves: &str| u16::from_str(moves)),
     )
-    .map(|moves: u64| GoParameter::MovesToGo { moves })
+    .map(|moves: u16| GoParameter::MovesToGo { moves })
     .parse_next(input)
 }
 

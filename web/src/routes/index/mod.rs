@@ -1,5 +1,6 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use leptos::*;
 
@@ -45,7 +46,7 @@ pub fn IndexPage() -> impl IntoView {
     let (move_strs, set_move_strs) = create_signal(Vec::<String>::new());
 
     let search_params = SearchParams {
-        move_time_msec: Some(1000 * 5),
+        move_time: Some(Duration::from_secs(5)),
         ..SearchParams::default()
     };
 

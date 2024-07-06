@@ -98,7 +98,9 @@ impl std::fmt::Display for UCIResponse {
             UCIResponse::IDAuthor { author } => format!("id author {}", author),
             UCIResponse::UCIOk => "uciok".to_string(),
             UCIResponse::ReadyOk => "readyok".to_string(),
-            UCIResponse::BestMove { mve, ponder: None } => format!("bestmove {}", mve),
+            UCIResponse::BestMove { mve, ponder: None } => {
+                format!("bestmove {}", mve.to_string().to_lowercase())
+            }
             _ => format!("{:?} not implemented", self),
         };
         write!(f, "{}", res_str)
