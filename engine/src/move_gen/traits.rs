@@ -12,10 +12,7 @@ pub(super) trait GenerateSlidingMoves {
     fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard;
 }
 
-pub trait GenerateCheckers {
-    fn gen_checkers(&self, position: &Position) -> BitBoard;
-}
-
 pub trait GenerateMoves {
     fn gen_moves(&self, position: &Position) -> Vec<Move>;
+    fn gen_checkers(&self, position: &Position) -> BitBoard;
 }

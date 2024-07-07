@@ -6,9 +6,9 @@ use std::{
 
 use tabled::{Table, Tabled};
 
+use crate::bitboard::BitBoard;
 use crate::move_gen::{GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
 use crate::position::{Piece, Position};
-use crate::{bitboard::BitBoard, move_gen::GenerateCheckers};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Tabled)]
 pub struct PerftDepthResult {
@@ -73,7 +73,7 @@ impl Display for PerftResult {
 pub fn perft(
     position: &Position,
     depth: usize,
-    move_gen: impl GenerateMoves + GenerateCheckers + Copy,
+    move_gen: impl GenerateMoves + Copy,
 ) -> PerftResult {
     let mut depth_results = vec![PerftDepthResult::empty(); depth];
 
@@ -100,7 +100,7 @@ fn perft_helper(
     position: &Position,
     max_depth: usize,
     curr_depth: usize,
-    move_gen: impl GenerateMoves + GenerateCheckers + Copy,
+    move_gen: impl GenerateMoves + Copy,
 ) {
     // Must check moves before checking end condition of this recursive function
     // because we need to check for checkmate
@@ -231,9 +231,7 @@ mod tests {
         fn gen_moves(&self, _position: &Position) -> Vec<Move> {
             Vec::from_iter(self.moves.iter().cloned())
         }
-    }
 
-    impl GenerateCheckers for MoveGenStub<'_> {
         fn gen_checkers(&self, _position: &Position) -> BitBoard {
             BitBoard::empty()
         }

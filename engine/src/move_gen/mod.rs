@@ -3,13 +3,10 @@ pub mod hyperbola_quintessence;
 pub mod leaping_pieces;
 mod traits;
 
-use std::collections::HashSet;
-
 use crate::position::{Move, Position};
 
 use self::hyperbola_quintessence::HYPERBOLA_QUINTESSENCE;
 use self::leaping_pieces::LEAPING_PIECES;
-pub(crate) use self::traits::GenerateCheckers;
 pub use self::traits::GenerateMoves;
 
 #[derive(Clone, Copy)]
@@ -19,9 +16,7 @@ impl GenerateMoves for HyperbolaQuintessenceMoveGen {
     fn gen_moves(&self, position: &Position) -> Vec<Move> {
         all_pieces::gen_moves(position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE)
     }
-}
 
-impl GenerateCheckers for HyperbolaQuintessenceMoveGen {
     fn gen_checkers(&self, position: &Position) -> crate::bitboard::BitBoard {
         all_pieces::get_checkers(position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE)
     }

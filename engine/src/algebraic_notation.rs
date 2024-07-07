@@ -1,6 +1,6 @@
 use thiserror;
 
-use crate::move_gen::{GenerateCheckers, GenerateMoves};
+use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Piece, Position};
 
 #[derive(thiserror::Error, Debug)]
@@ -16,7 +16,6 @@ pub fn move_to_algebraic_notation(
     position: &Position,
     mve: &Move,
     move_gen: impl GenerateMoves,
-    checkers_gen: impl GenerateCheckers,
 ) -> Result<String, AlgebraicNotationError> {
     let (src_piece, _src_side) = position
         .is_piece_at(mve.src)
@@ -103,7 +102,7 @@ pub fn move_to_algebraic_notation(
         .make_move(mve)
         .map_err(|_| AlgebraicNotationError::InvalidMove(mve.to_string()))?;
 
-    if !checkers_gen.gen_checkers(&move_pos).is_empty() {
+    if !move_gen.gen_checkers(&move_pos).is_empty() {
         res.push('+');
     } else {
         let possible_moves_after = move_gen.gen_moves(&move_pos);
@@ -144,7 +143,7 @@ mod tests {
     #[test_case(Position::from_fen("5Q1Q/8/7Q/8/8/8/8/K2k4 w - - 0 1").unwrap(), Move::new(H6, F6), "Qh6f6".to_string() ; "ambiguous rank file 3")]
     fn test_move_to_algebraic_notation(pos: Position, mve: Move, want: String) -> TestResult {
         let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-        let got = move_to_algebraic_notation(&pos, &mve, move_gen, move_gen)?;
+        let got = move_to_algebraic_notation(&pos, &mve, move_gen)?;
 
         assert_eq!(got, want);
         Ok(())
