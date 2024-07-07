@@ -111,7 +111,7 @@ impl EvaluatePosition for PositionEvaluator {
         if position.state.half_move_clock == 50 {
             return 0.0;
         }
-        if move_gen.gen_moves(position).is_empty() {
+        if move_gen.gen_moves(position).is_empty() && !move_gen.gen_checkers(position).is_empty() {
             return if position.state.to_move == Side::White {
                 f64::MAX
             } else {
