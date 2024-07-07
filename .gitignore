@@ -2,5 +2,6 @@
 /Cargo.lock
 .direnv
 .sass-cache/
+**/*.pgn
 
 **/.DS_STORE

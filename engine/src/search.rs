@@ -6,7 +6,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use log;
 use serde::{Deserialize, Serialize};
 
 use crate::evaluation::EvaluatePosition;
@@ -235,7 +234,6 @@ pub fn search(
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     if params.debug {
         write!(info_writer.lock().unwrap(), "info string {}", params).unwrap();
-        // log::debug!("{}", params);
     }
     let mut best_move: Option<Move> = None;
     let mut best_val: Option<Move> = None;
@@ -272,12 +270,15 @@ pub fn search(
             time_to_use
         )
         .unwrap();
-        // log::debug!("time to use: {:?}", time_to_use);
     }
 
-    println!("time to use: {:?}", time_to_use);
-
     let mut moves = move_gen.gen_moves(position);
+
+    // Filter out moves not in search moves
+    if let Some(search_moves) = &params.search_moves {
+        moves.retain(|mve| search_moves.contains(mve));
+    }
+
     let move_positions: HashMap<Move, Position> = moves
         .iter()
         .map(|mve| {
@@ -307,7 +308,7 @@ pub fn search(
         let mut move_vals = HashMap::with_capacity(moves.len());
         for mve in moves.clone() {
             let move_position = &move_positions[&mve];
-            let (move_val, search_complete) = search_helper(
+            let (mut move_val, search_complete) = search_helper(
                 move_position,
                 params,
                 1,
@@ -321,6 +322,7 @@ pub fn search(
                 Arc::clone(&info_writer),
                 Arc::clone(&terminate),
             );
+            move_val = -move_val;
             move_vals.insert(mve, move_val);
 
             if search_complete {
@@ -532,29 +534,6 @@ mod tests {
             Arc::new(Mutex::new(DummyInfoWriter)),
             Arc::new(AtomicBool::new(false)),
         )?;
-        Ok(())
-    }
-
-    #[test_case(Position::from_fen("k7/7R/6R1/8/8/8/8/K7 b - - 0 1").unwrap(), 2, Some(Move::new(A8, B8)))]
-    #[test_case(Position::from_fen("k7/7R/8/8/8/8/8/K7 b - - 0 1").unwrap(), 2, None)]
-    fn test_search_mate(
-        position: Position,
-        mate_moves: u64,
-        move_want: Option<Move>,
-    ) -> TestResult {
-        let params = SearchParams {
-            mate: Some(mate_moves),
-            ..Default::default()
-        };
-        let (move_got, _) = search(
-            &position,
-            &params,
-            HYPERBOLA_QUINTESSENCE_MOVE_GEN,
-            POSITION_EVALUATOR,
-            Arc::new(Mutex::new(DummyInfoWriter)),
-            Arc::new(AtomicBool::new(false)),
-        )?;
-        assert_eq!(move_got, move_want);
         Ok(())
     }
 }

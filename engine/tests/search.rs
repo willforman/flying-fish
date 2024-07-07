@@ -4,8 +4,13 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use test_case::test_case;
 
-use engine::{search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR};
+use engine::Square::*;
+use engine::{
+    search, Move, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
+};
+use testresult::TestResult;
 
 #[derive(Clone, Debug)]
 struct UCIResponseSaver {
@@ -61,7 +66,7 @@ fn test_search_terminates() {
         tx_best_move.send(best_move).unwrap();
     });
 
-    thread::sleep(Duration::new(0, 100000));
+    thread::sleep(Duration::from_millis(25));
 
     terminate.swap(true, std::sync::atomic::Ordering::Relaxed);
 
@@ -74,4 +79,23 @@ fn test_search_terminates() {
 
     let best_move = rx_best_move.recv().unwrap();
     assert_ne!(best_move, None);
+}
+
+#[test_case(Position::from_fen("k7/6R1/7R/8/8/8/8/3K4 w - - 0 1").unwrap(), Move::new(H6, H8))]
+fn test_finds_best_move(position: Position, best_move_want: Move) -> TestResult {
+    let search_params = SearchParams {
+        max_depth: Some(1),
+        ..SearchParams::default()
+    };
+    let response_saver = Arc::new(Mutex::new(UCIResponseSaver::new()));
+    let (best_move_got, _) = search(
+        &position,
+        &search_params,
+        HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+        POSITION_EVALUATOR,
+        Arc::clone(&response_saver),
+        Arc::new(AtomicBool::new(false)),
+    )?;
+    assert_eq!(best_move_got, Some(best_move_want));
+    Ok(())
 }
