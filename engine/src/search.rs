@@ -288,19 +288,6 @@ pub fn search(
         })
         .collect();
 
-    if max_depth == 1 {
-        let best_move = moves.clone().into_iter().max_by(|move1, move2| {
-            let val1 = position_eval.evaluate(&move_positions[move1]);
-            let val2 = position_eval.evaluate(&move_positions[move2]);
-            val2.partial_cmp(&val1).unwrap()
-        });
-        let search_info = SearchResultInfo {
-            positions_processed: moves.len().try_into().unwrap(),
-            time_elapsed: start.elapsed(),
-        };
-        return Ok((best_move, search_info));
-    }
-
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
         let iterative_deepening_max_depth: u64 = iterative_deepening_max_depth.try_into().unwrap();
 
@@ -342,10 +329,10 @@ pub fn search(
         if position.state.to_move == Side::White {
             moves.reverse();
         }
-        // for mve in &moves {
-        //     println!("{}: {}", mve, move_vals[mve]);
-        // }
-        // println!("\n=============================================\n");
+        for mve in &moves {
+            println!("{}: {}", mve, move_vals[mve]);
+        }
+        println!("\n=============================================\n");
 
         // Find best move
         best_move = Some(moves[0]);
@@ -407,6 +394,11 @@ fn search_helper(
         );
     }
 
+    if curr_depth == iterative_deepening_max_depth {
+        let curr_evaluation = position_eval.evaluate(position, move_gen);
+        return (curr_evaluation, false);
+    }
+
     let moves = move_gen.gen_moves(position);
 
     let mut best_val = f64::MIN;
@@ -426,12 +418,7 @@ fn search_helper(
             panic!("Err encountered searching, exiting");
         }
 
-        if curr_depth >= iterative_deepening_max_depth {
-            let val = position_eval.evaluate(&move_position);
-            return (val, false);
-        }
-
-        let (got_val, search_complete) = search_helper(
+        let (mut got_val, search_complete) = search_helper(
             &move_position,
             params,
             curr_depth + 1,
@@ -451,6 +438,12 @@ fn search_helper(
             return (best_val, true);
         }
 
+        // First, make sure value is relative to side to move in that position
+        if move_position.state.to_move == Side::Black {
+            got_val = -got_val;
+        }
+
+        // Then, flip value because that was relative to the opposite side
         let got_val = -got_val;
 
         if got_val >= best_val {

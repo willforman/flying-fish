@@ -4,9 +4,10 @@ use strum::IntoEnumIterator;
 
 use crate::bitboard::Square;
 use crate::position::{Piece, Position, Side};
+use crate::GenerateMoves;
 
 pub trait EvaluatePosition {
-    fn evaluate(&self, position: &Position) -> f64;
+    fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> f64;
 }
 
 #[derive(Clone, Copy)]
@@ -106,12 +107,19 @@ fn get_piece_square_bonus(
 }
 
 impl EvaluatePosition for PositionEvaluator {
-    fn evaluate(&self, position: &Position) -> f64 {
+    fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> f64 {
         if position.state.half_move_clock == 50 {
             return 0.0;
         }
+        if move_gen.gen_moves(position).is_empty() {
+            return if position.state.to_move == Side::White {
+                f64::MAX
+            } else {
+                f64::MIN
+            };
+        }
 
-        let val = position
+        position
             .get_piece_locs()
             .into_iter()
             .fold(0., |acc, (piece, side, square)| {
@@ -122,12 +130,7 @@ impl EvaluatePosition for PositionEvaluator {
                 } else {
                     acc - val
                 }
-            });
-        if position.state.to_move == Side::White {
-            val
-        } else {
-            -val
-        }
+            })
     }
 }
 
@@ -138,7 +141,7 @@ fn piece_value(piece: Piece) -> f64 {
         Piece::Bishop => 330.,
         Piece::Rook => 500.,
         Piece::Queen => 900.,
-        Piece::King => 20000.,
+        Piece::King => f64::MAX,
     }
 }
 

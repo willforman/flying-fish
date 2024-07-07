@@ -81,7 +81,7 @@ fn test_search_terminates() {
     assert_ne!(best_move, None);
 }
 
-#[test_case(Position::from_fen("k7/6R1/7R/8/8/8/8/3K4 w - - 0 1").unwrap(), Move::new(H6, H8))]
+#[test_case(Position::from_fen("k7/6R1/7R/8/8/8/8/3K4 w - - 0 1").unwrap(), Move::new(H6, H8) ; "rook ladder in 1")]
 fn test_finds_best_move(position: Position, best_move_want: Move) -> TestResult {
     let search_params = SearchParams {
         max_depth: Some(1),
@@ -97,5 +97,24 @@ fn test_finds_best_move(position: Position, best_move_want: Move) -> TestResult 
         Arc::new(AtomicBool::new(false)),
     )?;
     assert_eq!(best_move_got, Some(best_move_want));
+    Ok(())
+}
+
+#[test_case(Position::from_fen("k7/8/1R6/8/8/8/8/1R1K4 w - - 0 1").unwrap(), Move::new(B6, B7) ; "rook ladder stalemate")]
+fn test_doesnt_find_stalemate(position: Position, stalemate_move_dont_want: Move) -> TestResult {
+    let search_params = SearchParams {
+        max_depth: Some(1),
+        ..SearchParams::default()
+    };
+    let response_saver = Arc::new(Mutex::new(UCIResponseSaver::new()));
+    let (best_move_got, _) = search(
+        &position,
+        &search_params,
+        HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+        POSITION_EVALUATOR,
+        Arc::clone(&response_saver),
+        Arc::new(AtomicBool::new(false)),
+    )?;
+    assert_ne!(best_move_got, Some(stalemate_move_dont_want));
     Ok(())
 }
