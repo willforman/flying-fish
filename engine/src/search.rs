@@ -91,6 +91,21 @@ impl Display for SearchParams {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Score {
+    Eval(f64),
+    Mate(u64),
+}
+
+impl Display for Score {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Score::Eval(eval) => write!(f, "cp {}", eval),
+            Score::Mate(moves) => write!(f, "mate {}", moves),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchResultInfo {
     pub positions_processed: u64,
@@ -233,13 +248,15 @@ pub fn search(
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     if params.debug {
-        write!(info_writer.lock().unwrap(), "info string {}", params).unwrap();
+        writeln!(info_writer.lock().unwrap(), "info string {}", params).unwrap();
+        log::debug!("{}", params);
     }
     let mut best_move: Option<Move> = None;
     let mut best_val: Option<Move> = None;
 
     let mut positions_processed: u64 = 0;
     let start = Instant::now();
+    let mut latest_score = Score::Eval(0.0);
 
     let max_depth: usize = match (params.max_depth, params.mate) {
         (Some(max_depth), None) => max_depth.try_into().unwrap(),
@@ -264,12 +281,13 @@ pub fn search(
         )
     };
     if params.debug {
-        write!(
+        writeln!(
             info_writer.lock().unwrap(),
             "info string time_for_this_move {:?}",
             time_to_use
         )
         .unwrap();
+        log::debug!("time for this move: {:?}", time_to_use);
     }
 
     let mut moves = move_gen.gen_moves(position);
@@ -302,6 +320,7 @@ pub fn search(
                 iterative_deepening_max_depth,
                 &mut positions_processed,
                 &start,
+                &mut latest_score,
                 f64::MIN,
                 f64::MAX,
                 move_gen,
@@ -309,13 +328,20 @@ pub fn search(
                 Arc::clone(&info_writer),
                 Arc::clone(&terminate),
             );
-            // It seems like we should flip sign of move_val here
             // Since this is after making a move, flip the value to get the value
             // relative to the side of `position`
             move_val = -move_val;
             move_vals.insert(mve, move_val);
 
             if search_complete {
+                write_search_info(
+                    iterative_deepening_max_depth,
+                    positions_processed,
+                    iterative_deepening_max_depth,
+                    &start,
+                    &latest_score,
+                    info_writer,
+                );
                 break 'outer;
             }
         }
@@ -335,6 +361,33 @@ pub fn search(
         // Find best move
         best_move = Some(moves[0]);
 
+        latest_score = match latest_score {
+            Score::Eval(_) => {
+                let move_val = move_vals[&best_move.unwrap()];
+                if move_val == f64::MAX || move_val == f64::MIN {
+                    Score::Mate(iterative_deepening_max_depth)
+                } else {
+                    Score::Eval(move_val)
+                }
+            }
+            Score::Mate(moves) => Score::Mate(moves),
+        };
+
+        write_search_info(
+            iterative_deepening_max_depth,
+            positions_processed,
+            iterative_deepening_max_depth,
+            &start,
+            &latest_score,
+            Arc::clone(&info_writer),
+        );
+
+        if params.debug {
+            log::debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
+        }
+
+        // Break search if:
+        // - Engine has gone past alotted time
         if start.elapsed() > time_to_use {
             break;
         }
@@ -356,6 +409,7 @@ fn search_helper(
     iterative_deepening_max_depth: u64,
     positions_processed: &mut u64,
     start_time: &Instant,
+    latest_score: &mut Score,
     mut alpha: f64,
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
@@ -388,6 +442,7 @@ fn search_helper(
             *positions_processed,
             curr_depth,
             start_time,
+            latest_score,
             Arc::clone(&info_writer),
         );
     }
@@ -409,6 +464,7 @@ fn search_helper(
                 *positions_processed,
                 curr_depth,
                 start_time,
+                latest_score,
                 Arc::clone(&info_writer),
             );
             let mut info_writer = info_writer.lock().unwrap();
@@ -423,6 +479,7 @@ fn search_helper(
             iterative_deepening_max_depth,
             positions_processed,
             start_time,
+            latest_score,
             -beta,
             -alpha,
             move_gen,
@@ -457,12 +514,12 @@ fn write_search_info(
     nodes_processed: u64,
     curr_depth: u64,
     start_time: &Instant,
+    latest_score: &Score,
     info_writer: Arc<Mutex<impl Write>>,
 ) {
     // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    let score_str = format!("mate 0");
-    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth + 1, 1, score_str, nodes_processed, nps, 0, 0, 0, "");
+    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), "");
     let mut info_writer = info_writer.lock().unwrap();
     writeln!(info_writer, "{}", info).unwrap();
 }
