@@ -309,6 +309,9 @@ pub fn search(
                 Arc::clone(&info_writer),
                 Arc::clone(&terminate),
             );
+            // It seems like we should flip sign of move_val here
+            // Since this is after making a move, flip the value to get the value
+            // relative to the side of `position`
             move_val = -move_val;
             move_vals.insert(mve, move_val);
 
@@ -317,22 +320,17 @@ pub fn search(
             }
         }
 
-        // Sort moves by value at this depth
+        // Sort moves by descending value, for this depth
         moves.sort_by(|move1, move2| {
             let val1 = move_vals[move1];
             let val2 = move_vals[move2];
-            val1.partial_cmp(&val2).unwrap()
+            val2.partial_cmp(&val1).unwrap()
         });
 
-        // The moves are sorted by value from white's perspective. We need to reverse the list
-        // if the position given is black to move
-        if position.state.to_move == Side::White {
-            moves.reverse();
-        }
-        for mve in &moves {
-            println!("{}: {}", mve, move_vals[mve]);
-        }
-        println!("\n=============================================\n");
+        // for mve in &moves {
+        //     println!("{}: {}", mve, move_vals[mve]);
+        // }
+        // println!("\n=============================================\n");
 
         // Find best move
         best_move = Some(moves[0]);
@@ -418,7 +416,7 @@ fn search_helper(
             panic!("Err encountered searching, exiting");
         }
 
-        let (mut got_val, search_complete) = search_helper(
+        let (got_val, search_complete) = search_helper(
             &move_position,
             params,
             curr_depth + 1,
@@ -434,16 +432,11 @@ fn search_helper(
         );
 
         // If child node is signaling search is terminated, better terminate self
-        if search_complete && got_val == 0.0 {
+        if search_complete {
             return (best_val, true);
         }
 
-        // First, make sure value is relative to side to move in that position
-        if move_position.state.to_move == Side::Black {
-            got_val = -got_val;
-        }
-
-        // Then, flip value because that was relative to the opposite side
+        // Then, flip value because it was relative to the other side
         let got_val = -got_val;
 
         if got_val >= best_val {

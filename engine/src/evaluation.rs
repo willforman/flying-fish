@@ -108,18 +108,15 @@ fn get_piece_square_bonus(
 
 impl EvaluatePosition for PositionEvaluator {
     fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> f64 {
+        // Return evaluation relative to the side to move
         if position.state.half_move_clock == 50 {
             return 0.0;
         }
         if move_gen.gen_moves(position).is_empty() && !move_gen.gen_checkers(position).is_empty() {
-            return if position.state.to_move == Side::White {
-                f64::MAX
-            } else {
-                f64::MIN
-            };
+            return f64::MIN;
         }
 
-        position
+        let eval = position
             .get_piece_locs()
             .into_iter()
             .fold(0., |acc, (piece, side, square)| {
@@ -130,7 +127,12 @@ impl EvaluatePosition for PositionEvaluator {
                 } else {
                     acc - val
                 }
-            })
+            });
+        if position.state.to_move == Side::White {
+            eval
+        } else {
+            -eval
+        }
     }
 }
 
@@ -141,7 +143,7 @@ fn piece_value(piece: Piece) -> f64 {
         Piece::Bishop => 330.,
         Piece::Rook => 500.,
         Piece::Queen => 900.,
-        Piece::King => f64::MAX,
+        Piece::King => 2000., // Don't use f64::MAX in case of overflows
     }
 }
 

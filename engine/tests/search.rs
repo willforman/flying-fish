@@ -81,10 +81,13 @@ fn test_search_terminates() {
     assert_ne!(best_move, None);
 }
 
-#[test_case(Position::from_fen("k7/6R1/7R/8/8/8/8/3K4 w - - 0 1").unwrap(), Move::new(H6, H8) ; "rook ladder in 1")]
-fn test_finds_best_move(position: Position, best_move_want: Move) -> TestResult {
+#[test_case(Position::from_fen("k7/6R1/7R/8/8/8/8/3K4 w - - 0 1").unwrap(), 1, Move::new(H6, H8) ; "rook ladder in 1 white")]
+#[test_case(Position::from_fen("8/k7/8/8/8/1r6/r7/7K b - - 0 1").unwrap(), 1, Move::new(B3, B1) ; "rook ladder in 1 black")]
+#[test_case(Position::from_fen("1k6/8/2R5/7R/8/8/8/6K1 w - - 0 1").unwrap(), 3, Move::new(H5, H7) ; "rook ladder in 3 white")]
+#[test_case(Position::from_fen("8/k7/8/8/r7/5r2/8/6K1 b - - 0 1").unwrap(), 3, Move::new(A4, A2) ; "rook ladder in 3 black")]
+fn test_finds_best_move(position: Position, max_depth: u64, best_move_want: Move) -> TestResult {
     let search_params = SearchParams {
-        max_depth: Some(1),
+        max_depth: Some(max_depth),
         ..SearchParams::default()
     };
     let response_saver = Arc::new(Mutex::new(UCIResponseSaver::new()));
