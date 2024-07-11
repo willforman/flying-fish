@@ -318,6 +318,7 @@ pub fn search(
         // Find value of each move up to current depth
         let mut move_vals = HashMap::with_capacity(moves.len());
         for mve in moves.clone() {
+            println!("move: {}", mve);
             let move_position = &move_positions[&mve];
             let (mut move_val, search_complete) = search_helper(
                 move_position,
@@ -449,6 +450,7 @@ fn search_helper(
 
     if curr_depth == iterative_deepening_max_depth {
         let curr_evaluation = position_eval.evaluate(position, move_gen);
+        println!("got eval: {}", curr_evaluation);
         return (curr_evaluation, false);
     }
 
