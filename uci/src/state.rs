@@ -1,5 +1,7 @@
 use statig::prelude::*;
+use std::fmt::format;
 use std::io::Write;
+use std::path::PathBuf;
 use std::process;
 use std::sync::{Arc, Mutex};
 use std::{sync::atomic::AtomicBool, thread};
@@ -7,6 +9,7 @@ use std::{sync::atomic::AtomicBool, thread};
 use engine::{search, GenerateMoves, Position, AUTHOR, NAME, POSITION_EVALUATOR};
 
 use crate::messages::{UCICommand, UCIResponse};
+use crate::LOGS_DIRECTORY;
 
 pub(crate) struct UCIState<T, U>
 where
@@ -20,6 +23,7 @@ where
     // to be able store this as statig state local storage because that requires the
     // item to be a reference.
     maybe_terminate: Option<Arc<AtomicBool>>,
+    maybe_search_logs_path: Option<PathBuf>,
 }
 
 impl<T, U> UCIState<T, U>
@@ -33,6 +37,7 @@ where
             response_writer,
             debug: true,
             maybe_terminate: None,
+            maybe_search_logs_path: None,
         }
     }
 }
@@ -103,6 +108,18 @@ where
             },
         );
         write_response(Arc::clone(&self.response_writer), UCIResponse::UCIOk);
+
+        if self.debug {
+            let curr_time_str = chrono::Local::now().format("%I_%M_%m_%d");
+            let log_name = format!("search-{}.txt", curr_time_str);
+            let mut search_logs_path = LOGS_DIRECTORY
+                .get()
+                .expect("LOGS_DIRECTORY should be set")
+                .clone();
+            search_logs_path.push("search");
+            search_logs_path.push(log_name);
+            self.maybe_search_logs_path = Some(search_logs_path);
+        }
     }
 
     #[state(superstate = "is_ready")]
@@ -140,6 +157,7 @@ where
                     debug: self.debug,
                     ..params.clone()
                 };
+                let maybe_search_logs_path = self.maybe_search_logs_path.clone();
 
                 thread::spawn(move || {
                     let (best_move, _) = search(
@@ -149,6 +167,7 @@ where
                         POSITION_EVALUATOR,
                         Arc::clone(&response_writer),
                         Arc::clone(&terminate),
+                        maybe_search_logs_path,
                     )
                     .unwrap();
                     write_response(

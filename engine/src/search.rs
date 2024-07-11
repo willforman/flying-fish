@@ -1,7 +1,9 @@
 use core::panic;
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::fs::File;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -88,21 +90,6 @@ impl Display for SearchParams {
             parts.push(format!("debug: {:?}", self.debug));
         }
         write!(f, "SearchParams: {}", parts.join(", "))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Score {
-    Eval(f64),
-    Mate(u64),
-}
-
-impl Display for Score {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Score::Eval(eval) => write!(f, "cp {}", eval),
-            Score::Mate(moves) => write!(f, "mate {}", moves),
-        }
     }
 }
 
@@ -233,6 +220,9 @@ impl Display for SearchInfo {
 pub enum SearchError {
     #[error("Parameters depth and mate are mutually exclusive, both passed: {0}, {1}")]
     DepthAndMatePassed(u64, u64),
+
+    #[error("Couldn't open search file logs: {0}")]
+    OpenSearchLogsFile(PathBuf),
 }
 
 fn calc_time_per_move(time_left: Duration, time_inc: Duration, moves_to_go: u16) -> Duration {
@@ -246,6 +236,7 @@ pub fn search(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
+    search_logs_path: Option<PathBuf>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     if params.debug {
         writeln!(info_writer.lock().unwrap(), "info string {}", params).unwrap();
@@ -306,6 +297,21 @@ pub fn search(
         })
         .collect();
 
+    let mut maybe_search_logs_file = if let Some(search_logs_path) = &search_logs_path {
+        Some(
+            File::create(search_logs_path)
+                .map_err(|_| SearchError::OpenSearchLogsFile(search_logs_path.to_path_buf()))?,
+        )
+    } else {
+        None
+    };
+
+    if let Some(search_logs_file) = &mut maybe_search_logs_file {
+        writeln!(search_logs_file, "NEW SEARCH").unwrap();
+        writeln!(search_logs_file, "{}", position.to_fen()).unwrap();
+        writeln!(search_logs_file, "{}", params).unwrap();
+    }
+
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
         let iterative_deepening_max_depth: u64 = iterative_deepening_max_depth.try_into().unwrap();
 
@@ -353,11 +359,6 @@ pub fn search(
             val2.partial_cmp(&val1).unwrap()
         });
 
-        // for mve in &moves {
-        //     println!("{}: {}", mve, move_vals[mve]);
-        // }
-        // println!("\n=============================================\n");
-
         // Find best move
         best_move = Some(moves[0]);
 
@@ -384,6 +385,15 @@ pub fn search(
 
         if params.debug {
             log::debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
+        }
+
+        if let Some(search_logs_file) = &mut maybe_search_logs_file {
+            for mve in &moves {
+                writeln!(search_logs_file, "{}: {}", mve, move_vals[mve])
+                    .expect("Write move to search logs failed");
+            }
+            writeln!(search_logs_file, "==================================")
+                .expect("Write to search logs failed");
         }
 
         // Break search if:
@@ -576,6 +586,7 @@ mod tests {
             POSITION_EVALUATOR,
             Arc::new(Mutex::new(DummyInfoWriter)),
             Arc::new(AtomicBool::new(false)),
+            None,
         )?;
         Ok(())
     }

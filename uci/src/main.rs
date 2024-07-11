@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{self, BufRead},
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
@@ -8,15 +9,16 @@ use anyhow::{Context, Result};
 use engine::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
 use log::LevelFilter;
-use uci::UCI;
+use uci::{LOGS_DIRECTORY, UCI};
 
 fn main() -> Result<()> {
-    let log_path = dirs::home_dir()
-        .unwrap()
-        .join(".local")
-        .join("state")
-        .join("chess")
-        .join("chess.log");
+    let mut logs_dir = dirs::home_dir().expect("Home directory is unset");
+    logs_dir.push(PathBuf::from(".local/state/chess"));
+
+    let _ = LOGS_DIRECTORY.get_or_init(|| logs_dir.clone());
+
+    let mut log_path = logs_dir;
+    log_path.push("chess.log");
 
     simplelog::WriteLogger::init(
         LevelFilter::Trace,

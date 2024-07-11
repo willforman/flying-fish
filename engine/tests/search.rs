@@ -61,6 +61,7 @@ fn test_search_terminates() {
             POSITION_EVALUATOR,
             Arc::new(Mutex::new(&mut UCIResponseSaver::new())),
             Arc::clone(&terminate_cloned),
+            None,
         )
         .unwrap();
         tx_best_move.send(best_move).unwrap();
@@ -100,6 +101,7 @@ fn test_finds_best_move(position: Position, max_depth: u64, best_move_want: Move
         POSITION_EVALUATOR,
         Arc::clone(&response_saver),
         Arc::new(AtomicBool::new(false)),
+        None,
     )?;
     assert_eq!(best_move_got, Some(best_move_want));
     Ok(())
@@ -119,6 +121,7 @@ fn test_doesnt_find_stalemate(position: Position, stalemate_move_dont_want: Move
         POSITION_EVALUATOR,
         Arc::clone(&response_saver),
         Arc::new(AtomicBool::new(false)),
+        None,
     )?;
     assert_ne!(best_move_got, Some(stalemate_move_dont_want));
     Ok(())

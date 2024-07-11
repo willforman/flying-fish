@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.80"
+chrono = "0.4.38"
 dirs = "5.0.1"
 engine = { path = "../engine" }
 log = "0.4.21"
