@@ -247,7 +247,7 @@ pub fn search(
 
     let mut positions_processed: u64 = 0;
     let start = Instant::now();
-    let mut latest_score = Score::Eval(0.0);
+    let mut latest_score = 0.0;
 
     let max_depth: usize = match (params.max_depth, params.mate) {
         (Some(max_depth), None) => max_depth.try_into().unwrap(),
@@ -362,17 +362,7 @@ pub fn search(
         // Find best move
         best_move = Some(moves[0]);
 
-        latest_score = match latest_score {
-            Score::Eval(_) => {
-                let move_val = move_vals[&best_move.unwrap()];
-                if move_val == f64::MAX || move_val == f64::MIN {
-                    Score::Mate(iterative_deepening_max_depth)
-                } else {
-                    Score::Eval(move_val)
-                }
-            }
-            Score::Mate(moves) => Score::Mate(moves),
-        };
+        latest_score = move_vals[&best_move.unwrap()];
 
         write_search_info(
             iterative_deepening_max_depth,
@@ -419,7 +409,7 @@ fn search_helper(
     iterative_deepening_max_depth: u64,
     positions_processed: &mut u64,
     start_time: &Instant,
-    latest_score: &mut Score,
+    latest_score: &mut f64,
     mut alpha: f64,
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
@@ -524,7 +514,7 @@ fn write_search_info(
     nodes_processed: u64,
     curr_depth: u64,
     start_time: &Instant,
-    latest_score: &Score,
+    latest_score: &f64,
     info_writer: Arc<Mutex<impl Write>>,
 ) {
     // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1

@@ -7,24 +7,8 @@ use crate::bitboard::Square;
 use crate::position::{Piece, Position, Side};
 use crate::GenerateMoves;
 
-#[derive(Debug, Clone)]
-pub enum Score {
-    Eval(f64),
-    Mate(u64),
-    Stalemate,
-}
-
-impl Display for Score {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Score::Eval(eval) => write!(f, "cp {}", eval / 100.),
-            Score::Mate(moves) => write!(f, "mate {}", moves),
-        }
-    }
-}
-
 pub trait EvaluatePosition {
-    fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> Score;
+    fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> f64;
 }
 
 #[derive(Clone, Copy)]
@@ -124,11 +108,11 @@ fn get_piece_square_bonus(
 }
 
 impl EvaluatePosition for PositionEvaluator {
-    fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> Score {
+    fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> f64 {
         println!("Called with position: {}", position.to_fen());
         // Return evaluation relative to the side to move
         if position.state.half_move_clock == 50 {
-            return Score::Stalemate;
+            return 0.0;
         }
         if move_gen.gen_moves(position).is_empty() && !move_gen.gen_checkers(position).is_empty() {
             return f64::MIN;
