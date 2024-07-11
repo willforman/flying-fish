@@ -6,7 +6,10 @@ use std::process;
 use std::sync::{Arc, Mutex};
 use std::{sync::atomic::AtomicBool, thread};
 
-use engine::{search, GenerateMoves, Position, AUTHOR, NAME, POSITION_EVALUATOR};
+use engine::{
+    search, EvaluatePosition, GenerateMoves, Position, AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+    NAME, POSITION_EVALUATOR,
+};
 
 use crate::messages::{UCICommand, UCIResponse};
 use crate::LOGS_DIRECTORY;
@@ -193,6 +196,14 @@ where
             UCICommand::Quit => {
                 log::debug!("Exiting with position fen: {}", position.to_fen());
                 process::exit(0);
+            }
+            UCICommand::Eval => {
+                let eval = POSITION_EVALUATOR.evaluate(position, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+                write_str_response(
+                    Arc::clone(&self.response_writer),
+                    format!("info string {}", eval / 100.).as_str(),
+                );
+                Handled
             }
             _ => Super,
         }

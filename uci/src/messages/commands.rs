@@ -52,6 +52,9 @@ pub(crate) enum UCICommand {
     Stop,
     PonderHit,
     Quit,
+
+    // Non standard UCI commands
+    Eval,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -96,6 +99,7 @@ impl FromStr for UCICommand {
             parse_ponderhit,
             parse_quit,
             parse_go,
+            parse_eval,
         ))
         .parse(input)
         .map_err(|_| UCICommandParseError(format!("cannot parse: [{}]", input)))
@@ -225,6 +229,10 @@ fn parse_ponderhit(input: &mut &str) -> PResult<UCICommand> {
 
 fn parse_quit(input: &mut &str) -> PResult<UCICommand> {
     "quit".value(UCICommand::Quit).parse_next(input)
+}
+
+fn parse_eval(input: &mut &str) -> PResult<UCICommand> {
+    "eval".value(UCICommand::Eval).parse_next(input)
 }
 
 // ======================================================
