@@ -1,4 +1,4 @@
-use core::panic;
+use core::{f64, panic};
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::fs::File;
@@ -318,7 +318,6 @@ pub fn search(
         // Find value of each move up to current depth
         let mut move_vals = HashMap::with_capacity(moves.len());
         for mve in moves.clone() {
-            println!("move: {}", mve);
             let move_position = &move_positions[&mve];
             let (mut move_val, search_complete) = search_helper(
                 move_position,
@@ -450,7 +449,6 @@ fn search_helper(
 
     if curr_depth == iterative_deepening_max_depth {
         let curr_evaluation = position_eval.evaluate(position, move_gen);
-        println!("got eval: {}", curr_evaluation);
         return (curr_evaluation, false);
     }
 
@@ -501,6 +499,7 @@ fn search_helper(
         if got_val >= best_val {
             best_val = got_val;
             alpha = f64::max(alpha, got_val);
+            *latest_score = got_val;
         }
 
         if alpha >= beta {
@@ -519,9 +518,8 @@ fn write_search_info(
     latest_score: &f64,
     info_writer: Arc<Mutex<impl Write>>,
 ) {
-    // info depth 10 seldepth 6 multipv 1 score mate 3 nodes 971 nps 121375 hashfull 0 tbhits 0 time 8 pv f4g3 e6d6 d2d6 h1g1 d6d1
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    let info = format!("info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), "");
+    let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), "");
     let mut info_writer = info_writer.lock().unwrap();
     writeln!(info_writer, "{}", info).unwrap();
 }

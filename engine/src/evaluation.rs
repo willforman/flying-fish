@@ -117,7 +117,6 @@ fn get_piece_square_bonus(
 
 impl EvaluatePosition for PositionEvaluator {
     fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> f64 {
-        println!("Called with position: {}", position.to_fen());
         // Return evaluation relative to the side to move
         if position.state.half_move_clock == 50 {
             return 0.0;
@@ -130,13 +129,6 @@ impl EvaluatePosition for PositionEvaluator {
             .get_piece_locs()
             .into_iter()
             .fold(0., |acc, (piece, side, square)| {
-                println!(
-                    "piece={} side={} square={} val={}",
-                    piece,
-                    side,
-                    square,
-                    get_piece_square_bonus(piece, side, square, true)
-                );
                 let val = piece_value(piece) + get_piece_square_bonus(piece, side, square, true);
 
                 if side == Side::White {
