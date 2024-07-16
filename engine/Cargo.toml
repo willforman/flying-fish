@@ -6,12 +6,22 @@ authors = ["Will Forman wf8581@gmail.com"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.release]
+debug = 1
+
 [dependencies]
 log = "0.4.22"
 serde = { version = "1.0.195", features = ["derive"] }
 strum = "0.24.1"
 strum_macros = "0.24.3"
 tabled = "0.12.2"
-test-case = "3.1.0"
 testresult = "0.3.0"
 thiserror = "1.0.40"
+
+[dev-dependencies]
+criterion = "0.5.1"
+test-case = "3.1.0"
+
+[[bench]]
+name = "search"
+harness = false

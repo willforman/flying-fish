@@ -5,3 +5,4 @@
 **/*.pgn
 
 **/.DS_STORE
+flamegraph.svg
