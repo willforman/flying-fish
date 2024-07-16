@@ -43,6 +43,7 @@
             tailwindcss
             lldb_17
             libllvm
+            cargo-flamegraph
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
               CoreServices
