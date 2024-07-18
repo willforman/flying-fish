@@ -15,6 +15,7 @@ pub trait EvaluatePosition {
 pub struct PositionEvaluator;
 
 // Source: https://www.chessprogramming.org/Simplified_Evaluation_Function
+#[inline(always)]
 fn get_piece_square_bonus(piece: Piece, square: Square, is_early_or_mid_game: bool) -> f64 {
     #[rustfmt::skip]
     let table = match (piece, is_early_or_mid_game) {
