@@ -3,16 +3,20 @@ use std::{
     sync::{atomic::AtomicBool, Arc, Mutex},
 };
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use engine::{search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR};
 
 pub fn benchmark_search(c: &mut Criterion) {
+    let mut group = c.benchmark_group("search");
+    group.sample_size(200);
+
     let pos = Position::start();
     let search_params = SearchParams {
         max_depth: Some(4),
         ..SearchParams::default()
     };
-    c.bench_function("search early game depth 4", |b| {
+
+    group.bench_function("search early game", |b| {
         b.iter(|| {
             search(
                 &pos,
