@@ -15,25 +15,10 @@ pub trait EvaluatePosition {
 pub struct PositionEvaluator;
 
 // Source: https://www.chessprogramming.org/Simplified_Evaluation_Function
-fn get_piece_square_bonus(
-    piece: Piece,
-    side: Side,
-    square: Square,
-    is_early_or_mid_game: bool,
-) -> f64 {
+fn get_piece_square_bonus(piece: Piece, square: Square, is_early_or_mid_game: bool) -> f64 {
     #[rustfmt::skip]
-    let table = match (piece, side, is_early_or_mid_game) {
-        (Piece::Pawn, Side::Black, ..) => [
-            0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
-            50., 50., 50., 50., 50., 50., 50., 50.,
-            10., 10., 20., 30., 30., 20., 10., 10.,
-             5.,  5., 10., 25., 25., 10.,  5.,  5.,
-             0.,  0.,  0., 20., 20.,  0.,  0.,  0.,
-             5., -5.,-10.,  0.,  0.,-10., -5.,  5.,
-             5., 10., 10.,-20.,-20., 10., 10.,  5.,
-             0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.
-        ],
-        (Piece::Pawn, Side::White, ..) => [
+    let table = match (piece, is_early_or_mid_game) {
+        (Piece::Pawn, ..) => [
             0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
              5., 10., 10.,-20.,-20., 10., 10.,  5.,
              5., -5.,-10.,  0.,  0.,-10., -5.,  5.,
@@ -43,7 +28,7 @@ fn get_piece_square_bonus(
             50., 50., 50., 50., 50., 50., 50., 50.,
              0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.
         ],
-        (Piece::King, Side::White, true) => [
+        (Piece::King, true) => [
              20., 30., 10.,  0.,  0., 10., 30., 20.,
              20., 20.,  0.,  0.,  0.,  0., 20., 20.,
             -10.,-20.,-20.,-20.,-20.,-20.,-20.,-10.,
@@ -53,7 +38,7 @@ fn get_piece_square_bonus(
             -30.,-40.,-40.,-50.,-50.,-40.,-40.,-30.,
             -30.,-40.,-40.,-50.,-50.,-40.,-40.,-30.,
         ],
-        (Piece::King, Side::Black, true) => [
+        (Piece::King, true) => [
             -30.,-40.,-40.,-50.,-50.,-40.,-40.,-30.,
             -30.,-40.,-40.,-50.,-50.,-40.,-40.,-30.,
             -30.,-40.,-40.,-50.,-50.,-40.,-40.,-30.,
@@ -63,7 +48,7 @@ fn get_piece_square_bonus(
              20., 20.,  0.,  0.,  0.,  0., 20., 20.,
              20., 30., 10.,  0.,  0., 10., 30., 20.
         ],
-        (Piece::King, .., false) => [
+        (Piece::King, false) => [
             -50.,-40.,-30.,-20.,-20.,-30.,-40.,-50.,
             -30.,-20.,-10.,  0.,  0.,-10.,-20.,-30.,
             -30.,-10., 20., 30., 30., 20.,-10.,-30.,
@@ -131,7 +116,13 @@ impl EvaluatePosition for PositionEvaluator {
             .get_piece_locs()
             .into_iter()
             .fold(0., |acc, (piece, side, square)| {
-                let val = piece_value(piece) + get_piece_square_bonus(piece, side, square, true);
+                // For black, we need to flip index in order to use correct value
+                let square = if side == Side::Black {
+                    square.flip()
+                } else {
+                    square
+                };
+                let val = piece_value(piece) + get_piece_square_bonus(piece, square, true);
 
                 if side == Side::White {
                     acc + val

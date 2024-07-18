@@ -65,6 +65,10 @@ impl Square {
             Square::H8, Square::G8, Square::F8, Square::E8, Square::D8, Square::C8, Square::B8, Square::A8,
         ]
     }
+
+    pub const fn flip(self) -> Square {
+        Square::from_repr(self as u8 ^ 56).expect("Somehow flipped square doesn't have value")
+    }
 }
 
 #[repr(isize)]
