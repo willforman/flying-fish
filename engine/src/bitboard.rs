@@ -428,7 +428,7 @@ mod tests {
     #[test_case(BitBoard::from_square(H3), &[Direction::IncFile], BitBoard(0) ; "overlap e")]
     #[test_case(BitBoard::from_square(A2), &[Direction::DecRank, Direction::DecFile], BitBoard(0) ; "overlap sw")]
     #[test_case(BitBoard::from_square(H7), &[Direction::IncRank, Direction::IncFile], BitBoard(0) ; "overlap ne")]
-    #[test_case(BitBoard::from_squares(&[A8, B7, C6, D5, E4, F3, G2, H1]), 
+    #[test_case(BitBoard::from_squares(&[A8, B7, C6, D5, E4, F3, G2, H1]),
                 &[Direction::DecFile], BitBoard::from_squares(&[A7, B6, C5, D4, E3, F2, G1]) ; "diagonal dec file")]
     fn test_shift(mut inp: BitBoard, shift_dirs: &[Direction], want: BitBoard) {
         for &shift_dir in shift_dirs {
