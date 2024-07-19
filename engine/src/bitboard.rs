@@ -181,7 +181,7 @@ impl BitBoard {
 
     pub(crate) fn to_squares(mut self) -> Vec<Square> {
         let mut sqs = Vec::with_capacity(14);
-        while self.0 != 0 {
+        while !self.is_empty() {
             let sq = self.pop_lsb();
             sqs.push(sq);
         }
