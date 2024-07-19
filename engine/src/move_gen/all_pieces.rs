@@ -200,7 +200,7 @@ pub(super) fn gen_moves(
     position: &Position,
     leaping_pieces: impl GenerateLeapingMoves + std::marker::Copy,
     sliding_pieces: impl GenerateSlidingMoves + std::marker::Copy,
-) -> ArrayVec<Move, 64> {
+) -> ArrayVec<Move, 80> {
     debug_assert!(position.state.half_move_clock <= 50);
     let mut moves = ArrayVec::new();
 
