@@ -4,7 +4,8 @@ use crate::bitboard::{BitBoard, Square};
 use crate::position::{Move, Piece, Position, Side};
 
 pub(super) trait GenerateLeapingMoves {
-    fn gen_knight_king_moves(&self, piece: Piece, square: Square) -> BitBoard;
+    fn gen_king_moves(&self, square: Square) -> BitBoard;
+    fn gen_knight_moves(&self, square: Square) -> BitBoard;
 
     fn gen_pawn_pushes(&self, square: Square, side: Side) -> BitBoard;
     fn gen_pawn_atks(&self, square: Square, side: Side) -> BitBoard;

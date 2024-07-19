@@ -8,7 +8,7 @@ use engine::{search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, PO
 
 pub fn benchmark_search(c: &mut Criterion) {
     let mut group = c.benchmark_group("search");
-    group.sample_size(200);
+    group.sample_size(400);
 
     let pos = Position::start();
     let search_params = SearchParams {

@@ -36,12 +36,12 @@ impl ColoredSquareToMoveDatabase {
 pub struct LeapingPiecesMoveGen;
 
 impl GenerateLeapingMoves for LeapingPiecesMoveGen {
-    fn gen_knight_king_moves(&self, piece: Piece, square: Square) -> BitBoard {
-        match piece {
-            Piece::Knight => KNIGHT_ATKS.get_bitboard(square),
-            Piece::King => KING_ATKS.get_bitboard(square),
-            _ => panic!("piece type: want [knight, king], got {}", piece.to_string()),
-        }
+    fn gen_knight_moves(&self, square: Square) -> BitBoard {
+        KNIGHT_ATKS.get_bitboard(square)
+    }
+
+    fn gen_king_moves(&self, square: Square) -> BitBoard {
+        KING_ATKS.get_bitboard(square)
     }
 
     fn gen_pawn_pushes(&self, square: Square, side: Side) -> BitBoard {

@@ -25,7 +25,7 @@ fn gen_king_moves(
     leaping_pieces: impl GenerateLeapingMoves,
     sliding_pieces: impl GenerateSlidingMoves,
 ) -> BitBoard {
-    let mut moves = leaping_pieces.gen_knight_king_moves(Piece::King, king_square);
+    let mut moves = leaping_pieces.gen_king_moves(king_square);
     let king_danger_squares = gen_attacked_squares(
         position,
         side.opposite_side(),
@@ -97,9 +97,8 @@ fn gen_attacked_squares(
 
         for piece_square in pieces.to_squares() {
             let moves_bb = match piece_type {
-                Piece::Knight | Piece::King => {
-                    leaping_pieces.gen_knight_king_moves(piece_type, piece_square)
-                }
+                Piece::Knight => leaping_pieces.gen_knight_moves(piece_square),
+                Piece::King => leaping_pieces.gen_king_moves(piece_square),
                 Piece::Bishop | Piece::Rook | Piece::Queen => {
                     sliding_pieces.gen_moves(piece_type, piece_square, occupancy)
                 }
@@ -180,7 +179,7 @@ pub(super) fn get_checkers(
 
     for piece_type in Piece::iter() {
         let moves = match piece_type {
-            Piece::Knight => leaping_pieces.gen_knight_king_moves(piece_type, king_square),
+            Piece::Knight => leaping_pieces.gen_knight_moves(king_square),
             Piece::Bishop | Piece::Rook | Piece::Queen => {
                 sliding_pieces.gen_moves(piece_type, king_square, occupancy)
             }
@@ -270,7 +269,7 @@ pub(super) fn gen_moves(
 
         for piece_square in pieces.to_squares() {
             let mut moves_bb = match piece_type {
-                Piece::Knight => leaping_pieces.gen_knight_king_moves(Piece::Knight, piece_square),
+                Piece::Knight => leaping_pieces.gen_knight_moves(piece_square),
                 Piece::King => gen_king_moves(
                     position,
                     side,
