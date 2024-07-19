@@ -220,7 +220,7 @@ pub(super) fn gen_moves(
     let occupancy = friendly_pieces | opp_pieces;
 
     let checkers = get_checkers(position, leaping_pieces, sliding_pieces);
-    let num_checkers = checkers.to_squares().len();
+    let num_checkers = checkers.num_squares_set();
 
     // In the case of check, what squares are allowed to be captured and blocked
     let mut capture_mask = BitBoard::full();
