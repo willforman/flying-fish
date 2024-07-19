@@ -80,6 +80,7 @@ fn gen_king_moves(
     moves
 }
 
+#[inline(never)]
 fn gen_attacked_squares(
     position: &Position,
     side: Side,
@@ -93,9 +94,11 @@ fn gen_attacked_squares(
     let mut attacked_squares = BitBoard::empty();
 
     for piece_type in Piece::iter() {
-        let pieces = position.pieces.get(piece_type).get(side);
+        let mut pieces = position.pieces.get(piece_type).get(side);
 
-        for piece_square in pieces.to_squares() {
+        while !pieces.is_empty() {
+            let piece_square = pieces.pop_lsb();
+
             let moves_bb = match piece_type {
                 Piece::Knight => leaping_pieces.gen_knight_moves(piece_square),
                 Piece::King => leaping_pieces.gen_king_moves(piece_square),
