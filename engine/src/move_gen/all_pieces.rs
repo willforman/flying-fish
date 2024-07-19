@@ -199,7 +199,7 @@ pub(super) fn gen_moves(
     sliding_pieces: impl GenerateSlidingMoves + std::marker::Copy,
 ) -> Vec<Move> {
     debug_assert!(position.state.half_move_clock <= 50);
-    let mut moves = Vec::new();
+    let mut moves = Vec::with_capacity(44);
 
     if position.state.half_move_clock == 50 {
         return moves;
