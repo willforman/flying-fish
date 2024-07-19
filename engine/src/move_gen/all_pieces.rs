@@ -80,6 +80,8 @@ fn gen_king_moves(
     moves
 }
 
+// I would think this function should be faster if it's inlined. For some reason though, it seems
+// to be ~2% faster with it (not 100% sure this is big enough to be significant).
 #[inline(never)]
 fn gen_attacked_squares(
     position: &Position,
