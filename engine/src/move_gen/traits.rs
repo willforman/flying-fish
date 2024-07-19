@@ -1,3 +1,5 @@
+use arrayvec::ArrayVec;
+
 use crate::bitboard::{BitBoard, Square};
 use crate::position::{Move, Piece, Position, Side};
 
@@ -13,6 +15,6 @@ pub(super) trait GenerateSlidingMoves {
 }
 
 pub trait GenerateMoves {
-    fn gen_moves(&self, position: &Position) -> Vec<Move>;
+    fn gen_moves(&self, position: &Position) -> ArrayVec<Move, 64>;
     fn gen_checkers(&self, position: &Position) -> BitBoard;
 }

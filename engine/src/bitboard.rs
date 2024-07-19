@@ -3,6 +3,7 @@ use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Sub, SubAssign,
 };
 
+use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, FromRepr};
@@ -179,8 +180,8 @@ impl BitBoard {
         self.0
     }
 
-    pub(crate) fn to_squares(mut self) -> Vec<Square> {
-        let mut sqs = Vec::with_capacity(14);
+    pub(crate) fn to_squares(mut self) -> ArrayVec<Square, 32> {
+        let mut sqs = ArrayVec::new();
         while !self.is_empty() {
             let sq = self.pop_lsb();
             sqs.push(sq);

@@ -3,6 +3,8 @@ pub mod hyperbola_quintessence;
 pub mod leaping_pieces;
 mod traits;
 
+use arrayvec::ArrayVec;
+
 use crate::position::{Move, Position};
 
 use self::hyperbola_quintessence::HYPERBOLA_QUINTESSENCE;
@@ -13,7 +15,7 @@ pub use self::traits::GenerateMoves;
 pub struct HyperbolaQuintessenceMoveGen;
 
 impl GenerateMoves for HyperbolaQuintessenceMoveGen {
-    fn gen_moves(&self, position: &Position) -> Vec<Move> {
+    fn gen_moves(&self, position: &Position) -> ArrayVec<Move, 64> {
         all_pieces::gen_moves(position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE)
     }
 

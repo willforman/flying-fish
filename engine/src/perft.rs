@@ -217,6 +217,7 @@ fn perft_helper(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arrayvec::ArrayVec;
     use test_case::test_case;
 
     use crate::bitboard::Square::*;
@@ -228,8 +229,8 @@ mod tests {
     }
 
     impl GenerateMoves for MoveGenStub<'_> {
-        fn gen_moves(&self, _position: &Position) -> Vec<Move> {
-            Vec::from_iter(self.moves.iter().cloned())
+        fn gen_moves(&self, _position: &Position) -> ArrayVec<Move, 64> {
+            ArrayVec::from_iter(self.moves.iter().cloned())
         }
 
         fn gen_checkers(&self, _position: &Position) -> BitBoard {

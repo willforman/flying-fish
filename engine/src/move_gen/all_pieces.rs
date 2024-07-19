@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 
 use super::traits::{GenerateLeapingMoves, GenerateSlidingMoves};
@@ -197,9 +198,9 @@ pub(super) fn gen_moves(
     position: &Position,
     leaping_pieces: impl GenerateLeapingMoves + std::marker::Copy,
     sliding_pieces: impl GenerateSlidingMoves + std::marker::Copy,
-) -> Vec<Move> {
+) -> ArrayVec<Move, 64> {
     debug_assert!(position.state.half_move_clock <= 50);
-    let mut moves = Vec::with_capacity(44);
+    let mut moves = ArrayVec::new();
 
     if position.state.half_move_clock == 50 {
         return moves;
@@ -340,7 +341,7 @@ pub(super) fn gen_moves(
 
             // For each promotion, we need to add 4 moves to the list,
             // 1 for each piece type
-            let moves_list: Vec<Move> = if piece_type == Piece::Pawn
+            let moves_list: ArrayVec<Move, 32> = if piece_type == Piece::Pawn
                 && ((side == Side::White && (piece_square >= A7 && piece_square <= H7))
                     || (side == Side::Black && (piece_square >= A2 && piece_square <= H2)))
             {

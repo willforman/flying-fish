@@ -1,5 +1,6 @@
 use std::fmt;
 
+use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
@@ -481,8 +482,8 @@ impl Position {
         }
     }
 
-    pub fn get_piece_locs(&self) -> Vec<(Piece, Side, Square)> {
-        let mut piece_locs = vec![];
+    pub fn get_piece_locs(&self) -> ArrayVec<(Piece, Side, Square), 32> {
+        let mut piece_locs = ArrayVec::new();
         for side in Side::iter() {
             for piece in Piece::iter() {
                 for sq in self.pieces.get(piece).get(side).to_squares() {
