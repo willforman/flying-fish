@@ -34,6 +34,7 @@ async fn generate_move(
         POSITION_EVALUATOR,
         Arc::clone(&info_holder),
         Arc::clone(&terminate),
+        None,
     )?;
     Ok((best_move, positions_processed))
 }
@@ -51,7 +52,7 @@ pub fn IndexPage() -> impl IntoView {
     };
 
     let handle_move = create_action(move |input: &Move| {
-        let move_str = move_to_algebraic_notation(&position(), input, MOVE_GEN, MOVE_GEN).unwrap();
+        let move_str = move_to_algebraic_notation(&position(), input, MOVE_GEN).unwrap();
         set_move_strs.update(|move_strs| move_strs.push(move_str));
 
         set_position.update(|pos| pos.make_move(input).unwrap());
@@ -65,8 +66,7 @@ pub fn IndexPage() -> impl IntoView {
                     .unwrap();
             if let Some(generated_move) = maybe_generated_move {
                 let move_str =
-                    move_to_algebraic_notation(&position(), &generated_move, MOVE_GEN, MOVE_GEN)
-                        .unwrap();
+                    move_to_algebraic_notation(&position(), &generated_move, MOVE_GEN).unwrap();
                 set_move_strs.update(|move_strs| move_strs.push(move_str));
 
                 set_position.update(|pos| pos.make_move(&generated_move).unwrap());
