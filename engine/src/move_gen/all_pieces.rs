@@ -117,7 +117,6 @@ fn gen_attacked_squares(
 fn get_pin_rays(
     position: &Position,
     side: Side,
-    leaping_pieces: impl GenerateLeapingMoves,
     sliding_pieces: impl GenerateSlidingMoves,
 ) -> (BitBoard, BitBoard) {
     let opp_side = side.opposite_side();
@@ -221,8 +220,7 @@ pub(super) fn gen_moves(
     let mut capture_mask = BitBoard::full();
     let mut push_mask = BitBoard::full();
 
-    let (rook_pin_ray, bishop_pin_ray) =
-        get_pin_rays(position, side, leaping_pieces, sliding_pieces);
+    let (rook_pin_ray, bishop_pin_ray) = get_pin_rays(position, side, sliding_pieces);
 
     // If the king has more than one checker, than the only legal moves are to move the king
     if num_checkers > 1 {
@@ -316,7 +314,7 @@ pub(super) fn gen_moves(
                         let mut pos_without_ep = position.clone();
                         pos_without_ep.remove_piece(en_passant_pawn_loc).unwrap();
                         let (rook_ray_without_ep_pawn, _) =
-                            get_pin_rays(&pos_without_ep, side, leaping_pieces, sliding_pieces);
+                            get_pin_rays(&pos_without_ep, side, sliding_pieces);
                         if !rook_ray_without_ep_pawn.is_square_set(piece_square) {
                             possible_atks |= BitBoard::from_square(ep_target);
                         }
@@ -640,12 +638,8 @@ mod tests {
         want_rook_pin_ray: BitBoard,
         want_bishop_pin_ray: BitBoard,
     ) {
-        let (got_rook_pin_ray, got_bishop_pin_ray) = get_pin_rays(
-            &position,
-            Side::Black,
-            LEAPING_PIECES,
-            HYPERBOLA_QUINTESSENCE,
-        );
+        let (got_rook_pin_ray, got_bishop_pin_ray) =
+            get_pin_rays(&position, Side::Black, HYPERBOLA_QUINTESSENCE);
         assert_eq!(got_rook_pin_ray, want_rook_pin_ray);
         assert_eq!(got_bishop_pin_ray, want_bishop_pin_ray);
     }
