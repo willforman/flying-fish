@@ -130,10 +130,12 @@ fn get_pin_rays(
 
     let possible_pinners = position.pieces.get(Piece::Rook).get(opp_side)
         | position.pieces.get(Piece::Queen).get(opp_side);
-    let pinners = king_ray & possible_pinners;
+    let mut pinners = king_ray & possible_pinners;
 
     let mut rook_pin_ray = BitBoard::empty();
-    for pinner_square in pinners.to_squares() {
+    while !pinners.is_empty() {
+        let pinner_square = pinners.pop_lsb();
+
         let mut moves = sliding_pieces.gen_moves(Piece::Rook, pinner_square, pinner_occupancy);
         moves.set_square(pinner_square); // Want to include capturing pinner in ray
         let possible_pin_ray = moves & king_ray;
@@ -149,10 +151,12 @@ fn get_pin_rays(
 
     let possible_pinners = position.pieces.get(Piece::Bishop).get(opp_side)
         | position.pieces.get(Piece::Queen).get(opp_side);
-    let pinners = king_ray & possible_pinners;
+    let mut pinners = king_ray & possible_pinners;
 
     let mut bishop_pin_ray = BitBoard::empty();
-    for pinner_square in pinners.to_squares() {
+    while !pinners.is_empty() {
+        let pinner_square = pinners.pop_lsb();
+
         let mut moves = sliding_pieces.gen_moves(Piece::Bishop, pinner_square, pinner_occupancy);
         moves.set_square(pinner_square); // Want to include capturing pinner in ray
         let possible_pin_ray = moves & king_ray;
