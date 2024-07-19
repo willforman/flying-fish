@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 use std::{sync::atomic::AtomicBool, thread};
 
 use engine::{
-    search, EvaluatePosition, GenerateMoves, Position, AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN,
-    NAME, POSITION_EVALUATOR,
+    perft, search, EvaluatePosition, GenerateMoves, Position, AUTHOR,
+    HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME, POSITION_EVALUATOR,
 };
 
 use crate::messages::{UCICommand, UCIResponse};
@@ -202,6 +202,14 @@ where
                 write_str_response(
                     Arc::clone(&self.response_writer),
                     format!("info string {}", eval / 100.).as_str(),
+                );
+                Handled
+            }
+            UCICommand::Perft { depth } => {
+                let perft_results = perft(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+                write_str_response(
+                    Arc::clone(&self.response_writer),
+                    format!("{}", perft_results).as_str(),
                 );
                 Handled
             }

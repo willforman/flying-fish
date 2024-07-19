@@ -55,6 +55,9 @@ pub(crate) enum UCICommand {
 
     // Non standard UCI commands
     Eval,
+    Perft {
+        depth: usize,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -98,8 +101,9 @@ impl FromStr for UCICommand {
             parse_stop,
             parse_ponderhit,
             parse_quit,
-            parse_go,
             parse_eval,
+            parse_perft,
+            parse_go,
         ))
         .parse(input)
         .map_err(|_| UCICommandParseError(format!("cannot parse: [{}]", input)))
@@ -233,6 +237,17 @@ fn parse_quit(input: &mut &str) -> PResult<UCICommand> {
 
 fn parse_eval(input: &mut &str) -> PResult<UCICommand> {
     "eval".value(UCICommand::Eval).parse_next(input)
+}
+
+fn parse_perft(input: &mut &str) -> PResult<UCICommand> {
+    // We parse this separately than a GoParameter, even though it starts with `go`.
+    // This is just to be consistent with stockfish
+    preceded(
+        "go perft ",
+        digit1.try_map(|depth: &str| usize::from_str(depth)),
+    )
+    .map(|depth: usize| UCICommand::Perft { depth })
+    .parse_next(input)
 }
 
 // ======================================================
