@@ -320,7 +320,7 @@ pub fn search(
         for mve in moves.clone() {
             let move_position = &move_positions[&mve];
             let (mut move_val, search_complete) = search_helper(
-                move_position,
+                &mut move_position.clone(),
                 params,
                 1,
                 iterative_deepening_max_depth,
@@ -403,7 +403,7 @@ pub fn search(
 
 #[allow(clippy::too_many_arguments)]
 fn search_helper(
-    position: &Position,
+    position: &mut Position,
     params: &SearchParams,
     curr_depth: u64,
     iterative_deepening_max_depth: u64,
@@ -456,8 +456,7 @@ fn search_helper(
 
     let mut best_val = f64::MIN;
     for mve in moves {
-        let mut move_position = position.clone();
-        let move_res = move_position.make_move(&mve);
+        let move_res = position.make_move(&mve);
         if let Err(err) = move_res {
             write_search_info(
                 iterative_deepening_max_depth,
@@ -473,7 +472,7 @@ fn search_helper(
         }
 
         let (got_val, search_complete) = search_helper(
-            &move_position,
+            position,
             params,
             curr_depth + 1,
             iterative_deepening_max_depth,
@@ -487,6 +486,7 @@ fn search_helper(
             Arc::clone(&info_writer),
             Arc::clone(&terminate),
         );
+        position.unmake_move().unwrap();
 
         // If child node is signaling search is terminated, better terminate self
         if search_complete {

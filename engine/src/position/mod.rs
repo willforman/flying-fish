@@ -26,6 +26,9 @@ pub enum PositionError {
 
     #[error("game is over, half move clock is at 50: move {0}")]
     GameOverHalfMoveClock(String),
+
+    #[error("can't unmake move because there is no move to unmake")]
+    CantUnmakeMove,
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Deserialize, Serialize)]
@@ -304,11 +307,19 @@ impl State {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+struct PreviousMoveState {
+    state: State,
+    mve: Move,
+    captured_piece: Option<Piece>,
+}
+
+#[derive(Clone, Eq, Deserialize, Serialize)]
 pub struct Position {
     pub state: State,
     pub(crate) sides: Sides,
     pub(crate) pieces: Pieces,
+    prev_move_state: Option<PreviousMoveState>,
 }
 
 impl Position {
@@ -317,6 +328,7 @@ impl Position {
             state: State::start(),
             sides: Sides::start(),
             pieces: Pieces::start(),
+            prev_move_state: None,
         }
     }
 
@@ -338,135 +350,180 @@ impl Position {
             return Err(PositionError::GameOverHalfMoveClock(mve.to_string()));
         }
 
+        if self.is_piece_at(mve.src).is_none() {
+            return Err(PositionError::MoveNoPiece(mve.src.to_string()));
+        }
+        let (piece, side) = self.is_piece_at(mve.src).unwrap();
+
+        if side != self.state.to_move {
+            return Err(PositionError::MoveNotToMove(
+                side.to_string(),
+                mve.src.to_string(),
+                mve.dest.to_string(),
+            ));
+        }
+
+        let prev_state = self.state.clone();
+
         if self.state.to_move == Side::Black {
             self.state.full_move_counter += 1;
         }
 
-        if let Some((piece, side)) = self.is_piece_at(mve.src) {
-            if side != self.state.to_move {
-                Err(PositionError::MoveNotToMove(
-                    side.to_string(),
-                    mve.src.to_string(),
-                    mve.dest.to_string(),
-                ))
-            } else {
-                self.state.to_move = side.opposite_side();
+        self.state.to_move = side.opposite_side();
 
-                if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
-                    self.state.half_move_clock = 0;
-                } else {
-                    debug_assert!(
-                        self.state.half_move_clock != 255,
-                        "half move clock handling is incorrect, would have overflowed"
-                    );
-                    self.state.half_move_clock += 1;
-                }
-
-                if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
-                    let ep_dir = if side == Side::White {
-                        Direction::IncRank
-                    } else {
-                        Direction::DecRank
-                    };
-
-                    let mut ep_target_bb = BitBoard::from_square(mve.src);
-                    ep_target_bb.shift(ep_dir);
-                    let ep_target = ep_target_bb.to_squares()[0];
-
-                    self.state.en_passant_target = Some(ep_target);
-                } else {
-                    self.state.en_passant_target = None;
-                }
-
-                if let Some((opp_piece, opp_side)) = self.is_piece_at(mve.dest) {
-                    self.sides.get_mut(opp_side).clear_square(mve.dest);
-                    self.pieces
-                        .get_mut(opp_piece)
-                        .get_mut(opp_side)
-                        .clear_square(mve.dest);
-                }
-
-                if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
-                    // Promotion
-                    self.sides.get_mut(side).move_piece(mve.src, mve.dest);
-
-                    self.pieces
-                        .get_mut(Piece::Pawn)
-                        .get_mut(side)
-                        .clear_square(mve.src);
-                    self.pieces
-                        .get_mut(mve.promotion.unwrap())
-                        .get_mut(side)
-                        .set_square(mve.dest);
-
-                    return Ok(());
-                }
-
-                if piece == Piece::King {
-                    if side == Side::White {
-                        self.state.castling_rights.white_king_side = false;
-                        self.state.castling_rights.white_queen_side = false;
-                    } else {
-                        self.state.castling_rights.black_king_side = false;
-                        self.state.castling_rights.black_queen_side = false;
-                    }
-
-                    if mve.src.abs_diff(mve.dest) == 2 {
-                        // Castled
-                        let rook_move = match mve.dest {
-                            C1 => Move::new(A1, D1),
-                            G1 => Move::new(H1, F1),
-                            C8 => Move::new(A8, D8),
-                            G8 => Move::new(H8, F8),
-                            _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
-                        };
-
-                        self.sides
-                            .get_mut(side)
-                            .move_piece(rook_move.src, rook_move.dest);
-                        self.pieces
-                            .get_mut(Piece::Rook)
-                            .get_mut(side)
-                            .move_piece(rook_move.src, rook_move.dest);
-                    }
-                }
-
-                if piece == Piece::Rook {
-                    if mve.src == A1 {
-                        self.state.castling_rights.white_queen_side = false;
-                    } else if mve.src == H1 {
-                        self.state.castling_rights.white_king_side = false;
-                    }
-                    if mve.src == A8 {
-                        self.state.castling_rights.black_queen_side = false;
-                    }
-                    if mve.src == H8 {
-                        self.state.castling_rights.black_king_side = false;
-                    }
-                }
-
-                self.sides.get_mut(side).move_piece(mve.src, mve.dest);
-                self.pieces
-                    .get_mut(piece)
-                    .get_mut(side)
-                    .move_piece(mve.src, mve.dest);
-
-                debug_assert!(
-                    !self.pieces.kings.white.is_empty(),
-                    "position somehow lost white king\n{:?}",
-                    self
-                );
-                debug_assert!(
-                    !self.pieces.kings.white.is_empty(),
-                    "position somehow lost black king\n{:?}",
-                    self
-                );
-
-                Ok(())
-            }
+        if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
+            self.state.half_move_clock = 0;
         } else {
-            Err(PositionError::MoveNoPiece(mve.src.to_string()))
+            debug_assert!(
+                self.state.half_move_clock != 255,
+                "half move clock handling is incorrect, would have overflowed"
+            );
+            self.state.half_move_clock += 1;
         }
+
+        if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
+            let ep_dir = if side == Side::White {
+                Direction::IncRank
+            } else {
+                Direction::DecRank
+            };
+
+            let mut ep_target_bb = BitBoard::from_square(mve.src);
+            ep_target_bb.shift(ep_dir);
+            let ep_target = ep_target_bb.to_squares()[0];
+
+            self.state.en_passant_target = Some(ep_target);
+        } else {
+            self.state.en_passant_target = None;
+        }
+
+        let mut captured_piece = None;
+
+        if let Some((opp_piece, opp_side)) = self.is_piece_at(mve.dest) {
+            self.sides.get_mut(opp_side).clear_square(mve.dest);
+            self.pieces
+                .get_mut(opp_piece)
+                .get_mut(opp_side)
+                .clear_square(mve.dest);
+            captured_piece = Some(opp_piece);
+        }
+
+        if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
+            // Promotion
+            self.sides.get_mut(side).move_piece(mve.src, mve.dest);
+
+            self.pieces
+                .get_mut(Piece::Pawn)
+                .get_mut(side)
+                .clear_square(mve.src);
+            self.pieces
+                .get_mut(mve.promotion.unwrap())
+                .get_mut(side)
+                .set_square(mve.dest);
+
+            return Ok(());
+        }
+
+        if piece == Piece::King {
+            if side == Side::White {
+                self.state.castling_rights.white_king_side = false;
+                self.state.castling_rights.white_queen_side = false;
+            } else {
+                self.state.castling_rights.black_king_side = false;
+                self.state.castling_rights.black_queen_side = false;
+            }
+
+            if mve.src.abs_diff(mve.dest) == 2 {
+                // Castled
+                let rook_move = match mve.dest {
+                    C1 => Move::new(A1, D1),
+                    G1 => Move::new(H1, F1),
+                    C8 => Move::new(A8, D8),
+                    G8 => Move::new(H8, F8),
+                    _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
+                };
+
+                self.sides
+                    .get_mut(side)
+                    .move_piece(rook_move.src, rook_move.dest);
+                self.pieces
+                    .get_mut(Piece::Rook)
+                    .get_mut(side)
+                    .move_piece(rook_move.src, rook_move.dest);
+            }
+        }
+
+        if piece == Piece::Rook {
+            if mve.src == A1 {
+                self.state.castling_rights.white_queen_side = false;
+            } else if mve.src == H1 {
+                self.state.castling_rights.white_king_side = false;
+            }
+            if mve.src == A8 {
+                self.state.castling_rights.black_queen_side = false;
+            }
+            if mve.src == H8 {
+                self.state.castling_rights.black_king_side = false;
+            }
+        }
+
+        self.sides.get_mut(side).move_piece(mve.src, mve.dest);
+        self.pieces
+            .get_mut(piece)
+            .get_mut(side)
+            .move_piece(mve.src, mve.dest);
+
+        debug_assert!(
+            !self.pieces.kings.white.is_empty(),
+            "position somehow lost white king\n{:?}",
+            self
+        );
+        debug_assert!(
+            !self.pieces.kings.white.is_empty(),
+            "position somehow lost black king\n{:?}",
+            self
+        );
+
+        self.prev_move_state = Some(PreviousMoveState {
+            state: prev_state,
+            mve: mve.clone(),
+            captured_piece,
+        });
+
+        Ok(())
+    }
+
+    pub fn unmake_move(&mut self) -> Result<(), PositionError> {
+        if self.prev_move_state.is_none() {
+            return Err(PositionError::CantUnmakeMove);
+        }
+
+        let prev_move_state = self.prev_move_state.clone().unwrap();
+        let (piece, side) = self.is_piece_at(prev_move_state.mve.dest).unwrap();
+
+        self.state = prev_move_state.state;
+
+        self.sides
+            .get_mut(side)
+            .move_piece(prev_move_state.mve.dest, prev_move_state.mve.src);
+
+        self.pieces
+            .get_mut(piece)
+            .get_mut(side)
+            .move_piece(prev_move_state.mve.dest, prev_move_state.mve.src);
+
+        if let Some(captured_piece) = prev_move_state.captured_piece {
+            let opp_side = side.opposite_side();
+            self.sides
+                .get_mut(opp_side)
+                .set_square(prev_move_state.mve.dest);
+            self.pieces
+                .get_mut(captured_piece)
+                .get_mut(opp_side)
+                .set_square(prev_move_state.mve.dest);
+        }
+
+        Ok(())
     }
 
     pub fn remove_piece(&mut self, square: Square) -> Result<(), PositionError> {
@@ -492,6 +549,13 @@ impl Position {
             }
         }
         piece_locs
+    }
+}
+
+// Manually implement PartialEq for Position because we want to ignore prev_move_state field
+impl PartialEq for Position {
+    fn eq(&self, other: &Self) -> bool {
+        self.state == other.state && self.sides == other.sides && self.pieces == other.pieces
     }
 }
 
@@ -591,5 +655,18 @@ mod tests {
     fn test_move_debug(mve: Move, want: &str) {
         let got = format!("{:?}", mve);
         assert_eq!(got, want);
+    }
+
+    #[test_case(Position::start(), Move::new(D2, D4) ; "start")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(F3, F6) ; "take piece")]
+    fn test_unmake_move(start_position: Position, mve: Move) -> TestResult {
+        let mut move_position = start_position.clone();
+
+        move_position.make_move(&mve)?;
+        assert_ne!(move_position, start_position);
+
+        move_position.unmake_move()?;
+        assert_eq!(move_position, start_position);
+        Ok(())
     }
 }

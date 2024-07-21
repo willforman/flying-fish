@@ -71,6 +71,7 @@ impl Position {
             sides,
             pieces,
             state,
+            prev_move_state: None,
         })
     }
 
