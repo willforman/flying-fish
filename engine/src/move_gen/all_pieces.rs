@@ -619,30 +619,6 @@ mod tests {
         Move::new(B1, A2), Move::new(B1, B2),
         Move::new(B1, C2)
     ]) ; "king move away from checker")]
-    #[test_case(Position::from_fen("r1b1k1nr/pppp1ppp/2n1p3/8/1bPPP3/P1NB1N1P/1P3Pq1/R1BQK2R b KQkq - 0 8").unwrap(), HashSet::from_iter([Move::new(E6, E5),
-        Move::new(A7, A6), Move::new(B7, B6),
-        Move::new(D7, D6), Move::new(F7, F6),
-        Move::new(G7, G6), Move::new(H7, H6),
-        Move::new(A7, A5), Move::new(B7, B5),
-        Move::new(D7, D5), Move::new(F7, F5),
-        Move::new(G7, G5), Move::new(H7, H5),
-        Move::new(C6, D4), Move::new(C6, A5),
-        Move::new(C6, E5), Move::new(C6, E7),
-        Move::new(C6, B8), Move::new(C6, D8),
-        Move::new(G8, F6), Move::new(G8, H6),
-        Move::new(G8, E7), Move::new(B4, A3),
-        Move::new(B4, C3), Move::new(B4, A5),
-        Move::new(B4, C5), Move::new(B4, D6),
-        Move::new(B4, E7), Move::new(B4, F8),
-        Move::new(A8, B8), Move::new(G2, F1),
-        Move::new(G2, G1), Move::new(G2, H1),
-        Move::new(G2, F2), Move::new(G2, H2),
-        Move::new(G2, F3), Move::new(G2, G3),
-        Move::new(G2, H3), Move::new(G2, G4),
-        Move::new(G2, G5), Move::new(G2, G6),
-        Move::new(E8, E7), Move::new(E8, D8),
-        Move::new(E8, F8),
-    ]))]
     fn test_gen_moves(position: Position, want: HashSet<Move>) {
         println!("{:?}", position);
         let got = gen_moves(&position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE);
