@@ -319,7 +319,7 @@ pub struct Position {
     pub state: State,
     pub(crate) sides: Sides,
     pub(crate) pieces: Pieces,
-    prev_move_state: Option<PreviousMoveState>,
+    prev_move_state_stack: ArrayVec<PreviousMoveState, 64>,
 }
 
 impl Position {
@@ -328,7 +328,7 @@ impl Position {
             state: State::start(),
             sides: Sides::start(),
             pieces: Pieces::start(),
-            prev_move_state: None,
+            prev_move_state_stack: ArrayVec::new(),
         }
     }
 
@@ -484,9 +484,9 @@ impl Position {
             self
         );
 
-        self.prev_move_state = Some(PreviousMoveState {
+        self.prev_move_state_stack.push(PreviousMoveState {
             state: prev_state,
-            mve: mve.clone(),
+            mve: *mve,
             captured_piece,
         });
 
@@ -494,11 +494,11 @@ impl Position {
     }
 
     pub fn unmake_move(&mut self) -> Result<(), PositionError> {
-        if self.prev_move_state.is_none() {
+        if self.prev_move_state_stack.is_empty() {
             return Err(PositionError::CantUnmakeMove);
         }
 
-        let prev_move_state = self.prev_move_state.clone().unwrap();
+        let prev_move_state = self.prev_move_state_stack.pop().unwrap();
         let (piece, side) = self.is_piece_at(prev_move_state.mve.dest).unwrap();
 
         self.state = prev_move_state.state;

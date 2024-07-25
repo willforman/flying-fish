@@ -406,7 +406,7 @@ fn search_helper(
     position: &mut Position,
     params: &SearchParams,
     curr_depth: u64,
-    iterative_deepening_max_depth: u64,
+    max_depth: u64,
     positions_processed: &mut u64,
     start_time: &Instant,
     latest_score: &mut f64,
@@ -438,7 +438,7 @@ fn search_helper(
 
     if *positions_processed % 250_000 == 0 {
         write_search_info(
-            iterative_deepening_max_depth,
+            max_depth,
             *positions_processed,
             curr_depth,
             start_time,
@@ -447,7 +447,7 @@ fn search_helper(
         );
     }
 
-    if curr_depth == iterative_deepening_max_depth {
+    if curr_depth == max_depth {
         let curr_evaluation = position_eval.evaluate(position, move_gen);
         return (curr_evaluation, false);
     }
@@ -459,7 +459,7 @@ fn search_helper(
         let move_res = position.make_move(&mve);
         if let Err(err) = move_res {
             write_search_info(
-                iterative_deepening_max_depth,
+                max_depth,
                 *positions_processed,
                 curr_depth,
                 start_time,
@@ -475,7 +475,7 @@ fn search_helper(
             position,
             params,
             curr_depth + 1,
-            iterative_deepening_max_depth,
+            max_depth,
             positions_processed,
             start_time,
             latest_score,
@@ -486,6 +486,7 @@ fn search_helper(
             Arc::clone(&info_writer),
             Arc::clone(&terminate),
         );
+
         position.unmake_move().unwrap();
 
         // If child node is signaling search is terminated, better terminate self
@@ -511,7 +512,7 @@ fn search_helper(
 }
 
 fn write_search_info(
-    iterative_deepening_max_depth: u64,
+    max_depth: u64,
     nodes_processed: u64,
     curr_depth: u64,
     start_time: &Instant,
@@ -519,7 +520,7 @@ fn write_search_info(
     info_writer: Arc<Mutex<impl Write>>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), "");
+    let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), "");
     let mut info_writer = info_writer.lock().unwrap();
     writeln!(info_writer, "{}", info).unwrap();
 }
@@ -550,6 +551,8 @@ mod tests {
         }
     }
 
+    #[test_case(Position::start(), &[] ; "start")]
+    // Results in r1b1k1nr/pppp1ppp/2n1p3/8/1bPPP3/P1NB1N1P/1P3Pq1/R1BQK2R b KQkq - 0 8
     #[test_case(Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap(), 
     &[
         Move::new(D2, D4), Move::new(E7, E6),

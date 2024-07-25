@@ -3,6 +3,7 @@ use crate::bitboard::{BitBoard, Square};
 use crate::position::{CastlingRights, Piece, Pieces, Position, Side, Sides, State};
 use std::str::FromStr;
 
+use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 
 #[derive(thiserror::Error, Debug)]
@@ -71,7 +72,7 @@ impl Position {
             sides,
             pieces,
             state,
-            prev_move_state: None,
+            prev_move_state_stack: ArrayVec::new(),
         })
     }
 
@@ -94,12 +95,14 @@ impl Position {
             } else {
                 curr_empty_count += 1;
             }
-            if (idx + 1) % 8 == 0 && idx != 63 {
+            if (idx + 1) % 8 == 0 {
                 if curr_empty_count != 0 {
                     pieces += &curr_empty_count.to_string();
                     curr_empty_count = 0;
                 }
-                pieces += "/";
+                if idx != 63 {
+                    pieces += "/";
+                }
             }
         }
 
@@ -360,6 +363,7 @@ mod tests {
     #[test_case(
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" ; "kiwipete"
     )]
+    #[test_case("r1b1k1nr/pppp1ppp/2n1p3/8/1bPPP3/P2B1N1P/1P2KP2/R1BN4 b kq - 0 1" ; "random position")]
     fn test_to_fen_string(fen: &str) -> TestResult {
         let pos = Position::from_fen(fen)?;
         let got = pos.to_fen();
