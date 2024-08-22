@@ -265,7 +265,7 @@ pub(super) fn gen_moves(
         let (checker_piece_type, _) = position.is_piece_at(checker_square).unwrap();
         push_mask = if checker_piece_type.is_slider() {
             let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
-            BitBoard::from_ray_excl(checker_square, king_square)
+            BitBoard::from_ray_between_squares_excl(checker_square, king_square)
         } else {
             BitBoard::empty()
         }

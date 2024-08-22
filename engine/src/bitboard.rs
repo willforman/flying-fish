@@ -131,7 +131,7 @@ impl BitBoard {
         res & !start
     }
 
-    pub(crate) const fn from_ray_excl(sq1: Square, sq2: Square) -> Self {
+    pub(crate) const fn from_ray_between_squares_excl(sq1: Square, sq2: Square) -> Self {
         let (sq1_rank, sq1_file) = sq1.to_rank_file();
         let (sq2_rank, sq2_file) = sq2.to_rank_file();
 
@@ -361,6 +361,25 @@ impl fmt::Debug for BitBoard {
     }
 }
 
+/// Ray directions go in clockwise
+static RAYS: [BitBoard; 64 * 8] = compute_rays();
+
+const fn compute_rays() -> [BitBoard; 64 * 8] {
+    let mut rays = [BitBoard::empty(); 64 * 8];
+
+    let mut sq_idx = 0;
+    while sq_idx < 64 {
+        let sq = Square::from_repr(sq_idx).unwrap();
+
+        inc_rank
+        while
+
+        sq_idx += 1;
+    }
+
+    rays
+}
+
 #[cfg(test)]
 mod tests {
     use super::Square::*;
@@ -469,7 +488,7 @@ mod tests {
     #[test_case(B4, E1, BitBoard::from_squares(&[C3, D2]) ; "se")]
     #[test_case(E1, B4, BitBoard::from_squares(&[C3, D2]) ; "nw")]
     fn test_from_ray_excl(start: Square, end: Square, want: BitBoard) {
-        let got = BitBoard::from_ray_excl(start, end);
+        let got = BitBoard::from_ray_between_squares_excl(start, end);
         assert_eq!(got, want);
     }
 }

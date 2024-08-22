@@ -1,6 +1,7 @@
 pub mod all_pieces;
 pub mod hyperbola_quintessence;
 pub mod leaping_pieces;
+pub mod magic_bitboard;
 mod traits;
 
 use arrayvec::ArrayVec;
