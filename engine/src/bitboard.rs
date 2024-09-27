@@ -361,25 +361,6 @@ impl fmt::Debug for BitBoard {
     }
 }
 
-/// Ray directions go in clockwise
-static RAYS: [BitBoard; 64 * 8] = compute_rays();
-
-const fn compute_rays() -> [BitBoard; 64 * 8] {
-    let mut rays = [BitBoard::empty(); 64 * 8];
-
-    let mut sq_idx = 0;
-    while sq_idx < 64 {
-        let sq = Square::from_repr(sq_idx).unwrap();
-
-        inc_rank
-        while
-
-        sq_idx += 1;
-    }
-
-    rays
-}
-
 #[cfg(test)]
 mod tests {
     use super::Square::*;

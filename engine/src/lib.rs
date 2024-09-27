@@ -1,7 +1,6 @@
 #![feature(const_mut_refs)]
 #![feature(const_option)]
 #![feature(const_trait_impl)]
-#![feature(effects)]
 
 mod algebraic_notation;
 mod bitboard;

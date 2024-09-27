@@ -1,6 +1,6 @@
-use crate::{bitboard::BitBoard, Piece, Square};
+use crate::{bitboard::BitBoard, GenerateMoves, Piece, Square, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
 
-use super::traits::GenerateSlidingMoves;
+use super::{masks::MASKS_LIST, traits::GenerateSlidingMoves};
 
 pub struct MagitBitboard;
 
@@ -11,8 +11,7 @@ const fn gen_rook_moves() -> [BitBoard; 64 * 2_usize.pow(14)] {
     let mut sq_idx = 0;
     while sq_idx < 64 {
         let sq = Square::from_repr(sq_idx).unwrap();
-        let bb = BitBoard::ray
-
+        let masks = MASKS_LIST.get(sq);
 
         sq_idx += 1;
     }
