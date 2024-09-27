@@ -10,20 +10,15 @@
       };
     };
 
-    nixpkgs-lldb-fix.url = "github:Itaros/nixpkgs/sideport-lldb-1x";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, nixpkgs-lldb-fix }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay}:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        lldb-fix-overlay = final: prev: {
-          inherit (nixpkgs-lldb-fix.legacyPackages.${prev.system})
-            lldb_17;
-        };
-
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ (import rust-overlay) lldb-fix-overlay ];
+          overlays = [ (import rust-overlay) ];
         };
 
 
