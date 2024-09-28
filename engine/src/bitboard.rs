@@ -119,16 +119,26 @@ impl BitBoard {
         shift_dirs_list: &[&[Direction]],
     ) -> Self {
         let start = BitBoard::from_square(square);
-        let res = shift_dirs_list
-            .into_iter()
-            .fold(start.clone(), |acc, &shift_dirs| {
-                let mut shifted = start.clone();
-                for &sd in shift_dirs {
-                    shifted.shift(sd);
-                }
-                acc | shifted
-            });
-        res & !start
+        let mut res = start;
+        let mut shift_dirs_list_idx = 0;
+        while shift_dirs_list_idx < shift_dirs_list.len() {
+            let shift_dirs = shift_dirs_list[shift_dirs_list_idx];
+
+            let mut shifted = start;
+
+            let mut shift_dirs_idx = 0;
+            while shift_dirs_idx < shift_dirs.len() {
+                let shift_dir = shift_dirs[shift_dirs_idx];
+
+                shifted.shift(shift_dir);
+
+                shift_dirs_idx += 1;
+            }
+
+            shift_dirs_idx += 1;
+        }
+
+        res.const_bit_and(start.const_bit_not())
     }
 
     pub(crate) const fn from_ray_between_squares_excl(sq1: Square, sq2: Square) -> Self {
