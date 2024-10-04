@@ -119,7 +119,7 @@ impl BitBoard {
         shift_dirs_list: &[&[Direction]],
     ) -> Self {
         let start = BitBoard::from_square(square);
-        let mut res = start;
+        let mut res = BitBoard::empty();
         let mut shift_dirs_list_idx = 0;
         while shift_dirs_list_idx < shift_dirs_list.len() {
             let shift_dirs = shift_dirs_list[shift_dirs_list_idx];
@@ -135,10 +135,12 @@ impl BitBoard {
                 shift_dirs_idx += 1;
             }
 
-            shift_dirs_idx += 1;
+            res = res.const_bit_or(shifted);
+
+            shift_dirs_list_idx += 1;
         }
 
-        res.const_bit_and(start.const_bit_not())
+        res
     }
 
     pub(crate) const fn from_ray_between_squares_excl(sq1: Square, sq2: Square) -> Self {
@@ -462,7 +464,7 @@ mod tests {
         shift_dirs_list: &[&[Direction]],
         want: BitBoard,
     ) {
-        let got = BitBoard::from_square_shifts(inp_square, &shift_dirs_list);
+        let got = BitBoard::from_square_shifts(inp_square, shift_dirs_list);
         assert_eq!(got, want);
     }
 
