@@ -1,5 +1,6 @@
 use std::{cell::LazyCell, sync::LazyLock};
 
+use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 
 use crate::{bitboard::BitBoard, GenerateMoves, Piece, Square, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
@@ -20,16 +21,37 @@ fn gen_rook_moves(move_gen: &impl GenerateSlidingMoves) -> [BitBoard; 64 * 2_usi
     rook_moves
 }
 
-fn gen_blocker_boards(sq: Square, move_gen: &impl GenerateSlidingMoves) -> [BitBoard; 14] {
-    let mut blocker_boards = [BitBoard::empty(); 14];
+fn gen_blocker_boards(sq: Square) -> [BitBoard; 2_usize.pow(14)] {
+    let mut blocker_boards: ArrayVec<BitBoard, { 2_usize.pow(14) }> = ArrayVec::new();
 
-    let rays = move_gen.gen_moves(Piece::Queen, sq, BitBoard::empty());
-    for possible_blocker_square in rays.to_squares() {}
-    blocker_boards
+    let masks = MASKS_LIST.get(sq);
+    let rays = (masks.rank | masks.file) & !masks.bit;
+    let ray_squares = rays.to_squares();
+    gen_blocker_boards_backtracker(rays, &ray_squares, 0, &mut blocker_boards);
+    blocker_boards.try_into().unwrap()
 }
 
-//fn gen_blocker_boards_backtracker(sq: Square, )
-//
+fn gen_blocker_boards_backtracker(
+    mut curr_board: BitBoard,
+    squares: &[Square],
+    start_sq_idx: usize,
+    blocker_boards: &mut ArrayVec<BitBoard, { 2_usize.pow(14) }>,
+) {
+    if start_sq_idx == blocker_boards.len() {
+        return;
+    }
+
+    for curr_sq_idx in start_sq_idx..blocker_boards.len() {
+        let sq = squares[curr_sq_idx];
+        curr_board.clear_square(sq);
+
+        blocker_boards.push(curr_board);
+        gen_blocker_boards_backtracker(curr_board, squares, curr_sq_idx + 1, blocker_boards);
+
+        curr_board.set_square(sq);
+    }
+}
+
 impl GenerateSlidingMoves for MagicBitboard {
     fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard {
         BitBoard::empty()
