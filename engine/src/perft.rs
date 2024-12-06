@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt::Display,
     marker::Copy,
     time::{Duration, Instant},
@@ -6,9 +7,9 @@ use std::{
 
 use tabled::{Table, Tabled};
 
-use crate::bitboard::BitBoard;
 use crate::move_gen::{GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
 use crate::position::{Piece, Position};
+use crate::{bitboard::BitBoard, move_gen, Move};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Tabled)]
 pub struct PerftDepthResult {
@@ -74,12 +75,55 @@ pub fn perft(
     position: &Position,
     depth: usize,
     move_gen: impl GenerateMoves + Copy,
+) -> (HashMap<Move, usize>, usize) {
+    let moves = move_gen.gen_moves(position);
+    let mut perft_results: HashMap<Move, usize> = HashMap::with_capacity(moves.len());
+
+    for mve in moves {
+        let mut move_pos = position.clone();
+        move_pos.make_move(&mve).unwrap();
+
+        let moves_count = perft_helper(&move_pos, 1, depth, move_gen);
+        perft_results.insert(mve, moves_count);
+    }
+
+    let tot_moves = perft_results.values().sum();
+
+    (perft_results, tot_moves)
+}
+
+fn perft_helper(
+    position: &Position,
+    curr_depth: usize,
+    max_depth: usize,
+    move_gen: impl GenerateMoves + Copy,
+) -> usize {
+    if curr_depth == max_depth {
+        return 1;
+    }
+
+    let mut moves_count = 0;
+    let moves = move_gen.gen_moves(position);
+    for mve in moves {
+        let mut move_pos = position.clone();
+        move_pos.make_move(&mve).unwrap();
+
+        let curr_move_moves_count = perft_helper(&move_pos, curr_depth + 1, max_depth, move_gen);
+        moves_count += curr_move_moves_count;
+    }
+    moves_count
+}
+
+pub fn perft_full(
+    position: &Position,
+    depth: usize,
+    move_gen: impl GenerateMoves + Copy,
 ) -> PerftResult {
     let mut depth_results = vec![PerftDepthResult::empty(); depth];
 
     let start = Instant::now();
 
-    perft_helper(&mut depth_results, position, depth, 0, move_gen);
+    perft_full_helper(&mut depth_results, position, depth, 0, move_gen);
 
     let time_elapsed = start.elapsed();
 
@@ -95,7 +139,7 @@ pub fn perft(
     }
 }
 
-fn perft_helper(
+fn perft_full_helper(
     depth_results: &mut Vec<PerftDepthResult>,
     position: &Position,
     max_depth: usize,
@@ -198,7 +242,7 @@ fn perft_helper(
             }
         }
 
-        perft_helper(
+        perft_full_helper(
             depth_results,
             &move_position,
             max_depth,
@@ -244,7 +288,7 @@ mod tests {
             moves: &[Move::new(B4, A3)],
         };
 
-        let res = perft(&start_position, 1, move_gen);
+        let res = perft_full(&start_position, 1, move_gen);
         assert_eq!(res.depth_results[0].en_passants, want);
     }
 }
