@@ -21,7 +21,7 @@ fn gen_king_moves(
     position: &Position,
     side: Side,
     king_square: Square,
-    friendly_pieces: BitBoard,
+    occupancy: BitBoard,
     leaping_pieces: impl GenerateLeapingMoves,
     sliding_pieces: impl GenerateSlidingMoves,
 ) -> BitBoard {
@@ -39,17 +39,17 @@ fn gen_king_moves(
         if king_square == E1 {
             // White castling
             if position.state.castling_rights.white_king_side
-                && !friendly_pieces.is_square_set(F1)
-                && !friendly_pieces.is_square_set(G1)
+                && !occupancy.is_square_set(F1)
+                && !occupancy.is_square_set(G1)
                 && !king_danger_squares.is_square_set(F1)
                 && !king_danger_squares.is_square_set(G1)
             {
                 moves.set_square(G1)
             }
             if position.state.castling_rights.white_queen_side
-                && !friendly_pieces.is_square_set(D1)
-                && !friendly_pieces.is_square_set(C1)
-                && !friendly_pieces.is_square_set(B1)
+                && !occupancy.is_square_set(D1)
+                && !occupancy.is_square_set(C1)
+                && !occupancy.is_square_set(B1)
                 && !king_danger_squares.is_square_set(D1)
                 && !king_danger_squares.is_square_set(C1)
             {
@@ -59,17 +59,17 @@ fn gen_king_moves(
         if king_square == E8 {
             // Black castling
             if position.state.castling_rights.black_king_side
-                && !friendly_pieces.is_square_set(F8)
-                && !friendly_pieces.is_square_set(G8)
+                && !occupancy.is_square_set(F8)
+                && !occupancy.is_square_set(G8)
                 && !king_danger_squares.is_square_set(F8)
                 && !king_danger_squares.is_square_set(G8)
             {
                 moves.set_square(G8)
             }
             if position.state.castling_rights.black_queen_side
-                && !friendly_pieces.is_square_set(D8)
-                && !friendly_pieces.is_square_set(C8)
-                && !friendly_pieces.is_square_set(B8)
+                && !occupancy.is_square_set(D8)
+                && !occupancy.is_square_set(C8)
+                && !occupancy.is_square_set(B8)
                 && !king_danger_squares.is_square_set(D8)
                 && !king_danger_squares.is_square_set(C8)
             {
@@ -235,7 +235,7 @@ pub(super) fn gen_moves(
             position,
             side,
             king_square,
-            friendly_pieces,
+            occupancy,
             leaping_pieces,
             sliding_pieces,
         );
@@ -281,7 +281,7 @@ pub(super) fn gen_moves(
                     position,
                     side,
                     piece_square,
-                    friendly_pieces,
+                    occupancy,
                     leaping_pieces,
                     sliding_pieces,
                 ),
@@ -411,7 +411,7 @@ mod tests {
         };
     }
 
-    #[test_case(Position::start(), HashSet::from_iter([
+    #[test_case(Position::start(), &[], HashSet::from_iter([
         Move::new(A2, A3), Move::new(A2, A4),
         Move::new(B2, B3), Move::new(B2, B4),
         Move::new(C2, C3), Move::new(C2, C4),
@@ -423,58 +423,58 @@ mod tests {
         Move::new(B1, A3), Move::new(B1, C3),
         Move::new(G1, F3), Move::new(G1, H3)
     ]))]
-    #[test_case(Position::from_fen("8/8/p7/1p1p4/1P6/P1P3kp/5p2/1b5K w - - 0 51").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("8/8/p7/1p1p4/1P6/P1P3kp/5p2/1b5K w - - 0 51").unwrap(), &[], HashSet::from_iter([
         Move::new(C3, C4), Move::new(A3, A4),
     ]) ; "random position from my game")]
-    #[test_case(Position::from_fen("8/8/8/8/k2Pp3/8/8/7K b - d3 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("8/8/8/8/k2Pp3/8/8/7K b - d3 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(A4, A5), Move::new(A4, B5),
         Move::new(A4, A3), Move::new(A4, B3),
         Move::new(A4, B4),
         Move::new(E4, E3), Move::new(E4, D3),
     ]) ; "en passant")]
-    #[test_case(Position::from_fen("8/8/4k3/8/8/4R3/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("8/8/4k3/8/8/4R3/8/7K b - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E6, D7), Move::new(E6, F7),
         Move::new(E6, D6), Move::new(E6, F6),
         Move::new(E6, D5), Move::new(E6, F5),
     ]) ; "king cant move into check")]
-    #[test_case(Position::from_fen("8/8/4k3/8/5N2/8/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("8/8/4k3/8/5N2/8/3b4/7K b - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E6, E7), Move::new(E6, E5),
         Move::new(E6, D7), Move::new(E6, F7),
         Move::new(E6, D6), Move::new(E6, F6),
         Move::new(E6, F5), Move::new(D2, F4),
     ]) ; "capture checker")]
-    #[test_case(Position::from_fen("k7/6r1/8/8/8/R7/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("k7/6r1/8/8/8/R7/8/7K b - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(A8, B8), Move::new(A8, B7),
         Move::new(G7, A7),
     ]) ; "block checker")]
-    #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("8/8/4k3/6N1/8/4R3/3b4/7K b - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E6, D6), Move::new(E6, F6),
         Move::new(E6, D5), Move::new(E6, F5),
         Move::new(E6, D7),
     ]) ; "double check")]
-    #[test_case(Position::from_fen("8/8/8/2k5/3Pp3/8/8/7K b - d3 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("8/8/8/2k5/3Pp3/8/8/7K b - d3 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(C5, B6), Move::new(C5, D6),
         Move::new(C5, B5), Move::new(C5, D5),
         Move::new(C5, B4), Move::new(C5, D4),
         Move::new(C5, C6), Move::new(C5, C4),
         Move::new(E4, D3),
     ]) ; "en passant capture to end check")]
-    #[test_case(Position::from_fen("7k/8/7r/8/7Q/8/8/K7 b - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("7k/8/7r/8/7Q/8/8/K7 b - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(H8, G7), Move::new(H8, H7),
         Move::new(H8, G8),
         Move::new(H6, H7), Move::new(H6, H5),
         Move::new(H6, H4),
     ]) ; "cant move out of pin file")]
-    #[test_case(Position::from_fen("k7/1r6/8/3Q4/8/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("k7/1r6/8/3Q4/8/8/8/7K b - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(A8, B8), Move::new(A8, A7),
     ]) ; "cant move out of pin diagonal")]
-    #[test_case(Position::from_fen("8/8/8/8/k2Pp2R/8/8/7K b - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("8/8/8/8/k2Pp2R/8/8/7K b - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(A4, A5), Move::new(A4, B5),
         Move::new(A4, A3), Move::new(A4, B3),
         Move::new(A4, B4),
         Move::new(E4, E3),
     ]) ; "prevent en passant discovered check")]
-    #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R3K2R w KQ - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E1, F1), Move::new(E1, D1),
         Move::new(E1, F2), Move::new(E1, D2),
         Move::new(E1, E2),
@@ -485,7 +485,7 @@ mod tests {
         Move::new(A2, A3), Move::new(A2, A4),
         Move::new(H2, H3), Move::new(H2, H4),
     ]) ; "white castling")]
-    #[test_case(Position::from_fen("4k3/8/8/8/8/3bb3/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("4k3/8/8/8/8/3bb3/P6P/R3K2R w KQ - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E1, D1),
         Move::new(A1, B1), Move::new(A1, C1),
         Move::new(A1, D1), Move::new(H1, G1),
@@ -493,7 +493,7 @@ mod tests {
         Move::new(A2, A3), Move::new(A2, A4),
         Move::new(H2, H3), Move::new(H2, H4),
     ]) ; "white castling cant through check")]
-    #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R1N1KB1R w KQ - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("4k3/8/8/8/8/8/P6P/R1N1KB1R w KQ - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E1, D1),
         Move::new(E1, F2), Move::new(E1, D2),
         Move::new(E1, E2),
@@ -508,11 +508,11 @@ mod tests {
         Move::new(C1, B3), Move::new(C1, D3),
         Move::new(C1, E2)
     ]) ; "white castling cant through pieces")]
-    #[test_case(Position::from_fen("4k3/8/8/8/1b6/8/P6P/R3K2R w KQ - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("4k3/8/8/8/1b6/8/P6P/R3K2R w KQ - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E1, F1), Move::new(E1, D1),
         Move::new(E1, F2), Move::new(E1, E2),
     ]) ; "white cant castle while in check")]
-    #[test_case(Position::from_fen("r3k2r/p6p/8/8/8/8/8/4K3 b kq - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("r3k2r/p6p/8/8/8/8/8/4K3 b kq - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E8, F8), Move::new(E8, D8),
         Move::new(E8, F7), Move::new(E8, D7),
         Move::new(E8, E7),
@@ -523,8 +523,8 @@ mod tests {
         Move::new(A7, A6), Move::new(A7, A5),
         Move::new(H7, H6), Move::new(H7, H5),
     ]) ; "black castling")]
-    #[test_case(Position::from_fen("r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4").unwrap(), HashSet::from_iter([]) ; "checkmate")]
-    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4").unwrap(), &[], HashSet::from_iter([]) ; "checkmate")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), &[], HashSet::from_iter([
         Move::new(A2, A3), Move::new(A2, A4),
         Move::new(B2, B3), Move::new(G2, G3),
         Move::new(D5, D6), Move::new(D5, E6),
@@ -550,7 +550,7 @@ mod tests {
         Move::new(E1, D1), Move::new(E1, C1),
         Move::new(E1, F1), Move::new(E1, G1),
     ]) ; "kiwipete")]
-    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R b KQkq a3 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(A8, B8), Move::new(A8, C8),
         Move::new(A8, D8), Move::new(E8, C8),
         Move::new(E8, D8), Move::new(E8, F8),
@@ -574,7 +574,7 @@ mod tests {
         Move::new(H8, H7), Move::new(H8, H6),
         Move::new(H8, H5), Move::new(H8, H4),
     ]) ; "kiwipete depth 2")]
-    #[test_case(Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(G1, H1),
         Move::new(F1, F2),
         Move::new(F3, D4),
@@ -582,15 +582,15 @@ mod tests {
         Move::new(C4, C5),
         Move::new(D2, D4),
     ]) ; "perft results position4")]
-    #[test_case(Position::from_fen("4k3/8/8/8/8/8/r4PPK/r7 w - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("4k3/8/8/8/8/8/r4PPK/r7 w - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(H2, H3), Move::new(H2, G3),
         Move::new(G2, G3), Move::new(G2, G4),
         Move::new(F2, F3), Move::new(F2, F4),
     ]) ; "double pin")]
-    #[test_case(Position::from_fen("k7/1b6/8/8/8/8/6R1/r6K w - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("k7/1b6/8/8/8/8/6R1/r6K w - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(H1, H2)
     ]) ; "move to another pin")]
-    #[test_case(Position::from_fen("k7/8/8/8/8/8/6N1/2rR3K w - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("k7/8/8/8/8/8/6N1/2rR3K w - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(D1, C1),
         Move::new(D1, E1),
         Move::new(D1, F1),
@@ -602,24 +602,52 @@ mod tests {
         Move::new(H1, G1),
         Move::new(H1, H2),
     ]))]
-    #[test_case(Position::from_fen("7k/8/8/KPp4r/8/8/8/8 w - c6 0 17").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("7k/8/8/KPp4r/8/8/8/8 w - c6 0 17").unwrap(), &[], HashSet::from_iter([
 	Move::new(B5, B6),
 	Move::new(A5, A6),
 	Move::new(A5, A4),
 	Move::new(A5, B6),
     ]) ; "en passant pin")]
-    #[test_case(Position::from_fen("7k/8/8/8/8/7p/7P/7K w - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("7k/8/8/8/8/7p/7P/7K w - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(H1, G1),
     ]) ; "pawn cant double push through piece")]
-    #[test_case(Position::from_fen("r1b1k1nr/pppp1ppp/2n1p3/8/1bPPP3/P1NB1N1P/1P2KP2/R1BQq3 w kq - 2 10").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("r1b1k1nr/pppp1ppp/2n1p3/8/1bPPP3/P1NB1N1P/1P2KP2/R1BQq3 w kq - 2 10").unwrap(), &[], HashSet::from_iter([
         Move::new(D1, E1), Move::new(E2, E1),
         Move::new(F3, E1)
     ]) ; "position that allowed king to get captured")]
-    #[test_case(Position::from_fen("7k/8/8/8/8/8/8/1K5q w - - 0 1").unwrap(), HashSet::from_iter([
+    #[test_case(Position::from_fen("7k/8/8/8/8/8/8/1K5q w - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(B1, A2), Move::new(B1, B2),
         Move::new(B1, C2)
     ]) ; "king move away from checker")]
-    fn test_gen_moves(position: Position, want: HashSet<Move>) {
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), &[Move::new(E2, F1), Move::new(A6, F1)], HashSet::from_iter([
+        Move::new(A2, A3), Move::new(B2, B3),
+        Move::new(G2, G3), Move::new(D5, D6),
+        Move::new(A2, A4), Move::new(G2, G4),
+        Move::new(G2, H3), Move::new(D5, E6),
+        Move::new(C3, B1), Move::new(C3, D1),
+        Move::new(C3, E2), Move::new(C3, A4),
+        Move::new(C3, B5), Move::new(E5, D3),
+        Move::new(E5, C4), Move::new(E5, G4),
+        Move::new(E5, C6), Move::new(E5, G6),
+        Move::new(E5, D7), Move::new(E5, F7),
+        Move::new(D2, C1), Move::new(D2, E3),
+        Move::new(D2, F4), Move::new(D2, G5),
+        Move::new(D2, H6), Move::new(A1, B1),
+        Move::new(A1, C1), Move::new(A1, D1),
+        Move::new(H1, F1), Move::new(H1, G1),
+        Move::new(F3, D1), Move::new(F3, E2),
+        Move::new(F3, D3), Move::new(F3, E3),
+        Move::new(F3, G3), Move::new(F3, H3),
+        Move::new(F3, F4), Move::new(F3, G4),
+        Move::new(F3, F5), Move::new(F3, H5),
+        Move::new(F3, F6), Move::new(E1, D1),
+        Move::new(E1, F1), Move::new(E1, C1),
+    ]) ; "kiwipete castle through enemy")]
+    fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
+        for mve in start_moves {
+            position.make_move(mve).unwrap();
+        }
+
         println!("{:?}", position);
         let got = gen_moves(&position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE);
 
