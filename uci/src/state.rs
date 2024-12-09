@@ -53,6 +53,9 @@ where
 {
     #[superstate]
     fn top_level(&mut self, event: &UCICommand) -> Response<State> {
+        if *event == UCICommand::Quit {
+            process::exit(0);
+        }
         write_str_response(
             Arc::clone(&self.response_writer),
             &format!("Unexpected command for current state: {:?}", event),
