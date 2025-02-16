@@ -58,6 +58,9 @@ pub(crate) enum UCICommand {
     Perft {
         depth: usize,
     },
+    PerftFull {
+        depth: usize,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -103,6 +106,7 @@ impl FromStr for UCICommand {
             parse_quit,
             parse_eval,
             parse_perft,
+            parse_perft_full,
             parse_go,
         ))
         .parse(input)
@@ -247,6 +251,17 @@ fn parse_perft(input: &mut &str) -> PResult<UCICommand> {
         digit1.try_map(|depth: &str| usize::from_str(depth)),
     )
     .map(|depth: usize| UCICommand::Perft { depth })
+    .parse_next(input)
+}
+
+fn parse_perft_full(input: &mut &str) -> PResult<UCICommand> {
+    // We parse this separately than a GoParameter, even though it starts with `go`.
+    // This is just to be consistent with stockfish
+    preceded(
+        "go perft_full ",
+        digit1.try_map(|depth: &str| usize::from_str(depth)),
+    )
+    .map(|depth: usize| UCICommand::PerftFull { depth })
     .parse_next(input)
 }
 

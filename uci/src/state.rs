@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::{sync::atomic::AtomicBool, thread};
 
 use engine::{
-    perft_full, search, EvaluatePosition, GenerateMoves, Position, AUTHOR,
+    perft, perft_full, search, EvaluatePosition, GenerateMoves, Position, AUTHOR,
     HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME, POSITION_EVALUATOR,
 };
 
@@ -172,6 +172,22 @@ where
                 Handled
             }
             UCICommand::Perft { depth } => {
+                let (move_counts, total_count) =
+                    perft(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+                let move_counts_str = move_counts
+                    .iter()
+                    .map(|(mve, count)| format!("{}: {}", mve, count))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                write_str_response(Arc::clone(&self.response_writer), &move_counts_str);
+                write_str_response(
+                    Arc::clone(&self.response_writer),
+                    &format!("Nodes searched: {}", total_count),
+                );
+                Handled
+            }
+            UCICommand::PerftFull { depth } => {
                 let perft_results = perft_full(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
                 write_str_response(
                     Arc::clone(&self.response_writer),
