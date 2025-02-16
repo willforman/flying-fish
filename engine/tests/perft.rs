@@ -89,6 +89,9 @@ macro_rules! assert_eq_maps {
         let same_values: HashMap<_, _> = $map_a
             .iter()
             .filter(|(key_a, _)| $map_b.contains_key(key_a))
+            .map(|(key_a, val_a)| (key_a, val_a, $map_b.get(key_a).unwrap()))
+            .filter(|(_, val_a, val_b)| val_a == val_b)
+            .map(|(key, val_a, _)| (key, val_a))
             .collect();
 
         let diff_values: HashMap<_, (_, _)> = $map_a
