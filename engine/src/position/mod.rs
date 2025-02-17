@@ -362,6 +362,45 @@ impl Position {
                     self.state.half_move_clock += 1;
                 }
 
+                let dest_sq = if piece == Piece::Pawn {
+                    match self.state.en_passant_target {
+                        Some(ep_capture) if mve.dest == ep_capture => {
+                            let ep_capture_dir = if side == Side::White {
+                                Direction::DecRank
+                            } else {
+                                Direction::IncRank
+                            };
+
+                            let mut ep_capture_bb = BitBoard::from_square(ep_capture);
+                            ep_capture_bb.shift(ep_capture_dir);
+                            ep_capture_bb.to_squares()[0]
+                        }
+                        _ => mve.dest,
+                    }
+                } else {
+                    mve.dest
+                };
+
+                if let Some((opp_piece, opp_side)) = self.is_piece_at(dest_sq) {
+                    self.sides.get_mut(opp_side).clear_square(dest_sq);
+                    self.pieces
+                        .get_mut(opp_piece)
+                        .get_mut(opp_side)
+                        .clear_square(dest_sq);
+
+                    if opp_piece == Piece::Rook {
+                        if mve.dest == H1 {
+                            self.state.castling_rights.white_king_side = false;
+                        } else if mve.dest == A1 {
+                            self.state.castling_rights.white_queen_side = false;
+                        } else if mve.dest == H8 {
+                            self.state.castling_rights.black_king_side = false;
+                        } else if mve.dest == A8 {
+                            self.state.castling_rights.black_queen_side = false;
+                        }
+                    }
+                }
+
                 if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
                     let ep_dir = if side == Side::White {
                         Direction::IncRank
@@ -376,26 +415,6 @@ impl Position {
                     self.state.en_passant_target = Some(ep_target);
                 } else {
                     self.state.en_passant_target = None;
-                }
-
-                if let Some((opp_piece, opp_side)) = self.is_piece_at(mve.dest) {
-                    self.sides.get_mut(opp_side).clear_square(mve.dest);
-                    self.pieces
-                        .get_mut(opp_piece)
-                        .get_mut(opp_side)
-                        .clear_square(mve.dest);
-
-                    if opp_piece == Piece::Rook {
-                        if mve.dest == H1 {
-                            self.state.castling_rights.white_king_side = false;
-                        } else if mve.dest == A1 {
-                            self.state.castling_rights.white_queen_side = false;
-                        } else if mve.dest == H8 {
-                            self.state.castling_rights.black_king_side = false;
-                        } else if mve.dest == A8 {
-                            self.state.castling_rights.black_queen_side = false;
-                        }
-                    }
                 }
 
                 if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {

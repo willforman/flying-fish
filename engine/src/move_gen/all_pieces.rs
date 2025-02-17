@@ -643,6 +643,28 @@ mod tests {
         Move::new(F3, F6), Move::new(E1, D1),
         Move::new(E1, F1), Move::new(E1, C1),
     ]) ; "kiwipete castle through enemy")]
+    #[test_case(Position::from_fen("r3k2r/p2pqpb1/bn2pnp1/2pPN3/1pB1P3/2N2Q1p/PPPB1PPP/R3K2R w KQkq c6 0 2").unwrap(), &[Move::new(D5, C6)], HashSet::from_iter([
+        Move::new(B4, B3), Move::new(G6, G5),
+        Move::new(D7, D6), Move::new(D7, D5),
+        Move::new(H3, G2), Move::new(D7, C6),
+        Move::new(B4, C3), Move::new(B6, A4),
+        Move::new(B6, C4), Move::new(B6, D5),
+        Move::new(B6, C8), Move::new(F6, E4),
+        Move::new(F6, G4), Move::new(F6, D5),
+        Move::new(F6, H5), Move::new(F6, H7),
+        Move::new(F6, G8), Move::new(A6, C4),
+        Move::new(A6, B5), Move::new(A6, B7),
+        Move::new(A6, C8), Move::new(G7, H6),
+        Move::new(G7, F8), Move::new(A8, B8),
+        Move::new(A8, C8), Move::new(A8, D8),
+        Move::new(H8, H4), Move::new(H8, H5),
+        Move::new(H8, H6), Move::new(H8, H7),
+        Move::new(H8, F8), Move::new(H8, G8),
+        Move::new(E7, C5), Move::new(E7, D6),
+        Move::new(E7, D8), Move::new(E7, F8),
+        Move::new(E8, D8), Move::new(E8, F8),
+        Move::new(E8, G8), Move::new(E8, C8),
+    ]) ; "kiwipete move to en passant target")]
     fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
         for mve in start_moves {
             position.make_move(mve).unwrap();

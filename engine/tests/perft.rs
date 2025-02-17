@@ -48,9 +48,9 @@ use test_case::test_case;
     131393,
     0,
     7795,
-    600032,
+    60032,
     15492,
-    0,
+    19,
     0,
     5
     ) ; "perft results position4 4"
