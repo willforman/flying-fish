@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use std::{sync::atomic::AtomicBool, thread};
 
 use engine::{
@@ -172,18 +173,26 @@ where
                 Handled
             }
             UCICommand::Perft { depth } => {
+                let start = Instant::now();
                 let (move_counts, total_count) =
                     perft(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+                let time_elapsed = start.elapsed();
+
                 let move_counts_str = move_counts
                     .iter()
                     .map(|(mve, count)| format!("{}: {}", mve, count))
                     .collect::<Vec<_>>()
                     .join("\n");
+                let nodes_per_second = total_count as f64 / time_elapsed.as_secs_f64();
 
                 write_str_response(Arc::clone(&self.response_writer), &move_counts_str);
                 write_str_response(
                     Arc::clone(&self.response_writer),
                     &format!("Nodes searched: {}", total_count),
+                );
+                write_str_response(
+                    Arc::clone(&self.response_writer),
+                    &format!("Nodes/second: {:.0}", nodes_per_second),
                 );
                 Handled
             }
