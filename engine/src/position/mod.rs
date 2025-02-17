@@ -384,6 +384,18 @@ impl Position {
                         .get_mut(opp_piece)
                         .get_mut(opp_side)
                         .clear_square(mve.dest);
+
+                    if opp_piece == Piece::Rook {
+                        if mve.dest == H1 {
+                            self.state.castling_rights.white_king_side = false;
+                        } else if mve.dest == A1 {
+                            self.state.castling_rights.white_queen_side = false;
+                        } else if mve.dest == H8 {
+                            self.state.castling_rights.black_king_side = false;
+                        } else if mve.dest == A8 {
+                            self.state.castling_rights.black_queen_side = false;
+                        }
+                    }
                 }
 
                 if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
