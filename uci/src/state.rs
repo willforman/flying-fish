@@ -66,9 +66,37 @@ where
         Super
     }
     #[state(superstate = "top_level")]
-    fn initial(event: &UCICommand) -> Response<State> {
+    fn initial(&mut self, event: &UCICommand) -> Response<State> {
         match event {
-            UCICommand::UCI => Transition(State::uci_enabled(Position::start())),
+            UCICommand::UCI => {
+                write_response(
+                    Arc::clone(&self.response_writer),
+                    UCIResponse::IDName {
+                        name: NAME.to_string(),
+                    },
+                );
+                write_response(
+                    Arc::clone(&self.response_writer),
+                    UCIResponse::IDAuthor {
+                        author: AUTHOR.to_string(),
+                    },
+                );
+                write_response(Arc::clone(&self.response_writer), UCIResponse::UCIOk);
+
+                if self.debug {
+                    let curr_time_str = chrono::Local::now().format("%I_%M_%m_%d");
+                    let log_name = format!("search-{}.txt", curr_time_str);
+                    let mut search_logs_path = LOGS_DIRECTORY
+                        .get()
+                        .expect("LOGS_DIRECTORY should be set")
+                        .clone();
+                    search_logs_path.push("search");
+                    search_logs_path.push(log_name);
+                    self.maybe_search_logs_path = Some(search_logs_path);
+                }
+
+                Transition(State::uci_enabled(Position::start()))
+            }
             _ => Super,
         }
     }
@@ -94,7 +122,7 @@ where
         }
     }
 
-    #[state(entry_action = "enter_uci_enabled", superstate = "is_ready")]
+    #[state(superstate = "is_ready")]
     fn uci_enabled(&mut self, position: &mut Position, event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::UCINewGame => Transition(State::uci_enabled(Position::start())),
@@ -201,35 +229,6 @@ where
                 Handled
             }
             _ => Super,
-        }
-    }
-
-    #[action]
-    fn enter_uci_enabled(&mut self) {
-        write_response(
-            Arc::clone(&self.response_writer),
-            UCIResponse::IDName {
-                name: NAME.to_string(),
-            },
-        );
-        write_response(
-            Arc::clone(&self.response_writer),
-            UCIResponse::IDAuthor {
-                author: AUTHOR.to_string(),
-            },
-        );
-        write_response(Arc::clone(&self.response_writer), UCIResponse::UCIOk);
-
-        if self.debug {
-            let curr_time_str = chrono::Local::now().format("%I_%M_%m_%d");
-            let log_name = format!("search-{}.txt", curr_time_str);
-            let mut search_logs_path = LOGS_DIRECTORY
-                .get()
-                .expect("LOGS_DIRECTORY should be set")
-                .clone();
-            search_logs_path.push("search");
-            search_logs_path.push(log_name);
-            self.maybe_search_logs_path = Some(search_logs_path);
         }
     }
 
