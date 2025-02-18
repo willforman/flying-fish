@@ -61,6 +61,7 @@ pub(crate) enum UCICommand {
     PerftFull {
         depth: usize,
     },
+    PerftBenchmark,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -107,6 +108,7 @@ impl FromStr for UCICommand {
             parse_eval,
             parse_perft,
             parse_perft_full,
+            parse_perft_benchmark,
             parse_go,
         ))
         .parse(input)
@@ -263,6 +265,11 @@ fn parse_perft_full(input: &mut &str) -> PResult<UCICommand> {
     )
     .map(|depth: usize| UCICommand::PerftFull { depth })
     .parse_next(input)
+}
+fn parse_perft_benchmark(input: &mut &str) -> PResult<UCICommand> {
+    "perft_bench"
+        .value(UCICommand::PerftBenchmark)
+        .parse_next(input)
 }
 
 // ======================================================

@@ -1,14 +1,16 @@
+use anyhow::Result;
 use statig::prelude::*;
+use std::collections::HashMap;
 use std::fmt::format;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{sync::atomic::AtomicBool, thread};
 
 use engine::{
-    perft, perft_full, search, EvaluatePosition, GenerateMoves, Position, AUTHOR,
+    perft, perft_full, search, EvaluatePosition, GenerateMoves, Move, Position, AUTHOR,
     HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME, POSITION_EVALUATOR,
 };
 
@@ -178,21 +180,11 @@ where
                     perft(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
                 let time_elapsed = start.elapsed();
 
-                let move_counts_str = move_counts
-                    .iter()
-                    .map(|(mve, count)| format!("{}: {}", mve, count))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                let nodes_per_second = total_count as f64 / time_elapsed.as_secs_f64();
-
-                write_str_response(Arc::clone(&self.response_writer), &move_counts_str);
-                write_str_response(
+                write_perft_results(
+                    move_counts,
+                    total_count,
+                    time_elapsed,
                     Arc::clone(&self.response_writer),
-                    &format!("Nodes searched: {}", total_count),
-                );
-                write_str_response(
-                    Arc::clone(&self.response_writer),
-                    &format!("Nodes/second: {:.0}", nodes_per_second),
                 );
                 Handled
             }
@@ -202,6 +194,10 @@ where
                     Arc::clone(&self.response_writer),
                     format!("{}", perft_results).as_str(),
                 );
+                Handled
+            }
+            UCICommand::PerftBenchmark => {
+                self.perft_benchmark().unwrap();
                 Handled
             }
             _ => Super,
@@ -236,6 +232,51 @@ where
             self.maybe_search_logs_path = Some(search_logs_path);
         }
     }
+
+    fn perft_benchmark(&self) -> Result<()> {
+        let total_start = Instant::now();
+        let mut total_nodes = 0;
+        for (fen, depth) in PERFT_BENCHMARK_FENS_AND_DEPTHS {
+            write_str_response(
+                Arc::clone(&self.response_writer),
+                &format!("Position: [{}], depth {}", fen, depth),
+            );
+
+            let position = Position::from_fen(fen)?;
+            let position_start = Instant::now();
+            let (position_move_nodes, position_total_nodes) =
+                perft(&position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+            let position_time_elapsed = position_start.elapsed();
+
+            total_nodes += position_total_nodes;
+
+            write_perft_results(
+                position_move_nodes,
+                position_total_nodes,
+                position_time_elapsed,
+                Arc::clone(&self.response_writer),
+            );
+        }
+        let total_time_elapsed = total_start.elapsed();
+        let total_nodes_per_second = total_nodes as f64 / total_time_elapsed.as_secs_f64();
+        write_str_response(
+            Arc::clone(&self.response_writer),
+            "\n===========================",
+        );
+        write_str_response(
+            Arc::clone(&self.response_writer),
+            &format!("Total time (ms): {}", total_time_elapsed.as_millis()),
+        );
+        write_str_response(
+            Arc::clone(&self.response_writer),
+            &format!("Nodes searched: {}", total_nodes),
+        );
+        write_str_response(
+            Arc::clone(&self.response_writer),
+            &format!("Nodes/second: {:.0}", total_nodes_per_second),
+        );
+        Ok(())
+    }
 }
 
 fn write_response(response_writer: Arc<Mutex<impl Write>>, uci_response: UCIResponse) {
@@ -248,3 +289,44 @@ fn write_str_response(response_writer: Arc<Mutex<impl Write>>, str_response: &st
     let mut response_writer = response_writer.lock().unwrap();
     writeln!(response_writer, "{}", str_response).unwrap();
 }
+
+fn write_perft_results(
+    move_counts: HashMap<Move, usize>,
+    total_count: usize,
+    time_elapsed: Duration,
+    response_writer: Arc<Mutex<impl Write>>,
+) {
+    let move_counts_str = move_counts
+        .iter()
+        .map(|(mve, count)| format!("{}: {}", mve, count))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let nodes_per_second = total_count as f64 / time_elapsed.as_secs_f64();
+
+    write_str_response(Arc::clone(&response_writer), &move_counts_str);
+    write_str_response(Arc::clone(&response_writer), "");
+    write_str_response(
+        Arc::clone(&response_writer),
+        &format!("Time (ms): {}", time_elapsed.as_millis()),
+    );
+    write_str_response(
+        Arc::clone(&response_writer),
+        &format!("Nodes searched: {}", total_count),
+    );
+    write_str_response(
+        Arc::clone(&response_writer),
+        &format!("Nodes/second: {:.0}", nodes_per_second),
+    );
+}
+
+const PERFT_BENCHMARK_FENS_AND_DEPTHS: &[(&str, usize)] = &[
+    (
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        4,
+    ),
+    (
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        4,
+    ),
+    ("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 5),
+];
