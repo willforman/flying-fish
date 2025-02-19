@@ -1,9 +1,9 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use statig::prelude::*;
 use std::collections::HashMap;
 use std::fmt::format;
-use std::io::Write;
-use std::path::PathBuf;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::{fs, process};
@@ -17,14 +17,14 @@ use engine::{
 use crate::messages::{UCICommand, UCIResponse};
 use crate::LOGS_DIRECTORY;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct DebugItems {
-    search_logs_path: PathBuf,
-    in_out_logs_path: PathBuf,
+    search_logs_writer: Arc<Mutex<BufWriter<File>>>,
+    in_out_logs_writer: BufWriter<File>,
 }
 
 impl DebugItems {
-    fn init() -> Self {
+    fn init() -> Result<Self> {
         let curr_time_str = chrono::Local::now().format("%I_%M_%m_%d");
         let logs_directory = LOGS_DIRECTORY
             .get()
@@ -34,14 +34,32 @@ impl DebugItems {
         let mut search_logs_path = logs_directory.clone();
         search_logs_path.push("search");
         search_logs_path.push(format!("search-{}.txt", curr_time_str));
+        let search_logs_file = File::create(&search_logs_path)
+            .context(format!("Couldn't open: {:?}", &search_logs_path))?;
+        let search_logs_writer = BufWriter::new(search_logs_file);
 
         let mut in_out_logs_path = logs_directory.clone();
         in_out_logs_path.push("in_out");
         in_out_logs_path.push(format!("in_out-{}.txt", curr_time_str));
+        let in_out_logs_file = File::create(&in_out_logs_path)
+            .context(format!("Couldn't open: {:?}", &in_out_logs_path))?;
+        let in_out_logs_writer = BufWriter::new(in_out_logs_file);
 
-        Self {
-            search_logs_path,
-            in_out_logs_path,
+        Ok(Self {
+            search_logs_writer: Arc::new(Mutex::new(search_logs_writer)),
+            in_out_logs_writer,
+        })
+    }
+}
+
+impl Drop for DebugItems {
+    fn drop(&mut self) {
+        let mut search_logs_writer = self.search_logs_writer.lock().unwrap();
+        if let Err(e) = search_logs_writer.flush() {
+            eprintln!("Failed to flush search logs: {}", e);
+        }
+        if let Err(e) = self.in_out_logs_writer.flush() {
+            eprintln!("Failed to flush in/out logs: {}", e);
         }
     }
 }
@@ -76,12 +94,8 @@ where
     }
 
     fn on_dispatch(&mut self, state: StateOrSuperstate<UCIState<T, U>>, event: &UCICommand) {
-        if let Some(dbg_items) = &self.debug {
-            fs::write(
-                dbg_items.in_out_logs_path.clone(),
-                format!("({:?}): {:?}", state, event),
-            )
-            .unwrap();
+        if let Some(dbg_items) = &mut self.debug {
+            writeln!(dbg_items.in_out_logs_writer, "({:?}): {}", state, event).unwrap();
         }
     }
 }
@@ -99,11 +113,6 @@ where
 {
     #[superstate]
     fn top_level(&mut self, event: &UCICommand) -> Response<State> {
-        println!("Curr: {:?}", self.debug);
-        if let Some(dbg) = &self.debug {
-            println!("IN!");
-            fs::write(dbg.in_out_logs_path.clone(), format!("{:?}", event)).unwrap();
-        }
         if *event == UCICommand::Quit {
             process::exit(0);
         }
@@ -140,7 +149,7 @@ where
     fn debug(&mut self, event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::Debug { on: true } => {
-                self.debug = Some(DebugItems::init());
+                self.debug = Some(DebugItems::init().unwrap());
                 Handled
             }
             UCICommand::Debug { on: false } => {
@@ -197,8 +206,10 @@ where
                     debug: self.debug.is_some(),
                     ..params.clone()
                 };
-                let maybe_search_logs_path =
-                    self.debug.as_ref().map(|dbg| dbg.search_logs_path.clone());
+                let maybe_search_logs_writer = self
+                    .debug
+                    .as_ref()
+                    .map(|dbg| Arc::clone(&dbg.search_logs_writer));
 
                 thread::spawn(move || {
                     let (best_move, _) = search(
@@ -208,7 +219,7 @@ where
                         POSITION_EVALUATOR,
                         Arc::clone(&response_writer),
                         Arc::clone(&terminate),
-                        maybe_search_logs_path,
+                        maybe_search_logs_writer,
                     )
                     .unwrap();
                     write_response(

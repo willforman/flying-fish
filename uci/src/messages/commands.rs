@@ -1,3 +1,4 @@
+use core::fmt;
 use std::fmt::Display;
 use std::io;
 use std::str::FromStr;
@@ -64,6 +65,12 @@ pub(crate) enum UCICommand {
     PerftBenchmark,
 }
 
+impl fmt::Display for UCICommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!();
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) enum GoParameter {
     SearchMoves { moves: Vec<Move> },
@@ -76,6 +83,12 @@ pub(crate) enum GoParameter {
     MoveTime { time: Duration },
     Infinite,
     Ponder,
+}
+
+impl fmt::Display for GoParameter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!();
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

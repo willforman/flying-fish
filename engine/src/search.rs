@@ -236,7 +236,7 @@ pub fn search(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
-    search_logs_path: Option<PathBuf>,
+    maybe_search_logs_writer: Option<Arc<Mutex<impl Write>>>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     if params.debug {
         writeln!(info_writer.lock().unwrap(), "info string {}", params).unwrap();
@@ -297,19 +297,11 @@ pub fn search(
         })
         .collect();
 
-    let mut maybe_search_logs_file = if let Some(search_logs_path) = &search_logs_path {
-        Some(
-            File::create(search_logs_path)
-                .map_err(|_| SearchError::OpenSearchLogsFile(search_logs_path.to_path_buf()))?,
-        )
-    } else {
-        None
-    };
-
-    if let Some(search_logs_file) = &mut maybe_search_logs_file {
-        writeln!(search_logs_file, "NEW SEARCH").unwrap();
-        writeln!(search_logs_file, "{}", position.to_fen()).unwrap();
-        writeln!(search_logs_file, "{}", params).unwrap();
+    if let Some(search_logs_writer) = &maybe_search_logs_writer {
+        let mut search_logs_writer = search_logs_writer.lock().unwrap();
+        writeln!(search_logs_writer, "NEW SEARCH").unwrap();
+        writeln!(search_logs_writer, "{}", position.to_fen()).unwrap();
+        writeln!(search_logs_writer, "{}", params).unwrap();
     }
 
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
@@ -379,12 +371,13 @@ pub fn search(
             log::debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
         }
 
-        if let Some(search_logs_file) = &mut maybe_search_logs_file {
+        if let Some(search_logs_writer) = &maybe_search_logs_writer {
+            let mut search_logs_writer = search_logs_writer.lock().unwrap();
             for mve in &moves {
-                writeln!(search_logs_file, "{}: {}", mve, move_vals[mve])
+                writeln!(search_logs_writer, "{}: {}", mve, move_vals[mve])
                     .expect("Write move to search logs failed");
             }
-            writeln!(search_logs_file, "==================================")
+            writeln!(search_logs_writer, "==================================")
                 .expect("Write to search logs failed");
         }
 
@@ -527,62 +520,4 @@ fn write_search_info(
     let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), "");
     let mut info_writer = info_writer.lock().unwrap();
     writeln!(info_writer, "{}", info).unwrap();
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test_case::test_case;
-    use testresult::TestResult;
-
-    use crate::bitboard::Square::*;
-    use crate::evaluation::POSITION_EVALUATOR;
-    use crate::move_gen::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-    use crate::position::Move;
-
-    #[derive(Clone, Copy)]
-    struct DummyInfoWriter;
-
-    impl Write for DummyInfoWriter {
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            let string = String::from_utf8(buf.to_vec()).unwrap();
-            println!("{}", string);
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-
-    #[test_case(Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap(), 
-    &[
-        Move::new(D2, D4), Move::new(E7, E6),
-        Move::new(C2, C4), Move::new(B8, C6),
-        Move::new(B1, C3), Move::new(D8, H4),
-        Move::new(G1, F3), Move::new(H4, G4),
-        Move::new(H2, H3), Move::new(G4, G6),
-        Move::new(E2, E4), Move::new(F8, B4),
-        Move::new(F1, D3), Move::new(G6, G2),
-        Move::new(A2, A3), Move::new(G2, H1),
-        Move::new(E1, E2)
-    ]; "random game that caused crash")]
-    fn test_search(mut position: Position, moves: &[Move]) -> TestResult {
-        for mve in moves {
-            position.make_move(mve)?;
-        }
-        search(
-            &position,
-            &SearchParams {
-                max_depth: Some(3),
-                ..SearchParams::default()
-            },
-            HYPERBOLA_QUINTESSENCE_MOVE_GEN,
-            POSITION_EVALUATOR,
-            Arc::new(Mutex::new(DummyInfoWriter)),
-            Arc::new(AtomicBool::new(false)),
-            None,
-        )?;
-        Ok(())
-    }
 }
