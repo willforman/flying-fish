@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::fmt::format;
 use std::io::Write;
 use std::path::PathBuf;
-use std::process;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use std::{fs, process};
 use std::{sync::atomic::AtomicBool, thread};
 
 use engine::{
@@ -17,6 +17,36 @@ use engine::{
 use crate::messages::{UCICommand, UCIResponse};
 use crate::LOGS_DIRECTORY;
 
+#[derive(Clone, Debug)]
+struct DebugItems {
+    search_logs_path: PathBuf,
+    in_out_logs_path: PathBuf,
+}
+
+impl DebugItems {
+    fn init() -> Self {
+        let curr_time_str = chrono::Local::now().format("%I_%M_%m_%d");
+        let logs_directory = LOGS_DIRECTORY
+            .get()
+            .expect("LOGS_DIRECTORY should be set")
+            .clone();
+
+        let mut search_logs_path = logs_directory.clone();
+        search_logs_path.push("search");
+        search_logs_path.push(format!("search-{}.txt", curr_time_str));
+
+        let mut in_out_logs_path = logs_directory.clone();
+        in_out_logs_path.push("in_out");
+        in_out_logs_path.push(format!("in_out-{}.txt", curr_time_str));
+
+        Self {
+            search_logs_path,
+            in_out_logs_path,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub(crate) struct UCIState<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync,
@@ -24,31 +54,44 @@ where
 {
     move_gen: T,
     response_writer: Arc<Mutex<U>>,
-    debug: bool,
     // We need a way to terminate when running Go, but unfortunately don't seem
     // to be able store this as statig state local storage because that requires the
     // item to be a reference.
     maybe_terminate: Option<Arc<AtomicBool>>,
-    maybe_search_logs_path: Option<PathBuf>,
+    debug: Option<DebugItems>,
 }
 
 impl<T, U> UCIState<T, U>
 where
-    T: GenerateMoves + Copy + Send + Sync,
+    T: GenerateMoves + Copy + Send + Sync + 'static,
     U: Write + Send + Sync + 'static,
 {
     pub(crate) fn new(move_gen: T, response_writer: Arc<Mutex<U>>) -> Self {
         Self {
             move_gen,
             response_writer,
-            debug: true,
             maybe_terminate: None,
-            maybe_search_logs_path: None,
+            debug: None,
+        }
+    }
+
+    fn on_dispatch(&mut self, state: StateOrSuperstate<UCIState<T, U>>, event: &UCICommand) {
+        if let Some(dbg_items) = &self.debug {
+            fs::write(
+                dbg_items.in_out_logs_path.clone(),
+                format!("({:?}): {:?}", state, event),
+            )
+            .unwrap();
         }
     }
 }
 
-#[state_machine(initial = "State::initial()", state(derive(PartialEq, Eq, Debug)))]
+#[state_machine(
+    initial = "State::initial()",
+    on_dispatch = "Self::on_dispatch",
+    state(derive(PartialEq, Eq, Debug)),
+    superstate(derive(Debug))
+)]
 impl<T, U> UCIState<T, U>
 where
     T: GenerateMoves + Copy + Send + Sync + 'static,
@@ -56,6 +99,11 @@ where
 {
     #[superstate]
     fn top_level(&mut self, event: &UCICommand) -> Response<State> {
+        println!("Curr: {:?}", self.debug);
+        if let Some(dbg) = &self.debug {
+            println!("IN!");
+            fs::write(dbg.in_out_logs_path.clone(), format!("{:?}", event)).unwrap();
+        }
         if *event == UCICommand::Quit {
             process::exit(0);
         }
@@ -83,18 +131,6 @@ where
                 );
                 write_response(Arc::clone(&self.response_writer), UCIResponse::UCIOk);
 
-                if self.debug {
-                    let curr_time_str = chrono::Local::now().format("%I_%M_%m_%d");
-                    let log_name = format!("search-{}.txt", curr_time_str);
-                    let mut search_logs_path = LOGS_DIRECTORY
-                        .get()
-                        .expect("LOGS_DIRECTORY should be set")
-                        .clone();
-                    search_logs_path.push("search");
-                    search_logs_path.push(log_name);
-                    self.maybe_search_logs_path = Some(search_logs_path);
-                }
-
                 Transition(State::uci_enabled(Position::start()))
             }
             _ => Super,
@@ -103,8 +139,12 @@ where
     #[superstate(superstate = "top_level")]
     fn debug(&mut self, event: &UCICommand) -> Response<State> {
         match event {
-            UCICommand::Debug { on } => {
-                self.debug = *on;
+            UCICommand::Debug { on: true } => {
+                self.debug = Some(DebugItems::init());
+                Handled
+            }
+            UCICommand::Debug { on: false } => {
+                self.debug = None;
                 Handled
             }
             _ => Super,
@@ -154,10 +194,11 @@ where
                 let move_gen = self.move_gen;
                 let response_writer = Arc::clone(&self.response_writer);
                 let params = engine::SearchParams {
-                    debug: self.debug,
+                    debug: self.debug.is_some(),
                     ..params.clone()
                 };
-                let maybe_search_logs_path = self.maybe_search_logs_path.clone();
+                let maybe_search_logs_path =
+                    self.debug.as_ref().map(|dbg| dbg.search_logs_path.clone());
 
                 thread::spawn(move || {
                     let (best_move, _) = search(

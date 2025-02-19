@@ -346,6 +346,7 @@ pub fn search(
                     iterative_deepening_max_depth,
                     &start,
                     &latest_score,
+                    None,
                     info_writer,
                 );
                 break 'outer;
@@ -370,6 +371,7 @@ pub fn search(
             iterative_deepening_max_depth,
             &start,
             &latest_score,
+            best_move,
             Arc::clone(&info_writer),
         );
 
@@ -443,6 +445,7 @@ fn search_helper(
             curr_depth,
             start_time,
             latest_score,
+            None,
             Arc::clone(&info_writer),
         );
     }
@@ -465,6 +468,7 @@ fn search_helper(
                 curr_depth,
                 start_time,
                 latest_score,
+                None,
                 Arc::clone(&info_writer),
             );
             let mut info_writer = info_writer.lock().unwrap();
@@ -516,6 +520,7 @@ fn write_search_info(
     curr_depth: u64,
     start_time: &Instant,
     latest_score: &f64,
+    best_move: Option<Move>,
     info_writer: Arc<Mutex<impl Write>>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
