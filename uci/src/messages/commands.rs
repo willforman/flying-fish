@@ -67,7 +67,47 @@ pub(crate) enum UCICommand {
 
 impl fmt::Display for UCICommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!();
+        match self {
+            UCICommand::UCI => write!(f, "uci"),
+            UCICommand::Debug { on } => write!(f, "debug {}", if *on { "on" } else { "off" }),
+            UCICommand::IsReady => write!(f, "isready"),
+            UCICommand::SetOption { name, value } => match value {
+                Some(val) => write!(f, "setoption name {} value {}", name, val),
+                None => write!(f, "setoption name {}", name),
+            },
+            UCICommand::Register { name, code } => {
+                write!(f, "register name {} code {}", name, code)
+            }
+            UCICommand::RegisterLater => write!(f, "register later"),
+            UCICommand::UCINewGame => write!(f, "ucinewgame"),
+            UCICommand::Position { fen, moves } => {
+                write!(f, "position ")?;
+                match fen {
+                    Some(fen_str) => write!(f, "fen {}", fen_str)?,
+                    None => write!(f, "startpos")?,
+                }
+                if let Some(moves) = moves {
+                    write!(
+                        f,
+                        " moves {}",
+                        moves
+                            .iter()
+                            .map(|m| m.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    )?;
+                }
+                Ok(())
+            }
+            UCICommand::Go { params } => write!(f, "go {}", params),
+            UCICommand::Stop => write!(f, "stop"),
+            UCICommand::PonderHit => write!(f, "ponderhit"),
+            UCICommand::Quit => write!(f, "quit"),
+            UCICommand::Eval => write!(f, "eval"),
+            UCICommand::Perft { depth } => write!(f, "go perft {}", depth),
+            UCICommand::PerftFull { depth } => write!(f, "go perft_full {}", depth),
+            UCICommand::PerftBenchmark => write!(f, "perft_bench"),
+        }
     }
 }
 
@@ -87,7 +127,48 @@ pub(crate) enum GoParameter {
 
 impl fmt::Display for GoParameter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!();
+        match self {
+            GoParameter::SearchMoves { moves } => {
+                write!(
+                    f,
+                    "searchmoves {}",
+                    moves
+                        .iter()
+                        .map(|m| m.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                )
+            }
+            GoParameter::Time { time, side } => {
+                write!(
+                    f,
+                    "{}time {}",
+                    match side {
+                        Side::White => "w",
+                        Side::Black => "b",
+                    },
+                    time.as_millis()
+                )
+            }
+            GoParameter::Inc { time, side } => {
+                write!(
+                    f,
+                    "{}inc {}",
+                    match side {
+                        Side::White => "w",
+                        Side::Black => "b",
+                    },
+                    time.as_millis()
+                )
+            }
+            GoParameter::MovesToGo { moves } => write!(f, "movestogo {}", moves),
+            GoParameter::Depth { moves } => write!(f, "depth {}", moves),
+            GoParameter::Nodes { nodes } => write!(f, "nodes {}", nodes),
+            GoParameter::Mate { moves } => write!(f, "mate {}", moves),
+            GoParameter::MoveTime { time } => write!(f, "movetime {}", time.as_millis()),
+            GoParameter::Infinite => write!(f, "infinite"),
+            GoParameter::Ponder => write!(f, "ponder"),
+        }
     }
 }
 

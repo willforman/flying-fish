@@ -93,9 +93,10 @@ where
         }
     }
 
-    fn on_dispatch(&mut self, state: StateOrSuperstate<UCIState<T, U>>, event: &UCICommand) {
+    fn on_dispatch(&mut self, _: StateOrSuperstate<UCIState<T, U>>, event: &UCICommand) {
         if let Some(dbg_items) = &mut self.debug {
-            writeln!(dbg_items.in_out_logs_writer, "({:?}): {}", state, event).unwrap();
+            writeln!(dbg_items.in_out_logs_writer, "{}", event).unwrap();
+            dbg_items.in_out_logs_writer.flush().unwrap();
         }
     }
 }
