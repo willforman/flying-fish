@@ -1,12 +1,11 @@
 use anyhow::{Context, Result};
 use statig::prelude::*;
 use std::collections::HashMap;
-use std::fmt::format;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::Write;
+use std::process;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::{fs, process};
 use std::{sync::atomic::AtomicBool, thread};
 
 use engine::{
@@ -19,8 +18,8 @@ use crate::LOGS_DIRECTORY;
 
 #[derive(Debug)]
 struct DebugItems {
-    search_logs_writer: Arc<Mutex<BufWriter<File>>>,
-    in_out_logs_writer: BufWriter<File>,
+    search_logs_writer: Arc<Mutex<File>>,
+    in_out_logs_writer: Arc<Mutex<File>>,
 }
 
 impl DebugItems {
@@ -34,33 +33,19 @@ impl DebugItems {
         let mut search_logs_path = logs_directory.clone();
         search_logs_path.push("search");
         search_logs_path.push(format!("search-{}.txt", curr_time_str));
-        let search_logs_file = File::create(&search_logs_path)
+        let search_logs_writer = File::create(&search_logs_path)
             .context(format!("Couldn't open: {:?}", &search_logs_path))?;
-        let search_logs_writer = BufWriter::new(search_logs_file);
 
         let mut in_out_logs_path = logs_directory.clone();
         in_out_logs_path.push("in_out");
         in_out_logs_path.push(format!("in_out-{}.txt", curr_time_str));
-        let in_out_logs_file = File::create(&in_out_logs_path)
+        let in_out_logs_writer = File::create(&in_out_logs_path)
             .context(format!("Couldn't open: {:?}", &in_out_logs_path))?;
-        let in_out_logs_writer = BufWriter::new(in_out_logs_file);
 
         Ok(Self {
             search_logs_writer: Arc::new(Mutex::new(search_logs_writer)),
-            in_out_logs_writer,
+            in_out_logs_writer: Arc::new(Mutex::new(in_out_logs_writer)),
         })
-    }
-}
-
-impl Drop for DebugItems {
-    fn drop(&mut self) {
-        let mut search_logs_writer = self.search_logs_writer.lock().unwrap();
-        if let Err(e) = search_logs_writer.flush() {
-            eprintln!("Failed to flush search logs: {}", e);
-        }
-        if let Err(e) = self.in_out_logs_writer.flush() {
-            eprintln!("Failed to flush in/out logs: {}", e);
-        }
     }
 }
 
@@ -95,8 +80,8 @@ where
 
     fn on_dispatch(&mut self, _: StateOrSuperstate<UCIState<T, U>>, event: &UCICommand) {
         if let Some(dbg_items) = &mut self.debug {
-            writeln!(dbg_items.in_out_logs_writer, "{}", event).unwrap();
-            dbg_items.in_out_logs_writer.flush().unwrap();
+            let mut in_out_logs_writer = dbg_items.in_out_logs_writer.lock().unwrap();
+            writeln!(in_out_logs_writer, "> {}", event).unwrap();
         }
     }
 }
@@ -117,29 +102,46 @@ where
         if *event == UCICommand::Quit {
             process::exit(0);
         }
+        let maybe_in_out_logs_writer = self
+            .debug
+            .as_ref()
+            .map(|debug| Arc::clone(&debug.in_out_logs_writer));
+
         write_str_response(
-            Arc::clone(&self.response_writer),
             &format!("Unexpected command for current state: {:?}", event),
+            Arc::clone(&self.response_writer),
+            maybe_in_out_logs_writer,
         );
         Super
     }
     #[state(superstate = "top_level")]
     fn initial(&mut self, event: &UCICommand) -> Response<State> {
+        let mut maybe_in_out_logs_writer = self
+            .debug
+            .as_mut()
+            .map(|debug| Arc::clone(&debug.in_out_logs_writer));
+
         match event {
             UCICommand::UCI => {
                 write_response(
-                    Arc::clone(&self.response_writer),
                     UCIResponse::IDName {
                         name: NAME.to_string(),
                     },
+                    Arc::clone(&self.response_writer),
+                    maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
                 );
                 write_response(
-                    Arc::clone(&self.response_writer),
                     UCIResponse::IDAuthor {
                         author: AUTHOR.to_string(),
                     },
+                    Arc::clone(&self.response_writer),
+                    maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
                 );
-                write_response(Arc::clone(&self.response_writer), UCIResponse::UCIOk);
+                write_response(
+                    UCIResponse::UCIOk,
+                    Arc::clone(&self.response_writer),
+                    maybe_in_out_logs_writer,
+                );
 
                 Transition(State::uci_enabled(Position::start()))
             }
@@ -163,9 +165,18 @@ where
 
     #[superstate(superstate = "debug")]
     fn is_ready(&mut self, event: &UCICommand) -> Response<State> {
+        let maybe_in_out_logs_writer = self
+            .debug
+            .as_mut()
+            .map(|debug| Arc::clone(&debug.in_out_logs_writer));
+
         match event {
             UCICommand::IsReady => {
-                write_response(Arc::clone(&self.response_writer), UCIResponse::ReadyOk);
+                write_response(
+                    UCIResponse::ReadyOk,
+                    Arc::clone(&self.response_writer),
+                    maybe_in_out_logs_writer,
+                );
                 Handled
             }
             _ => Super,
@@ -174,6 +185,11 @@ where
 
     #[state(superstate = "is_ready")]
     fn uci_enabled(&mut self, position: &mut Position, event: &UCICommand) -> Response<State> {
+        let maybe_in_out_logs_writer = self
+            .debug
+            .as_mut()
+            .map(|debug| Arc::clone(&debug.in_out_logs_writer));
+
         match event {
             UCICommand::UCINewGame => Transition(State::uci_enabled(Position::start())),
             UCICommand::Position { fen, moves } => {
@@ -192,8 +208,9 @@ where
                 if let Some(terminate) = &self.maybe_terminate {
                     if !terminate.load(std::sync::atomic::Ordering::Relaxed) {
                         write_str_response(
-                            Arc::clone(&self.response_writer),
                             "Can't start new search until previous search completes",
+                            Arc::clone(&self.response_writer),
+                            maybe_in_out_logs_writer,
                         );
                         return Handled;
                     }
@@ -207,10 +224,11 @@ where
                     debug: self.debug.is_some(),
                     ..params.clone()
                 };
+
                 let maybe_search_logs_writer = self
                     .debug
                     .as_ref()
-                    .map(|dbg| Arc::clone(&dbg.search_logs_writer));
+                    .map(|debug| Arc::clone(&debug.search_logs_writer));
 
                 thread::spawn(move || {
                     let (best_move, _) = search(
@@ -224,11 +242,12 @@ where
                     )
                     .unwrap();
                     write_response(
-                        response_writer,
                         UCIResponse::BestMove {
                             mve: best_move.expect("Best move should have been found"),
                             ponder: None,
                         },
+                        response_writer,
+                        maybe_in_out_logs_writer,
                     );
                     terminate.store(true, std::sync::atomic::Ordering::Relaxed);
                 });
@@ -250,8 +269,9 @@ where
             UCICommand::Eval => {
                 let eval = POSITION_EVALUATOR.evaluate(position, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
                 write_str_response(
-                    Arc::clone(&self.response_writer),
                     format!("info string {}", eval / 100.).as_str(),
+                    Arc::clone(&self.response_writer),
+                    maybe_in_out_logs_writer,
                 );
                 Handled
             }
@@ -266,14 +286,16 @@ where
                     total_count,
                     time_elapsed,
                     Arc::clone(&self.response_writer),
+                    maybe_in_out_logs_writer,
                 );
                 Handled
             }
             UCICommand::PerftFull { depth } => {
                 let perft_results = perft_full(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
                 write_str_response(
-                    Arc::clone(&self.response_writer),
                     format!("{}", perft_results).as_str(),
+                    Arc::clone(&self.response_writer),
+                    maybe_in_out_logs_writer,
                 );
                 Handled
             }
@@ -285,13 +307,19 @@ where
         }
     }
 
-    fn perft_benchmark(&self) -> Result<()> {
+    fn perft_benchmark(&mut self) -> Result<()> {
+        let mut maybe_in_out_logs_writer = self
+            .debug
+            .as_mut()
+            .map(|debug| Arc::clone(&debug.in_out_logs_writer));
+
         let total_start = Instant::now();
         let mut total_nodes = 0;
         for (fen, depth) in PERFT_BENCHMARK_FENS_AND_DEPTHS {
             write_str_response(
-                Arc::clone(&self.response_writer),
                 &format!("Position: [{}], depth {}", fen, depth),
+                Arc::clone(&self.response_writer),
+                maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
             );
 
             let position = Position::from_fen(fen)?;
@@ -307,39 +335,60 @@ where
                 position_total_nodes,
                 position_time_elapsed,
                 Arc::clone(&self.response_writer),
+                maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
             );
         }
         let total_time_elapsed = total_start.elapsed();
         let total_nodes_per_second = total_nodes as f64 / total_time_elapsed.as_secs_f64();
         write_str_response(
-            Arc::clone(&self.response_writer),
             "\n===========================",
+            Arc::clone(&self.response_writer),
+            maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
         );
         write_str_response(
-            Arc::clone(&self.response_writer),
             &format!("Total time (ms): {}", total_time_elapsed.as_millis()),
+            Arc::clone(&self.response_writer),
+            maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
         );
         write_str_response(
-            Arc::clone(&self.response_writer),
             &format!("Nodes searched: {}", total_nodes),
+            Arc::clone(&self.response_writer),
+            maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
         );
         write_str_response(
-            Arc::clone(&self.response_writer),
             &format!("Nodes/second: {:.0}", total_nodes_per_second),
+            Arc::clone(&self.response_writer),
+            maybe_in_out_logs_writer,
         );
         Ok(())
     }
 }
 
-fn write_response(response_writer: Arc<Mutex<impl Write>>, uci_response: UCIResponse) {
+fn write_response(
+    uci_response: UCIResponse,
+    response_writer: Arc<Mutex<impl Write>>,
+    maybe_in_out_logs_writer: Option<Arc<Mutex<impl Write>>>,
+) {
     // Helper method to reduce boilerplate for writing response
     let res_str: String = uci_response.into();
-    write_str_response(response_writer, &res_str);
+    write_str_response(
+        &res_str,
+        Arc::clone(&response_writer),
+        maybe_in_out_logs_writer,
+    );
 }
 
-fn write_str_response(response_writer: Arc<Mutex<impl Write>>, str_response: &str) {
+fn write_str_response(
+    str_response: &str,
+    response_writer: Arc<Mutex<impl Write>>,
+    maybe_in_out_logs_writer: Option<Arc<Mutex<impl Write>>>,
+) {
     let mut response_writer = response_writer.lock().unwrap();
     writeln!(response_writer, "{}", str_response).unwrap();
+    if let Some(in_out_logs_writer) = maybe_in_out_logs_writer {
+        let mut in_out_logs_writer_guard = in_out_logs_writer.lock().unwrap();
+        writeln!(in_out_logs_writer_guard, "< {}", str_response).unwrap();
+    }
 }
 
 fn write_perft_results(
@@ -347,6 +396,7 @@ fn write_perft_results(
     total_count: usize,
     time_elapsed: Duration,
     response_writer: Arc<Mutex<impl Write>>,
+    mut maybe_in_out_logs_writer: Option<Arc<Mutex<impl Write>>>,
 ) {
     let move_counts_str = move_counts
         .iter()
@@ -355,19 +405,30 @@ fn write_perft_results(
         .join("\n");
     let nodes_per_second = total_count as f64 / time_elapsed.as_secs_f64();
 
-    write_str_response(Arc::clone(&response_writer), &move_counts_str);
-    write_str_response(Arc::clone(&response_writer), "");
     write_str_response(
+        &move_counts_str,
         Arc::clone(&response_writer),
+        maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
+    );
+    write_str_response(
+        "",
+        Arc::clone(&response_writer),
+        maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
+    );
+    write_str_response(
         &format!("Time (ms): {}", time_elapsed.as_millis()),
+        Arc::clone(&response_writer),
+        maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
     );
     write_str_response(
-        Arc::clone(&response_writer),
         &format!("Nodes searched: {}", total_count),
+        Arc::clone(&response_writer),
+        maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
     );
     write_str_response(
-        Arc::clone(&response_writer),
         &format!("Nodes/second: {:.0}", nodes_per_second),
+        Arc::clone(&response_writer),
+        maybe_in_out_logs_writer.as_mut().map(|itm| Arc::clone(itm)),
     );
 }
 
