@@ -1,4 +1,5 @@
 mod consts;
+mod engine_writer;
 mod messages;
 mod state;
 mod uci;
