@@ -50,13 +50,13 @@ impl DebugItems {
 }
 
 #[derive(Debug)]
-pub(crate) struct UCIState<T, U>
+pub(crate) struct UCIState<G, W>
 where
-    T: GenerateMoves + Copy + Send + Sync,
-    U: Write + Send + Sync,
+    G: GenerateMoves + Copy + Send + Sync,
+    W: Write + Send + Sync,
 {
-    move_gen: T,
-    response_writer: Arc<Mutex<U>>,
+    move_gen: G,
+    response_writer: Arc<Mutex<W>>,
     // We need a way to terminate when running Go, but unfortunately don't seem
     // to be able store this as statig state local storage because that requires the
     // item to be a reference.
@@ -64,12 +64,12 @@ where
     debug: Option<DebugItems>,
 }
 
-impl<T, U> UCIState<T, U>
+impl<G, W> UCIState<G, W>
 where
-    T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Send + Sync + 'static,
+    G: GenerateMoves + Copy + Send + Sync + 'static,
+    W: Write + Send + Sync + 'static,
 {
-    pub(crate) fn new(move_gen: T, response_writer: Arc<Mutex<U>>) -> Self {
+    pub(crate) fn new(move_gen: G, response_writer: Arc<Mutex<W>>) -> Self {
         Self {
             move_gen,
             response_writer,
@@ -78,7 +78,7 @@ where
         }
     }
 
-    fn on_dispatch(&mut self, _: StateOrSuperstate<UCIState<T, U>>, event: &UCICommand) {
+    fn on_dispatch(&mut self, _: StateOrSuperstate<UCIState<G, W>>, event: &UCICommand) {
         if let Some(dbg_items) = &mut self.debug {
             let mut in_out_logs_writer = dbg_items.in_out_logs_writer.lock().unwrap();
             writeln!(in_out_logs_writer, "> {}", event).unwrap();
@@ -92,10 +92,10 @@ where
     state(derive(PartialEq, Eq, Debug)),
     superstate(derive(Debug))
 )]
-impl<T, U> UCIState<T, U>
+impl<G, W> UCIState<G, W>
 where
-    T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Send + Sync + 'static,
+    G: GenerateMoves + Copy + Send + Sync + 'static,
+    W: Write + Send + Sync + 'static,
 {
     #[superstate]
     fn top_level(&mut self, event: &UCICommand) -> Response<State> {

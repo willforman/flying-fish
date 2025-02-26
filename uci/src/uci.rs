@@ -13,20 +13,20 @@ use crate::{
 };
 
 #[allow(clippy::upper_case_acronyms)]
-pub struct UCI<T, U>
+pub struct UCI<G, W>
 where
-    T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Send + Sync + 'static,
+    G: GenerateMoves + Copy + Send + Sync + 'static,
+    W: Write + Send + Sync + 'static,
 {
-    state_machine: InitializedStateMachine<UCIState<T, U>>,
+    state_machine: InitializedStateMachine<UCIState<G, W>>,
 }
 
-impl<T, U> UCI<T, U>
+impl<G, W> UCI<G, W>
 where
-    T: GenerateMoves + Copy + Send + Sync + 'static,
-    U: Write + Send + Sync + 'static,
+    G: GenerateMoves + Copy + Send + Sync + 'static,
+    W: Write + Send + Sync + 'static,
 {
-    pub fn new(move_gen: T, response_writer: Arc<Mutex<U>>) -> Self {
+    pub fn new(move_gen: G, response_writer: Arc<Mutex<W>>) -> Self {
         let uci_state = UCIState::new(move_gen, response_writer);
         let uci_state_machine = uci_state.uninitialized_state_machine().init();
         Self {
