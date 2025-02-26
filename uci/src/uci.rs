@@ -26,7 +26,7 @@ where
     G: GenerateMoves + Copy + Send + Sync + 'static,
     W: Write + Send + Sync + 'static,
 {
-    pub fn new(move_gen: G, response_writer: Arc<Mutex<W>>) -> Self {
+    pub fn new(move_gen: G, response_writer: W) -> Self {
         let uci_state = UCIState::new(move_gen, response_writer);
         let uci_state_machine = uci_state.uninitialized_state_machine().init();
         Self {

@@ -69,10 +69,10 @@ where
     G: GenerateMoves + Copy + Send + Sync + 'static,
     W: Write + Send + Sync + 'static,
 {
-    pub(crate) fn new(move_gen: G, response_writer: Arc<Mutex<W>>) -> Self {
+    pub(crate) fn new(move_gen: G, response_writer: W) -> Self {
         Self {
             move_gen,
-            response_writer,
+            response_writer: Arc::new(Mutex::new(response_writer)),
             maybe_terminate: None,
             debug: None,
         }

@@ -2,7 +2,6 @@ use std::{
     fs::File,
     io::{self, BufRead},
     path::PathBuf,
-    sync::{Arc, Mutex},
 };
 
 use anyhow::{Context, Result};
@@ -28,9 +27,9 @@ fn main() -> Result<()> {
     .context("Couldn't create WriteLogger")?;
 
     let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-    let response_writer = Arc::new(Mutex::new(io::stdout()));
+    let response_writer = io::stdout();
 
-    let mut uci = UCI::new(move_gen, Arc::clone(&response_writer));
+    let mut uci = UCI::new(move_gen, response_writer);
 
     for line in io::stdin().lock().lines().map(|r| r.unwrap()) {
         log::debug!("command received: {}", line);
