@@ -236,7 +236,7 @@ pub fn search(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
-    maybe_search_logs_writer: Option<Arc<Mutex<impl Write>>>,
+    maybe_search_logs_writer: Arc<Mutex<Option<impl Write>>>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     if params.debug {
         writeln!(info_writer.lock().unwrap(), "info string {}", params).unwrap();
@@ -297,8 +297,7 @@ pub fn search(
         })
         .collect();
 
-    if let Some(search_logs_writer) = &maybe_search_logs_writer {
-        let mut search_logs_writer = search_logs_writer.lock().unwrap();
+    if let Some(search_logs_writer) = maybe_search_logs_writer.lock().unwrap().as_mut() {
         writeln!(search_logs_writer, "NEW SEARCH").unwrap();
         writeln!(search_logs_writer, "{}", position.to_fen()).unwrap();
         writeln!(search_logs_writer, "{}", params).unwrap();
@@ -371,8 +370,7 @@ pub fn search(
             log::debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
         }
 
-        if let Some(search_logs_writer) = &maybe_search_logs_writer {
-            let mut search_logs_writer = search_logs_writer.lock().unwrap();
+        if let Some(search_logs_writer) = maybe_search_logs_writer.lock().unwrap().as_mut() {
             for mve in &moves {
                 writeln!(search_logs_writer, "{}: {}", mve, move_vals[mve])
                     .expect("Write move to search logs failed");
@@ -517,7 +515,7 @@ fn write_search_info(
     info_writer: Arc<Mutex<impl Write>>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), "");
+    let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move);
     let mut info_writer = info_writer.lock().unwrap();
     writeln!(info_writer, "{}", info).unwrap();
 }

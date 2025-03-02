@@ -31,6 +31,9 @@ fn main() -> Result<()> {
 
     let mut uci = UCI::new(move_gen, response_writer);
 
+    uci.handle_command("uci");
+    uci.handle_command("debug on");
+
     for line in io::stdin().lock().lines().map(|r| r.unwrap()) {
         log::debug!("command received: {}", line);
         let cmd_res = uci.handle_command(&line);
