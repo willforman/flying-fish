@@ -515,7 +515,7 @@ fn write_search_info(
     info_writer: Arc<Mutex<impl Write>>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move);
+    let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
     let mut info_writer = info_writer.lock().unwrap();
     writeln!(info_writer, "{}", info).unwrap();
 }
