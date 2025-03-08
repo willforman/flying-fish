@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, debug_span, enabled};
+use tracing::{debug, debug_span, enabled, error, info};
 
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
@@ -235,7 +235,6 @@ pub fn search(
     params: &SearchParams,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-    info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     debug_span!("search", position = position.to_fen(), params = ?params);
@@ -309,7 +308,6 @@ pub fn search(
                 f64::MAX,
                 move_gen,
                 position_eval,
-                Arc::clone(&info_writer),
                 Arc::clone(&terminate),
             );
             // Since this is after making a move, flip the value to get the value
@@ -325,7 +323,6 @@ pub fn search(
                     &start,
                     &latest_score,
                     None,
-                    info_writer,
                 );
                 break 'outer;
             }
@@ -350,7 +347,6 @@ pub fn search(
             &start,
             &latest_score,
             best_move,
-            Arc::clone(&info_writer),
         );
 
         debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
@@ -392,7 +388,6 @@ fn search_helper(
     beta: f64,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
-    info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
 ) -> (f64, bool) {
     // If this search has been terminated, return early
@@ -422,7 +417,6 @@ fn search_helper(
             start_time,
             latest_score,
             None,
-            Arc::clone(&info_writer),
         );
     }
 
@@ -445,10 +439,8 @@ fn search_helper(
                 start_time,
                 latest_score,
                 None,
-                Arc::clone(&info_writer),
             );
-            let mut info_writer = info_writer.lock().unwrap();
-            writeln!(info_writer, "Error for move {}: {}", mve, err).unwrap();
+            error!("Error for move {}: {}", mve, err);
             panic!("Err encountered searching, exiting");
         }
 
@@ -464,7 +456,6 @@ fn search_helper(
             -alpha,
             move_gen,
             position_eval,
-            Arc::clone(&info_writer),
             Arc::clone(&terminate),
         );
 
@@ -497,10 +488,7 @@ fn write_search_info(
     start_time: &Instant,
     latest_score: &f64,
     best_move: Option<Move>,
-    info_writer: Arc<Mutex<impl Write>>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    let info = format!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
-    let mut info_writer = info_writer.lock().unwrap();
-    writeln!(info_writer, "{}", info).unwrap();
+    info!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
 }
