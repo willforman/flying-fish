@@ -6,6 +6,8 @@ use std::{
 
 use anyhow::{Context, Result};
 use engine::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+use tracing::{level_filters::LevelFilter, warn};
+use tracing_subscriber::{filter::EnvFilter, fmt::init};
 
 use uci::{LOGS_DIRECTORY, UCI};
 
@@ -17,6 +19,9 @@ fn main() -> Result<()> {
 
     let mut log_path = logs_dir;
     log_path.push("chess.log");
+
+    //let subscriber = tracing_subscriber::fmt().init();
+    tracing_subscriber::fmt().init();
 
     //simplelog::WriteLogger::init(
     //    LevelFilter::Trace,
@@ -36,7 +41,7 @@ fn main() -> Result<()> {
         let cmd_res = uci.handle_command(&line);
 
         if let Err(err) = cmd_res {
-            println!("{}", err);
+            warn!("{}", err);
         }
     }
     Ok(())
