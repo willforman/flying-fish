@@ -1,4 +1,3 @@
-#![feature(const_mut_refs)]
 #![feature(const_option)]
 #![feature(const_trait_impl)]
 
@@ -12,6 +11,8 @@ mod search;
 
 pub const NAME: &str = "Will's Engine";
 pub const AUTHOR: &str = "Will Forman";
+
+pub const TRACING_TARGET_SEARCH: &str = "chess::search";
 
 pub use algebraic_notation::move_to_algebraic_notation;
 pub use bitboard::Square;

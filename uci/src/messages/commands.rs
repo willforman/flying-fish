@@ -463,7 +463,6 @@ fn parse_go(input: &mut &str) -> PResult<UCICommand> {
             }
         }),
         infinite: params.iter().any(|i| matches!(i, GoParameter::Infinite)),
-        debug: false, // The UCI server stores state of `debug`, default to false
     })
     .map(|search_params: SearchParams| UCICommand::Go {
         params: search_params,

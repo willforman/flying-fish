@@ -15,6 +15,7 @@ use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
 use crate::Side;
+use crate::TRACING_TARGET_SEARCH;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct SearchParams {
@@ -30,7 +31,6 @@ pub struct SearchParams {
     pub mate: Option<u64>,
     pub move_time: Option<Duration>,
     pub infinite: bool,
-    pub debug: bool,
 }
 
 impl Display for SearchParams {
@@ -86,9 +86,6 @@ impl Display for SearchParams {
         }
         if self.infinite != default.infinite {
             parts.push(format!("infinite: {:?}", self.infinite));
-        }
-        if self.debug != default.debug {
-            parts.push(format!("debug: {:?}", self.debug));
         }
         write!(f, "SearchParams: {}", parts.join(", "))
     }
@@ -286,7 +283,7 @@ pub fn search(
         .collect();
 
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
-        debug_span!(
+        debug_span!(target: TRACING_TARGET_SEARCH,
             "search_iterative_deepening_iteration",
             depth = iterative_deepening_max_depth
         );
@@ -357,7 +354,7 @@ pub fn search(
                 search_str.push_str(&format!("{}: {}", mve, move_vals[mve]));
             }
             search_str.push_str("==================================");
-            debug!(search_str);
+            debug!(target: TRACING_TARGET_SEARCH, search_str);
         }
 
         // Break search if:
