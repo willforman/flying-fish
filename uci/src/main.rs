@@ -5,14 +5,35 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use engine::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-use tracing::{level_filters::LevelFilter, warn};
-use tracing_subscriber::{filter::EnvFilter, fmt::init};
+use engine::{HyperbolaQuintessenceMoveGen, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
+use tracing::{debug, level_filters::LevelFilter, warn, Level};
+use tracing_subscriber::{layer::SubscriberExt, prelude::*, util::SubscriberInitExt, Registry};
 
 use uci::{LOGS_DIRECTORY, UCI};
 
+static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+
 fn main() -> Result<()> {
-    let mut logs_dir = dirs::home_dir().expect("Home directory is unset");
+    enable_logging()?;
+
+    let mut uci = UCI::new(MOVE_GEN);
+
+    //uci.handle_command("uci");
+    //uci.handle_command("debug on");
+
+    for line in io::stdin().lock().lines().map(|r| r.unwrap()) {
+        debug!("{}", line);
+        let cmd_res = uci.handle_command(&line);
+
+        if let Err(err) = cmd_res {
+            warn!("{}", err);
+        }
+    }
+    Ok(())
+}
+
+fn enable_logging() -> Result<()> {
+    let mut logs_dir = dirs::home_dir().context("Home directory not set")?;
     logs_dir.push(PathBuf::from(".local/state/chess"));
 
     let _ = LOGS_DIRECTORY.get_or_init(|| logs_dir.clone());
@@ -20,29 +41,22 @@ fn main() -> Result<()> {
     let mut log_path = logs_dir;
     log_path.push("chess.log");
 
-    //let subscriber = tracing_subscriber::fmt().init();
-    tracing_subscriber::fmt().init();
+    let log_file = File::create(log_path)?;
 
-    //simplelog::WriteLogger::init(
-    //    LevelFilter::Trace,
-    //    simplelog::Config::default(),
-    //    File::create(&log_path).context(format!("Failed to open file at: {:?}", log_path))?,
-    //)
-    //.context("Couldn't create WriteLogger")?;
+    let stdout_layer = tracing_subscriber::fmt::layer()
+        .without_time()
+        .with_level(false)
+        .with_target(false)
+        .with_filter(LevelFilter::from_level(Level::INFO));
 
-    let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+    let log_layer = tracing_subscriber::fmt::layer()
+        .with_writer(log_file)
+        .with_filter(LevelFilter::from_level(Level::DEBUG));
 
-    let mut uci = UCI::new(move_gen);
+    Registry::default()
+        .with(stdout_layer)
+        .with(log_layer)
+        .init();
 
-    //uci.handle_command("uci");
-    //uci.handle_command("debug on");
-
-    for line in io::stdin().lock().lines().map(|r| r.unwrap()) {
-        let cmd_res = uci.handle_command(&line);
-
-        if let Err(err) = cmd_res {
-            warn!("{}", err);
-        }
-    }
     Ok(())
 }
