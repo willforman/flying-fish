@@ -149,10 +149,15 @@ where
             UCICommand::Debug { on: true } => {
                 let in_out_logs_file = open_in_out_logs_file(&self.start_time).unwrap();
                 *self.maybe_in_out_log_file.lock().unwrap() = Some(in_out_logs_file);
+
+                let search_logs_file = open_search_logs_file(&self.start_time).unwrap();
+                *self.maybe_search_log_file.lock().unwrap() = Some(search_logs_file);
+
                 Handled
             }
             UCICommand::Debug { on: false } => {
                 *self.maybe_in_out_log_file.lock().unwrap() = None;
+                *self.maybe_search_log_file.lock().unwrap() = None;
                 Handled
             }
             _ => Super,
@@ -207,11 +212,6 @@ where
                 };
 
                 let maybe_search_log_file = Arc::clone(&self.maybe_search_log_file);
-
-                //let maybe_search_logs_writer = self
-                //    .debug
-                //    .as_ref()
-                //    .map(|debug| Arc::clone(&debug.search_logs_writer));
 
                 thread::spawn(move || {
                     let (best_move, _) = search(
@@ -387,6 +387,23 @@ fn open_in_out_logs_file(start_time: &DateTime<Local>) -> Result<File> {
 
     let file =
         File::create(&debug_logs_path).context(format!("Couldn't open: {:?}", &debug_logs_path))?;
+    Ok(file)
+}
+
+fn open_search_logs_file(start_time: &DateTime<Local>) -> Result<File> {
+    let logs_directory = LOGS_DIRECTORY
+        .get()
+        .expect("LOGS_DIRECTORY should be set")
+        .clone();
+
+    let mut search_logs_path = logs_directory.clone();
+    search_logs_path.push("search");
+
+    let curr_time_str = start_time.format("%I_%M_%m_%d");
+    search_logs_path.push(format!("search-{}.txt", curr_time_str));
+
+    let file = File::create(&search_logs_path)
+        .context(format!("Couldn't open: {:?}", &search_logs_path))?;
     Ok(file)
 }
 
