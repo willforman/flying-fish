@@ -11,13 +11,13 @@ debug = 1
 
 [dependencies]
 arrayvec = "0.7.4"
-log = "0.4.22"
 serde = { version = "1.0.195", features = ["derive"] }
 strum = "0.24.1"
 strum_macros = "0.24.3"
 tabled = "0.12.2"
 testresult = "0.3.0"
 thiserror = "1.0.40"
+tracing = "0.1"
 
 [dev-dependencies]
 criterion = "0.5.1"

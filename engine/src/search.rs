@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
+use tracing::{debug, debug_span, enabled};
 
 use crate::evaluation::EvaluatePosition;
 use crate::move_gen::GenerateMoves;
@@ -236,12 +237,8 @@ pub fn search(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     info_writer: Arc<Mutex<impl Write>>,
     terminate: Arc<AtomicBool>,
-    maybe_search_logs_writer: Arc<Mutex<Option<impl Write>>>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
-    if params.debug {
-        writeln!(info_writer.lock().unwrap(), "info string {}", params).unwrap();
-        log::debug!("{}", params);
-    }
+    debug_span!("search", position = position.to_fen(), params = ?params);
     let mut best_move: Option<Move> = None;
     let mut best_val: Option<Move> = None;
 
@@ -271,15 +268,7 @@ pub fn search(
             params.moves_to_go.unwrap_or(1),
         )
     };
-    if params.debug {
-        writeln!(
-            info_writer.lock().unwrap(),
-            "info string time_for_this_move {:?}",
-            time_to_use
-        )
-        .unwrap();
-        log::debug!("time for this move: {:?}", time_to_use);
-    }
+    debug!("Time for this move: {:?}", time_to_use);
 
     let mut moves = move_gen.gen_moves(position);
 
@@ -297,13 +286,11 @@ pub fn search(
         })
         .collect();
 
-    if let Some(search_logs_writer) = maybe_search_logs_writer.lock().unwrap().as_mut() {
-        writeln!(search_logs_writer, "NEW SEARCH").unwrap();
-        writeln!(search_logs_writer, "{}", position.to_fen()).unwrap();
-        writeln!(search_logs_writer, "{}", params).unwrap();
-    }
-
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
+        debug_span!(
+            "search_iterative_deepening_iteration",
+            depth = iterative_deepening_max_depth
+        );
         let iterative_deepening_max_depth: u64 = iterative_deepening_max_depth.try_into().unwrap();
 
         // Find value of each move up to current depth
@@ -366,17 +353,15 @@ pub fn search(
             Arc::clone(&info_writer),
         );
 
-        if params.debug {
-            log::debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
-        }
+        debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
 
-        if let Some(search_logs_writer) = maybe_search_logs_writer.lock().unwrap().as_mut() {
+        if tracing::enabled!(tracing::Level::DEBUG) {
+            let mut search_str = String::with_capacity(400);
             for mve in &moves {
-                writeln!(search_logs_writer, "{}: {}", mve, move_vals[mve])
-                    .expect("Write move to search logs failed");
+                search_str.push_str(&format!("{}: {}", mve, move_vals[mve]));
             }
-            writeln!(search_logs_writer, "==================================")
-                .expect("Write to search logs failed");
+            search_str.push_str("==================================");
+            debug!(search_str);
         }
 
         // Break search if:
