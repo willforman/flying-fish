@@ -287,6 +287,10 @@ pub fn search(
             "search_iterative_deepening_iteration",
             depth = iterative_deepening_max_depth
         );
+        debug!(
+            "Iterative deepening iteration: {} of {}",
+            iterative_deepening_max_depth, max_depth
+        );
         let iterative_deepening_max_depth: u64 = iterative_deepening_max_depth.try_into().unwrap();
 
         // Find value of each move up to current depth
@@ -349,12 +353,14 @@ pub fn search(
         debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
 
         if tracing::enabled!(tracing::Level::DEBUG) {
-            let mut search_str = String::with_capacity(400);
+            //let mut search_str = String::with_capacity(400);
             for mve in &moves {
-                search_str.push_str(&format!("{}: {}", mve, move_vals[mve]));
+                debug!("{}: {}", mve, move_vals[mve]);
+                //search_str.push_str(&format!("{}: {}\n", mve, move_vals[mve]));
             }
-            search_str.push_str("==================================");
-            debug!(target: TRACING_TARGET_SEARCH, search_str);
+            debug!("==================================");
+            //search_str.push_str("==================================\n");
+            //debug!(target: TRACING_TARGET_SEARCH, search_str);
         }
 
         // Break search if:
