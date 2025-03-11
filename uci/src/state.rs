@@ -183,7 +183,7 @@ where
             }
             UCICommand::Eval => {
                 let eval = POSITION_EVALUATOR.evaluate(position, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
-                info!("info string {}", eval / 100.);
+                info!("info string {}", eval);
                 Handled
             }
             UCICommand::Perft { depth } => {
