@@ -9,9 +9,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, debug_span, enabled, error, info};
+use tracing::{debug, debug_span, enabled, error, info, warn};
 
-use crate::evaluation::EvaluatePosition;
+use crate::evaluation::{Eval, EvaluatePosition};
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
 use crate::Side;
@@ -235,12 +235,13 @@ pub fn search(
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     debug_span!("search", position = position.to_fen(), params = ?params);
+    warn!("Start!");
     let mut best_move: Option<Move> = None;
     let mut best_val: Option<Move> = None;
 
     let mut positions_processed: u64 = 0;
     let start = Instant::now();
-    let mut latest_score = 0.0;
+    let mut latest_eval = Eval::Score(0.);
 
     let max_depth: usize = match (params.max_depth, params.mate) {
         (Some(max_depth), None) => max_depth.try_into().unwrap(),
@@ -283,7 +284,7 @@ pub fn search(
         .collect();
 
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
-        debug_span!(target: TRACING_TARGET_SEARCH,
+        debug_span!(
             "search_iterative_deepening_iteration",
             depth = iterative_deepening_max_depth
         );
@@ -297,32 +298,31 @@ pub fn search(
         let mut move_vals = HashMap::with_capacity(moves.len());
         for mve in moves.clone() {
             let move_position = &move_positions[&mve];
-            let (mut move_val, search_complete) = search_helper(
+            let maybe_move_eval = search_helper(
                 move_position,
                 params,
                 1,
                 iterative_deepening_max_depth,
                 &mut positions_processed,
                 &start,
-                &mut latest_score,
-                f64::MIN,
-                f64::MAX,
+                &mut latest_eval,
+                Eval::Mate(0), // Minimum `Eval` value
+                Eval::Mate(1), // Maximum `Eval` value
                 move_gen,
                 position_eval,
                 Arc::clone(&terminate),
             );
-            // Since this is after making a move, flip the value to get the value
-            // relative to the side of `position`
-            move_val = -move_val;
-            move_vals.insert(mve, move_val);
-
-            if search_complete {
+            if let Some(move_eval) = maybe_move_eval {
+                // Since this is after making a move, flip the value to get the value
+                // relative to the side of `position`
+                move_vals.insert(mve, move_eval.flip());
+            } else {
                 write_search_info(
                     iterative_deepening_max_depth,
                     positions_processed,
                     iterative_deepening_max_depth,
                     &start,
-                    &latest_score,
+                    &latest_eval,
                     None,
                 );
                 break 'outer;
@@ -339,33 +339,34 @@ pub fn search(
         // Find best move
         best_move = Some(moves[0]);
 
-        latest_score = move_vals[&best_move.unwrap()];
+        latest_eval = move_vals[&best_move.unwrap()];
 
         write_search_info(
             iterative_deepening_max_depth,
             positions_processed,
             iterative_deepening_max_depth,
             &start,
-            &latest_score,
+            &latest_eval,
             best_move,
         );
 
-        debug!("best move: {}, score: {}", best_move.unwrap(), latest_score);
+        debug!("best move: {}, eval: {}", best_move.unwrap(), latest_eval);
 
         if tracing::enabled!(tracing::Level::DEBUG) {
-            //let mut search_str = String::with_capacity(400);
             for mve in &moves {
                 debug!("{}: {}", mve, move_vals[mve]);
-                //search_str.push_str(&format!("{}: {}\n", mve, move_vals[mve]));
             }
             debug!("==================================");
-            //search_str.push_str("==================================\n");
-            //debug!(target: TRACING_TARGET_SEARCH, search_str);
         }
 
         // Break search if:
         // - Engine has gone past alotted time
         if start.elapsed() > time_to_use {
+            debug!(
+                "Search time exceeded time to use: {:?} > {:?}",
+                start.elapsed(),
+                time_to_use
+            );
             break;
         }
     }
@@ -386,28 +387,28 @@ fn search_helper(
     iterative_deepening_max_depth: u64,
     positions_processed: &mut u64,
     start_time: &Instant,
-    latest_score: &mut f64,
-    mut alpha: f64,
-    beta: f64,
+    latest_eval: &mut Eval,
+    mut alpha: Eval,
+    beta: Eval,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
     terminate: Arc<AtomicBool>,
-) -> (f64, bool) {
+) -> Option<Eval> {
     // If this search has been terminated, return early
     if terminate.load(std::sync::atomic::Ordering::Relaxed) {
-        return (0.0, true);
+        return None;
     }
     // If this search is at the max number of nodes, return early
     if let Some(max_nodes) = params.max_nodes {
         debug_assert!(*positions_processed <= max_nodes);
         if *positions_processed == max_nodes {
-            return (0.0, true);
+            return None;
         }
     }
     // If search has exceeded total time, return early
     if let Some(move_time) = params.move_time {
         if start_time.elapsed() >= move_time {
-            return (0.0, true);
+            return None;
         }
     }
     *positions_processed += 1;
@@ -418,19 +419,19 @@ fn search_helper(
             *positions_processed,
             curr_depth,
             start_time,
-            latest_score,
+            latest_eval,
             None,
         );
     }
 
     if curr_depth == iterative_deepening_max_depth {
         let curr_evaluation = position_eval.evaluate(position, move_gen);
-        return (curr_evaluation, false);
+        return Some(curr_evaluation);
     }
 
     let moves = move_gen.gen_moves(position);
 
-    let mut best_val = f64::MIN;
+    let mut best_eval = Eval::Mate(0);
     for mve in moves {
         let mut move_position = position.clone();
         let move_res = move_position.make_move(&mve);
@@ -440,40 +441,39 @@ fn search_helper(
                 *positions_processed,
                 curr_depth,
                 start_time,
-                latest_score,
+                latest_eval,
                 None,
             );
             error!("Error for move {}: {}", mve, err);
             panic!("Err encountered searching, exiting");
         }
 
-        let (got_val, search_complete) = search_helper(
+        // Reason for `?`: if the child node is signaling search is terminated,
+        // better terminate self.
+        let got_eval = search_helper(
             &move_position,
             params,
             curr_depth + 1,
             iterative_deepening_max_depth,
             positions_processed,
             start_time,
-            latest_score,
-            -beta,
-            -alpha,
+            latest_eval,
+            beta.flip(),
+            alpha.flip(),
             move_gen,
             position_eval,
             Arc::clone(&terminate),
-        );
-
-        // If child node is signaling search is terminated, better terminate self
-        if search_complete {
-            return (best_val, true);
-        }
+        )?;
 
         // Then, flip value because it was relative to the other side
-        let got_val = -got_val;
+        let got_eval = got_eval.flip();
 
-        if got_val >= best_val {
-            best_val = got_val;
-            alpha = f64::max(alpha, got_val);
-            *latest_score = got_val;
+        if got_eval >= best_eval {
+            best_eval = got_eval;
+            if got_eval >= alpha {
+                alpha = got_eval;
+            }
+            *latest_eval = got_eval;
         }
 
         if alpha >= beta {
@@ -481,7 +481,7 @@ fn search_helper(
         }
     }
 
-    (best_val, false)
+    Some(best_eval)
 }
 
 fn write_search_info(
@@ -489,9 +489,9 @@ fn write_search_info(
     nodes_processed: u64,
     curr_depth: u64,
     start_time: &Instant,
-    latest_score: &f64,
+    latest_eval: &Eval,
     best_move: Option<Move>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    info!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_score / 100., nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
+    info!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
 }
