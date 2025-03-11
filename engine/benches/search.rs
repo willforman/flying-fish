@@ -1,7 +1,4 @@
-use std::{
-    io,
-    sync::{atomic::AtomicBool, Arc, Mutex},
-};
+use std::sync::{atomic::AtomicBool, Arc};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use engine::{search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR};
@@ -23,9 +20,7 @@ pub fn benchmark_search(c: &mut Criterion) {
                 &search_params,
                 HYPERBOLA_QUINTESSENCE_MOVE_GEN,
                 POSITION_EVALUATOR,
-                Arc::new(Mutex::new(io::sink())),
                 Arc::new(AtomicBool::new(false)),
-                None,
             )
         })
     });
