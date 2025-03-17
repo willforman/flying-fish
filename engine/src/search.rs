@@ -235,7 +235,6 @@ pub fn search(
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     debug_span!("search", position = position.to_fen(), params = ?params);
-    warn!("Start!");
     let mut best_move: Option<Move> = None;
     let mut best_val: Option<Move> = None;
 
@@ -249,7 +248,7 @@ pub fn search(
         (Some(max_depth), Some(mate)) => {
             return Err(SearchError::DepthAndMatePassed(max_depth, mate))
         }
-        (None, None) => 300,
+        (None, None) => 20,
     };
 
     let time_to_use = if position.state.to_move == Side::White {
@@ -284,6 +283,7 @@ pub fn search(
         .collect();
 
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
+        let iteration_start_time = Instant::now();
         debug_span!(
             "search_iterative_deepening_iteration",
             depth = iterative_deepening_max_depth
@@ -359,16 +359,17 @@ pub fn search(
             debug!("==================================");
         }
 
-        // Break search if:
-        // - Engine has gone past alotted time
-        if start.elapsed() > time_to_use {
+        // Skip if we've elapsed the max amount of time or that we think the next iteration will
+        // definitely go over on time
+        let elapsed = start.elapsed();
+        if (elapsed + iteration_start_time.elapsed()) > time_to_use {
             debug!(
                 "Search time exceeded time to use: {:?} > {:?}",
-                start.elapsed(),
-                time_to_use
+                elapsed, time_to_use
             );
             break;
         }
+        debug!("Time: {:?} < {:?} to use", elapsed, time_to_use);
     }
 
     let search_info = SearchResultInfo {
