@@ -9,7 +9,7 @@ mod perft;
 mod position;
 mod search;
 
-pub const NAME: &str = "Will's Engine";
+pub const NAME: &str = "Flying Fish";
 pub const AUTHOR: &str = "Will Forman";
 
 pub const TRACING_TARGET_SEARCH: &str = "chess::search";

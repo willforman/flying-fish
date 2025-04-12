@@ -1,8 +1,6 @@
-# Rust Chess Engine
+# Flying Fish
 
-Features:
-- Board representation: [Bitboards](https://www.chessprogramming.org/Bitboards)
-- Sliding piece move generation: [Hyperbola Quintessence](https://www.chessprogramming.org/Hyperbola_Quintessence)
+Minimax chess engine, using [bitboards](https://www.chessprogramming.org/Bitboards) + [hyperbola quintessence](https://www.chessprogramming.org/Hyperbola_Quintessence).
 
 ### Performance
 
