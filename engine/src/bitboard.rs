@@ -192,6 +192,19 @@ impl BitBoard {
         self.0
     }
 
+    pub(crate) fn squares(self) -> impl Iterator<Item = Square> {
+        let mut bb = self.0;
+        std::iter::from_fn(move || {
+            if bb == 0 {
+                None
+            } else {
+                let lsb_idx = bb.trailing_zeros() as u8;
+                bb &= bb - 1;
+                Some(Square::from_u8(lsb_idx))
+            }
+        })
+    }
+
     pub(crate) fn to_squares(mut self) -> ArrayVec<Square, 32> {
         let mut sqs = ArrayVec::new();
         while !self.is_empty() {

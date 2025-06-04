@@ -513,16 +513,15 @@ impl Position {
         }
     }
 
-    pub fn get_piece_locs(&self) -> ArrayVec<(Piece, Side, Square), 32> {
-        let mut piece_locs = ArrayVec::new();
-        for side in Side::iter() {
-            for piece in Piece::iter() {
-                for sq in self.pieces.get(piece).get(side).to_squares() {
-                    piece_locs.push((piece, side, sq));
-                }
-            }
-        }
-        piece_locs
+    pub fn piece_locs(&self) -> impl Iterator<Item = (Piece, Side, Square)> + '_ {
+        Side::iter().flat_map(move |side| {
+            Piece::iter().flat_map(move |piece| {
+                let board_for_piece_side = self.pieces.get(piece).get(side);
+                board_for_piece_side
+                    .squares()
+                    .map(move |sq| (piece, side, sq))
+            })
+        })
     }
 }
 

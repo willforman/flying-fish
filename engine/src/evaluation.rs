@@ -211,25 +211,23 @@ impl EvaluatePosition for PositionEvaluator {
             }
         }
 
-        let eval_score =
-            position
-                .get_piece_locs()
-                .into_iter()
-                .fold(0., |acc, (piece, side, square)| {
-                    // For black, we need to flip index in order to use correct value
-                    let square = if side == Side::Black {
-                        square.flip()
-                    } else {
-                        square
-                    };
-                    let val = piece_value(piece) + get_piece_square_bonus(piece, square, true);
+        let eval_score = position
+            .piece_locs()
+            .fold(0., |acc, (piece, side, square)| {
+                // For black, we need to flip index in order to use correct value
+                let square = if side == Side::Black {
+                    square.flip()
+                } else {
+                    square
+                };
+                let val = piece_value(piece) + get_piece_square_bonus(piece, square, true);
 
-                    if side == Side::White {
-                        acc + val
-                    } else {
-                        acc - val
-                    }
-                });
+                if side == Side::White {
+                    acc + val
+                } else {
+                    acc - val
+                }
+            });
         let eval_score = if position.state.to_move == Side::Black {
             -eval_score
         } else {
