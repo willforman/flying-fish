@@ -2,10 +2,15 @@ use std::{
     fs::File,
     io::{self, BufRead},
     path::PathBuf,
+    sync::{atomic::AtomicBool, Arc},
 };
 
 use anyhow::{Context, Result};
-use engine::{HyperbolaQuintessenceMoveGen, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
+use clap::{Parser, Subcommand};
+use engine::{
+    search, HyperbolaQuintessenceMoveGen, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+    POSITION_EVALUATOR,
+};
 use tracing::{debug, level_filters::LevelFilter, warn, Level};
 use tracing_subscriber::{layer::SubscriberExt, prelude::*, util::SubscriberInitExt, Registry};
 
@@ -13,9 +18,54 @@ use cli::{LOGS_DIRECTORY, UCI};
 
 static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
+#[derive(Debug, Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Search a position for the best move.
+    Search { fen: String, depth: u64 },
+}
+
 fn main() -> Result<()> {
+    let cli = Cli::parse();
+
     enable_logging()?;
 
+    match cli.command {
+        Some(Commands::Search { fen, depth }) => cli_search(&fen, depth),
+        None => uci_main_loop(),
+    }
+}
+
+fn cli_search(fen: &str, depth: u64) -> Result<()> {
+    let position = Position::from_fen(fen)?;
+    let search_params = SearchParams {
+        max_depth: Some(depth),
+        ..Default::default()
+    };
+    let (best_move, _) = search(
+        &position,
+        &search_params,
+        MOVE_GEN,
+        POSITION_EVALUATOR,
+        Arc::new(AtomicBool::new(false)),
+    )?;
+    println!(
+        "{:?}",
+        best_move
+            .expect("Should have found a move.")
+            .to_string()
+            .to_lowercase()
+    );
+    Ok(())
+}
+
+fn uci_main_loop() -> Result<()> {
     let mut uci = UCI::new(MOVE_GEN);
 
     for line in io::stdin().lock().lines().map(|r| r.unwrap()) {
