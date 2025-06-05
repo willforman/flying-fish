@@ -1,7 +1,9 @@
 use std::{
+    env,
     fs::File,
     io::{self, BufRead},
     path::PathBuf,
+    str::FromStr,
     sync::{atomic::AtomicBool, Arc},
 };
 
@@ -80,15 +82,14 @@ fn uci_main_loop() -> Result<()> {
 }
 
 fn enable_logging() -> Result<()> {
-    let mut logs_dir = dirs::home_dir().context("Home directory not set")?;
-    logs_dir.push(PathBuf::from(".local/state/chess"));
+    let log_path = if let Ok(log_path_str) = env::var("FLYING_FISH_LOG_PATH") {
+        PathBuf::from_str(&log_path_str)?
+    } else {
+        get_default_log_path()?
+    };
 
-    let _ = LOGS_DIRECTORY.get_or_init(|| logs_dir.clone());
-
-    let mut log_path = logs_dir;
-    log_path.push("chess.log");
-
-    let log_file = File::create(log_path)?;
+    let log_file =
+        File::create(log_path.clone()).context(format!("Couldn't create file {:?}", log_path))?;
 
     let stdout_layer = tracing_subscriber::fmt::layer()
         .without_time()
@@ -106,4 +107,15 @@ fn enable_logging() -> Result<()> {
         .init();
 
     Ok(())
+}
+
+fn get_default_log_path() -> Result<PathBuf> {
+    let mut logs_dir = dirs::home_dir().context("Home directory not set")?;
+    logs_dir.push(PathBuf::from(".local/state/chess"));
+
+    let _ = LOGS_DIRECTORY.get_or_init(|| logs_dir.clone());
+
+    let mut log_path = logs_dir;
+    log_path.push("chess.log");
+    Ok(log_path)
 }
