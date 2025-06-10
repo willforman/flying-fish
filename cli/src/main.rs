@@ -10,8 +10,8 @@ use std::{
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use engine::{
-    search, HyperbolaQuintessenceMoveGen, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN,
-    POSITION_EVALUATOR,
+    perft, search, HyperbolaQuintessenceMoveGen, Position, SearchParams,
+    HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
 };
 use tracing::{debug, level_filters::LevelFilter, warn, Level};
 use tracing_subscriber::{layer::SubscriberExt, prelude::*, util::SubscriberInitExt, Registry};
@@ -30,7 +30,14 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     /// Search a position for the best move.
-    Search { fen: String, depth: u64 },
+    Search {
+        fen: String,
+        depth: u64,
+    },
+    Perft {
+        fen: String,
+        depth: u64,
+    },
 }
 
 fn main() -> Result<()> {
@@ -40,6 +47,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Some(Commands::Search { fen, depth }) => cli_search(&fen, depth),
+        Some(Commands::Perft { fen, depth }) => cli_perft(&fen, depth),
         None => uci_main_loop(),
     }
 }
@@ -64,6 +72,13 @@ fn cli_search(fen: &str, depth: u64) -> Result<()> {
             .to_string()
             .to_lowercase()
     );
+    Ok(())
+}
+
+fn cli_perft(fen: &str, depth: u64) -> Result<()> {
+    let position = Position::from_fen(fen)?;
+    let (_, tot_moves) = perft(&position, depth as usize, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+    println!("{:?} moves", tot_moves);
     Ok(())
 }
 
