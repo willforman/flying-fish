@@ -5,8 +5,8 @@ use std::{
     time::Duration,
 };
 
+use cli::UCI;
 use engine::{AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME};
-use uci::UCI;
 
 #[derive(Clone, Debug)]
 struct UCIResponseSaver {
