@@ -342,161 +342,161 @@ impl Position {
             self.state.full_move_counter += 1;
         }
 
-        if let Some((piece, side)) = self.is_piece_at(mve.src) {
-            if side != self.state.to_move {
-                Err(PositionError::MoveNotToMove(
-                    side.to_string(),
-                    mve.src.to_string(),
-                    mve.dest.to_string(),
-                ))
+        let (piece, side) = self
+            .is_piece_at(mve.src)
+            .ok_or(PositionError::MoveNoPiece(mve.src.to_string()))?;
+
+        if side != self.state.to_move {
+            Err(PositionError::MoveNotToMove(
+                side.to_string(),
+                mve.src.to_string(),
+                mve.dest.to_string(),
+            ))
+        } else {
+            self.state.to_move = side.opposite_side();
+
+            if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
+                self.state.half_move_clock = 0;
             } else {
-                self.state.to_move = side.opposite_side();
+                debug_assert!(
+                    self.state.half_move_clock != 255,
+                    "half move clock handling is incorrect, would have overflowed"
+                );
+                self.state.half_move_clock += 1;
+            }
 
-                if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
-                    self.state.half_move_clock = 0;
-                } else {
-                    debug_assert!(
-                        self.state.half_move_clock != 255,
-                        "half move clock handling is incorrect, would have overflowed"
-                    );
-                    self.state.half_move_clock += 1;
-                }
-
-                let dest_sq = if piece == Piece::Pawn {
-                    match self.state.en_passant_target {
-                        Some(ep_capture) if mve.dest == ep_capture => {
-                            let ep_capture_dir = if side == Side::White {
-                                Direction::DecRank
-                            } else {
-                                Direction::IncRank
-                            };
-
-                            let mut ep_capture_bb = BitBoard::from_square(ep_capture);
-                            ep_capture_bb.shift(ep_capture_dir);
-                            ep_capture_bb.to_squares()[0]
-                        }
-                        _ => mve.dest,
-                    }
-                } else {
-                    mve.dest
-                };
-
-                if let Some((opp_piece, opp_side)) = self.is_piece_at(dest_sq) {
-                    self.sides.get_mut(opp_side).clear_square(dest_sq);
-                    self.pieces
-                        .get_mut(opp_piece)
-                        .get_mut(opp_side)
-                        .clear_square(dest_sq);
-
-                    if opp_piece == Piece::Rook {
-                        if mve.dest == H1 {
-                            self.state.castling_rights.white_king_side = false;
-                        } else if mve.dest == A1 {
-                            self.state.castling_rights.white_queen_side = false;
-                        } else if mve.dest == H8 {
-                            self.state.castling_rights.black_king_side = false;
-                        } else if mve.dest == A8 {
-                            self.state.castling_rights.black_queen_side = false;
-                        }
-                    }
-                }
-
-                if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
-                    let ep_dir = if side == Side::White {
-                        Direction::IncRank
-                    } else {
-                        Direction::DecRank
-                    };
-
-                    let mut ep_target_bb = BitBoard::from_square(mve.src);
-                    ep_target_bb.shift(ep_dir);
-                    let ep_target = ep_target_bb.to_squares()[0];
-
-                    self.state.en_passant_target = Some(ep_target);
-                } else {
-                    self.state.en_passant_target = None;
-                }
-
-                if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
-                    // Promotion
-                    self.sides.get_mut(side).move_piece(mve.src, mve.dest);
-
-                    self.pieces
-                        .get_mut(Piece::Pawn)
-                        .get_mut(side)
-                        .clear_square(mve.src);
-                    self.pieces
-                        .get_mut(mve.promotion.unwrap())
-                        .get_mut(side)
-                        .set_square(mve.dest);
-
-                    return Ok(());
-                }
-
-                if piece == Piece::King {
-                    if side == Side::White {
-                        self.state.castling_rights.white_king_side = false;
-                        self.state.castling_rights.white_queen_side = false;
-                    } else {
-                        self.state.castling_rights.black_king_side = false;
-                        self.state.castling_rights.black_queen_side = false;
-                    }
-
-                    if mve.src.abs_diff(mve.dest) == 2 {
-                        // Castled
-                        let rook_move = match mve.dest {
-                            C1 => Move::new(A1, D1),
-                            G1 => Move::new(H1, F1),
-                            C8 => Move::new(A8, D8),
-                            G8 => Move::new(H8, F8),
-                            _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
+            let dest_sq = if piece == Piece::Pawn {
+                match self.state.en_passant_target {
+                    Some(ep_capture) if mve.dest == ep_capture => {
+                        let ep_capture_dir = if side == Side::White {
+                            Direction::DecRank
+                        } else {
+                            Direction::IncRank
                         };
 
-                        self.sides
-                            .get_mut(side)
-                            .move_piece(rook_move.src, rook_move.dest);
-                        self.pieces
-                            .get_mut(Piece::Rook)
-                            .get_mut(side)
-                            .move_piece(rook_move.src, rook_move.dest);
+                        let mut ep_capture_bb = BitBoard::from_square(ep_capture);
+                        ep_capture_bb.shift(ep_capture_dir);
+                        ep_capture_bb.to_squares()[0]
                     }
+                    _ => mve.dest,
                 }
+            } else {
+                mve.dest
+            };
 
-                if piece == Piece::Rook {
-                    if mve.src == A1 {
-                        self.state.castling_rights.white_queen_side = false;
-                    } else if mve.src == H1 {
+            if let Some((opp_piece, opp_side)) = self.is_piece_at(dest_sq) {
+                self.sides.get_mut(opp_side).clear_square(dest_sq);
+                self.pieces
+                    .get_mut(opp_piece)
+                    .get_mut(opp_side)
+                    .clear_square(dest_sq);
+
+                if opp_piece == Piece::Rook {
+                    if mve.dest == H1 {
                         self.state.castling_rights.white_king_side = false;
-                    }
-                    if mve.src == A8 {
+                    } else if mve.dest == A1 {
+                        self.state.castling_rights.white_queen_side = false;
+                    } else if mve.dest == H8 {
+                        self.state.castling_rights.black_king_side = false;
+                    } else if mve.dest == A8 {
                         self.state.castling_rights.black_queen_side = false;
                     }
-                    if mve.src == H8 {
-                        self.state.castling_rights.black_king_side = false;
-                    }
+                }
+            }
+
+            if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
+                let ep_dir = if side == Side::White {
+                    Direction::IncRank
+                } else {
+                    Direction::DecRank
+                };
+
+                let mut ep_target_bb = BitBoard::from_square(mve.src);
+                ep_target_bb.shift(ep_dir);
+                let ep_target = ep_target_bb.to_squares()[0];
+
+                self.state.en_passant_target = Some(ep_target);
+            } else {
+                self.state.en_passant_target = None;
+            }
+
+            if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
+                // Promotion
+                self.sides.get_mut(side).move_piece(mve.src, mve.dest);
+
+                self.pieces
+                    .get_mut(Piece::Pawn)
+                    .get_mut(side)
+                    .clear_square(mve.src);
+                self.pieces
+                    .get_mut(mve.promotion.unwrap())
+                    .get_mut(side)
+                    .set_square(mve.dest);
+
+                return Ok(());
+            }
+
+            if piece == Piece::King {
+                if side == Side::White {
+                    self.state.castling_rights.white_king_side = false;
+                    self.state.castling_rights.white_queen_side = false;
+                } else {
+                    self.state.castling_rights.black_king_side = false;
+                    self.state.castling_rights.black_queen_side = false;
                 }
 
-                self.sides.get_mut(side).move_piece(mve.src, mve.dest);
-                self.pieces
-                    .get_mut(piece)
-                    .get_mut(side)
-                    .move_piece(mve.src, mve.dest);
+                if mve.src.abs_diff(mve.dest) == 2 {
+                    // Castled
+                    let rook_move = match mve.dest {
+                        C1 => Move::new(A1, D1),
+                        G1 => Move::new(H1, F1),
+                        C8 => Move::new(A8, D8),
+                        G8 => Move::new(H8, F8),
+                        _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
+                    };
 
-                debug_assert!(
-                    !self.pieces.kings.white.is_empty(),
-                    "position somehow lost white king\n{:?}",
-                    self
-                );
-                debug_assert!(
-                    !self.pieces.kings.white.is_empty(),
-                    "position somehow lost black king\n{:?}",
-                    self
-                );
-
-                Ok(())
+                    self.sides
+                        .get_mut(side)
+                        .move_piece(rook_move.src, rook_move.dest);
+                    self.pieces
+                        .get_mut(Piece::Rook)
+                        .get_mut(side)
+                        .move_piece(rook_move.src, rook_move.dest);
+                }
             }
-        } else {
-            Err(PositionError::MoveNoPiece(mve.src.to_string()))
+
+            if piece == Piece::Rook {
+                if mve.src == A1 {
+                    self.state.castling_rights.white_queen_side = false;
+                } else if mve.src == H1 {
+                    self.state.castling_rights.white_king_side = false;
+                }
+                if mve.src == A8 {
+                    self.state.castling_rights.black_queen_side = false;
+                }
+                if mve.src == H8 {
+                    self.state.castling_rights.black_king_side = false;
+                }
+            }
+
+            self.sides.get_mut(side).move_piece(mve.src, mve.dest);
+            self.pieces
+                .get_mut(piece)
+                .get_mut(side)
+                .move_piece(mve.src, mve.dest);
+
+            debug_assert!(
+                !self.pieces.kings.white.is_empty(),
+                "position somehow lost white king\n{:?}",
+                self
+            );
+            debug_assert!(
+                !self.pieces.kings.white.is_empty(),
+                "position somehow lost black king\n{:?}",
+                self
+            );
+
+            Ok(())
         }
     }
 
