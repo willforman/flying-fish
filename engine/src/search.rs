@@ -223,8 +223,18 @@ pub enum SearchError {
     OpenSearchLogsFile(PathBuf),
 }
 
-fn calc_time_per_move(time_left: Duration, time_inc: Duration, moves_to_go: u16) -> Duration {
-    time_left / moves_to_go.into()
+/// Calculate the time to use during search.
+/// Returns a soft and hard limit time.
+fn calc_time_to_use(
+    time_left: Duration,
+    time_inc: Duration,
+    maybe_moves_to_go: Option<u16>,
+) -> (Duration, Duration) {
+    let usable_time = time_left - (time_left / 20);
+    let moves_to_go = maybe_moves_to_go.unwrap_or(40);
+    let soft_limit = (usable_time / moves_to_go.into()) + time_inc;
+    let hard_limit = soft_limit * 2;
+    (soft_limit, hard_limit)
 }
 
 pub fn search(
@@ -235,6 +245,7 @@ pub fn search(
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     debug_span!("search", position = position.to_fen(), params = ?params);
+    let mut params = params.clone();
     let mut best_move: Option<Move> = None;
     let mut best_val: Option<Move> = None;
 
@@ -251,20 +262,27 @@ pub fn search(
         (None, None) => 20,
     };
 
-    let time_to_use = if position.state.to_move == Side::White {
-        calc_time_per_move(
+    let (time_soft_limit, time_hard_limit) = if position.state.to_move == Side::White {
+        calc_time_to_use(
             params.white_time.unwrap_or(Duration::from_secs(60)),
             params.white_inc.unwrap_or(Duration::from_secs(0)),
-            params.moves_to_go.unwrap_or(1),
+            params.moves_to_go,
         )
     } else {
-        calc_time_per_move(
+        calc_time_to_use(
             params.black_time.unwrap_or(Duration::from_secs(60)),
             params.black_inc.unwrap_or(Duration::from_secs(0)),
-            params.moves_to_go.unwrap_or(1),
+            params.moves_to_go,
         )
     };
-    debug!("Time for this move: {:?}", time_to_use);
+    debug!(
+        "Time for this move: soft limit={:?} hard limit={:?}",
+        time_soft_limit, time_hard_limit
+    );
+
+    if params.move_time.is_none() {
+        params.move_time = Some(time_hard_limit);
+    }
 
     let mut moves = move_gen.gen_moves(position);
 
@@ -300,7 +318,7 @@ pub fn search(
             let move_position = &move_positions[&mve];
             let maybe_move_eval = search_helper(
                 move_position,
-                params,
+                &params,
                 1,
                 iterative_deepening_max_depth,
                 &mut positions_processed,
@@ -362,14 +380,14 @@ pub fn search(
         // Skip if we've elapsed the max amount of time or that we think the next iteration will
         // definitely go over on time
         let elapsed = start.elapsed();
-        if (elapsed + iteration_start_time.elapsed()) > time_to_use {
+        if (elapsed + iteration_start_time.elapsed()) > time_soft_limit {
             debug!(
-                "Search time exceeded time to use: {:?} > {:?}",
-                elapsed, time_to_use
+                "Search time exceeded soft limit: {:?} > {:?}",
+                elapsed, time_soft_limit
             );
-            break;
+            break 'outer;
         }
-        debug!("Time: {:?} < {:?} to use", elapsed, time_to_use);
+        debug!("Time: {:?} < {:?} to use", elapsed, time_soft_limit);
     }
 
     let search_info = SearchResultInfo {
