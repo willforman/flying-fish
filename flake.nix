@@ -86,9 +86,11 @@
             cargo-flamegraph
 
             stockfish
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux ([
             shallow-blue
             cee-chess
-          ]
+          ])
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
               CoreServices
               SystemConfiguration
