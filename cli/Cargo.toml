@@ -9,6 +9,7 @@ chrono = "0.4.38"
 clap = { version = "4.5.39", features = ["derive"] }
 dirs = "5.0.1"
 engine = { path = "../engine" }
+mimalloc = "0.1.46"
 statig = "0.3.0"
 test-case = "3.3.1"
 testresult = "0.4.0"

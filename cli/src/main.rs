@@ -13,10 +13,14 @@ use engine::{
     perft, search, HyperbolaQuintessenceMoveGen, Position, SearchParams,
     HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
 };
+use mimalloc::MiMalloc;
 use tracing::{debug, level_filters::LevelFilter, warn, Level};
 use tracing_subscriber::{layer::SubscriberExt, prelude::*, util::SubscriberInitExt, Registry};
 
 use cli::{LOGS_DIRECTORY, UCI};
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
