@@ -333,6 +333,11 @@ impl Position {
         None
     }
 
+    pub fn is_capture(&self, mve: &Move) -> bool {
+        let opp_pieces = &self.sides.get(self.state.to_move.opposite_side());
+        opp_pieces.is_square_set(mve.dest)
+    }
+
     pub fn make_move(&mut self, mve: &Move) -> Result<(), PositionError> {
         if self.state.half_move_clock >= 50 {
             return Err(PositionError::GameOverHalfMoveClock(mve.to_string()));
@@ -621,5 +626,13 @@ mod tests {
     fn test_move_debug(mve: Move, want: &str) {
         let got = format!("{:?}", mve);
         assert_eq!(got, want);
+    }
+
+    #[test_case(Position::from_fen("7k/8/4q3/8/8/4R3/5P2/K7 b - - 0 1").unwrap(), Move::new(E6, E3), true)]
+    #[test_case(Position::from_fen("7k/8/4q3/8/8/4R3/5P2/K7 b - - 0 1").unwrap(), Move::new(E6, E4), false)]
+    fn test_is_capture(position: Position, mve: Move, is_capture_want: bool) {
+        let is_capture_got = position.is_capture(&mve);
+
+        assert_eq!(is_capture_got, is_capture_want);
     }
 }

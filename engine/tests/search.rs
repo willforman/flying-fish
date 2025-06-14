@@ -58,6 +58,7 @@ fn test_search_terminates() {
 fn test_finds_best_move(position: Position, max_depth: u64, best_move_want: Move) -> TestResult {
     let search_params = SearchParams {
         max_depth: Some(max_depth),
+        move_time: Some(Duration::from_secs(10)),
         ..SearchParams::default()
     };
     let (best_move_got, _) = search(
@@ -85,5 +86,25 @@ fn test_doesnt_find_stalemate(position: Position, stalemate_move_dont_want: Move
         Arc::new(AtomicBool::new(false)),
     )?;
     assert_ne!(best_move_got, Some(stalemate_move_dont_want));
+    assert_ne!(best_move_got, None);
+    Ok(())
+}
+
+#[test_case(Position::from_fen("7k/8/4q3/8/8/4R3/5P2/K7 b - - 0 1").unwrap(), Move::new(E6, E3))]
+fn test_avoids_horizon_effect(position: Position, horizon_effect_move: Move) -> TestResult {
+    let search_params = SearchParams {
+        max_depth: Some(1),
+        ..SearchParams::default()
+    };
+    let (best_move_got, _) = search(
+        &position,
+        &search_params,
+        HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+        POSITION_EVALUATOR,
+        Arc::new(AtomicBool::new(false)),
+    )?;
+
+    assert_ne!(best_move_got, Some(horizon_effect_move));
+    assert_ne!(best_move_got, None);
     Ok(())
 }

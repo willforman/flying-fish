@@ -443,9 +443,23 @@ fn search_helper(
         );
     }
 
+    // Once we reach max depth, use quiescence search to extend
+    // search.
     if curr_depth == iterative_deepening_max_depth {
-        let curr_evaluation = position_eval.evaluate(position, move_gen);
-        return Some(curr_evaluation);
+        return quiescence_search(
+            position,
+            params,
+            curr_depth + 1,
+            iterative_deepening_max_depth + 4,
+            positions_processed,
+            start_time,
+            latest_eval,
+            alpha,
+            beta,
+            move_gen,
+            position_eval,
+            terminate,
+        );
     }
 
     let moves = move_gen.gen_moves(position);
@@ -497,6 +511,105 @@ fn search_helper(
 
         if alpha >= beta {
             break;
+        }
+    }
+
+    Some(best_eval)
+}
+
+/// Source: https://www.chessprogramming.org/Quiescence_Search
+#[allow(clippy::too_many_arguments)]
+fn quiescence_search(
+    position: &Position,
+    params: &SearchParams,
+    curr_depth: u64,
+    max_depth: u64,
+    positions_processed: &mut u64,
+    start_time: &Instant,
+    latest_eval: &mut Eval,
+    mut alpha: Eval,
+    beta: Eval,
+    move_gen: impl GenerateMoves + std::marker::Copy,
+    position_eval: impl EvaluatePosition + std::marker::Copy,
+    terminate: Arc<AtomicBool>,
+) -> Option<Eval> {
+    // If this search has been terminated, return early
+    if terminate.load(std::sync::atomic::Ordering::Relaxed) {
+        return None;
+    }
+    // If search has exceeded total time, return early
+    if let Some(move_time) = params.move_time {
+        if start_time.elapsed() >= move_time {
+            return None;
+        }
+    }
+    *positions_processed += 1;
+
+    if *positions_processed % 250_000 == 0 {
+        write_search_info(
+            max_depth,
+            *positions_processed,
+            curr_depth,
+            start_time,
+            latest_eval,
+            None,
+        );
+    }
+
+    let standing_pat = position_eval.evaluate(position, move_gen);
+    if standing_pat >= beta {
+        return Some(standing_pat);
+    }
+    if standing_pat > alpha {
+        alpha = standing_pat;
+    }
+
+    let mut best_eval = standing_pat;
+    let capture_moves = move_gen
+        .gen_moves(position)
+        .into_iter()
+        .filter(|mve| position.is_capture(mve));
+
+    for mve in capture_moves {
+        let mut move_position = position.clone();
+        let move_res = move_position.make_move(&mve);
+        if let Err(err) = move_res {
+            write_search_info(
+                max_depth,
+                *positions_processed,
+                curr_depth,
+                start_time,
+                latest_eval,
+                None,
+            );
+            error!("Error for move {}: {}", mve, err);
+            panic!("Err encountered searching, exiting");
+        }
+
+        // Reason for `?`: if the child node is signaling search is terminated,
+        // better terminate self.
+        let move_eval = search_helper(
+            &move_position,
+            params,
+            curr_depth + 1,
+            max_depth,
+            positions_processed,
+            start_time,
+            latest_eval,
+            beta.flip(),
+            alpha.flip(),
+            move_gen,
+            position_eval,
+            Arc::clone(&terminate),
+        )?;
+
+        if move_eval >= beta {
+            return Some(move_eval);
+        }
+        if move_eval > best_eval {
+            best_eval = move_eval;
+        } else if move_eval > alpha {
+            alpha = move_eval;
         }
     }
 
