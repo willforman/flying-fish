@@ -93,12 +93,14 @@ impl Position {
             } else {
                 curr_empty_count += 1;
             }
-            if (idx + 1) % 8 == 0 && idx != 63 {
+            if (idx + 1) % 8 == 0 {
                 if curr_empty_count != 0 {
                     pieces += &curr_empty_count.to_string();
                     curr_empty_count = 0;
                 }
-                pieces += "/";
+                if idx != 63 {
+                    pieces += "/";
+                }
             }
         }
 
@@ -358,6 +360,9 @@ mod tests {
 
     #[test_case(
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" ; "kiwipete"
+    )]
+    #[test_case(
+        "8/8/8/4k3/8/3P4/5K2/r7 w - - 1 1" ; "random"
     )]
     fn test_to_fen_string(fen: &str) -> TestResult {
         let pos = Position::from_fen(fen)?;
