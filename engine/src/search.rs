@@ -8,7 +8,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use serde::{Deserialize, Serialize};
 use tracing::{debug, debug_span, enabled, error, info, warn};
 
 use crate::evaluation::{Eval, EvaluatePosition};
@@ -17,7 +16,7 @@ use crate::position::{Move, Position};
 use crate::Side;
 use crate::TRACING_TARGET_SEARCH;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SearchParams {
     pub search_moves: Option<Vec<Move>>,
     pub ponder: bool,
@@ -91,7 +90,7 @@ impl Display for SearchParams {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct SearchResultInfo {
     pub positions_processed: u64,
     pub time_elapsed: Duration,

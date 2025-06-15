@@ -1,7 +1,6 @@
 use std::fmt;
 
 use arrayvec::ArrayVec;
-use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
@@ -31,7 +30,7 @@ pub enum PositionError {
     NoMoveToUndo,
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
 pub enum Side {
     White,
     Black,
@@ -47,7 +46,7 @@ impl Side {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Hash, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Hash)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -95,7 +94,7 @@ impl TryFrom<char> for Piece {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Move {
     pub src: Square,
     pub dest: Square,
@@ -141,7 +140,7 @@ impl fmt::Display for Move {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Sides {
     white: BitBoard,
     black: BitBoard,
@@ -180,7 +179,7 @@ impl Sides {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Pieces {
     pawns: Sides,
     knights: Sides,
@@ -253,7 +252,7 @@ impl Pieces {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CastlingRights {
     pub white_king_side: bool,
     pub white_queen_side: bool,
@@ -286,7 +285,7 @@ impl CastlingRights {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct State {
     pub to_move: Side,
     pub half_move_clock: u8,
@@ -307,7 +306,7 @@ impl State {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnmakeMoveState {
     mve: Move,
     piece_moved: Piece,
@@ -315,7 +314,7 @@ pub struct UnmakeMoveState {
     state: State,
 }
 
-#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Position {
     pub state: State,
     pub(crate) sides: Sides,
