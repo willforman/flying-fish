@@ -76,15 +76,17 @@ pub fn perft(
     depth: usize,
     move_gen: impl GenerateMoves + Copy,
 ) -> (HashMap<Move, usize>, usize) {
-    let moves = move_gen.gen_moves(position);
+    let mut position = position.clone();
+    let moves = move_gen.gen_moves(&position);
     let mut perft_results: HashMap<Move, usize> = HashMap::with_capacity(moves.len());
 
     for mve in moves {
-        let mut move_pos = position.clone();
-        move_pos.make_move(&mve).unwrap();
+        let undo_move_state = position.make_move(mve).unwrap();
 
-        let moves_count = perft_helper(&move_pos, 1, depth, move_gen);
+        let moves_count = perft_helper(&position, 1, depth, move_gen);
         perft_results.insert(mve, moves_count);
+
+        position.unmake_move(undo_move_state).unwrap();
     }
 
     let tot_moves = perft_results.values().sum();
@@ -106,7 +108,7 @@ fn perft_helper(
     let moves = move_gen.gen_moves(position);
     for mve in moves {
         let mut move_pos = position.clone();
-        move_pos.make_move(&mve).unwrap();
+        move_pos.make_move(mve).unwrap();
 
         let curr_move_moves_count = perft_helper(&move_pos, curr_depth + 1, max_depth, move_gen);
         moves_count += curr_move_moves_count;
@@ -227,7 +229,7 @@ fn perft_full_helper(
 
     for mve in moves {
         let mut move_position = position.clone();
-        move_position.make_move(&mve).unwrap();
+        move_position.make_move(mve).unwrap();
 
         let mut checkers = move_gen.gen_checkers(&move_position);
         if !checkers.is_empty() {

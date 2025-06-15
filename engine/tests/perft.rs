@@ -341,7 +341,7 @@ fn test_perft(
     moves_want: HashMap<Move, usize>,
 ) {
     for mve in start_moves {
-        starting_position.make_move(mve).unwrap();
+        starting_position.make_move(*mve).unwrap();
     }
 
     let (moves_got, tot_moves_got) =

@@ -667,7 +667,7 @@ mod tests {
     ]) ; "kiwipete move to en passant target")]
     fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
         for mve in start_moves {
-            position.make_move(mve).unwrap();
+            position.make_move(*mve).unwrap();
         }
 
         println!("{:?}", position);
@@ -703,7 +703,7 @@ mod tests {
     #[test_case(Position::from_fen("r3k2r/p1pp1pb1/bn2pnN1/2qP4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 1 2").unwrap(), &[Move::new(G6, H8)] ; "capturing rook removes castling rights")]
     fn test_castling_rights(mut position: Position, start_moves: &[Move]) {
         for mve in start_moves {
-            position.make_move(mve).unwrap();
+            position.make_move(*mve).unwrap();
         }
 
         assert!(!position.state.castling_rights.black_king_side);

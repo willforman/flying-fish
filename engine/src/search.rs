@@ -292,11 +292,12 @@ pub fn search(
     }
 
     let move_positions: HashMap<Move, Position> = moves
-        .iter()
+        .clone()
+        .into_iter()
         .map(|mve| {
             let mut move_position = position.clone();
             move_position.make_move(mve).unwrap();
-            (*mve, move_position)
+            (mve, move_position)
         })
         .collect();
 
@@ -467,7 +468,7 @@ fn search_helper(
     let mut best_eval = Eval::Mate(0);
     for mve in moves {
         let mut move_position = position.clone();
-        let move_res = move_position.make_move(&mve);
+        let move_res = move_position.make_move(mve);
         if let Err(err) = move_res {
             write_search_info(
                 iterative_deepening_max_depth,
@@ -572,7 +573,7 @@ fn quiescence_search(
 
     for mve in capture_moves {
         let mut move_position = position.clone();
-        let move_res = move_position.make_move(&mve);
+        let move_res = move_position.make_move(mve);
         if let Err(err) = move_res {
             write_search_info(
                 max_depth,

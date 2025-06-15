@@ -14,7 +14,7 @@ pub enum AlgebraicNotationError {
 
 pub fn move_to_algebraic_notation(
     position: &Position,
-    mve: &Move,
+    mve: Move,
     move_gen: impl GenerateMoves,
 ) -> Result<String, AlgebraicNotationError> {
     let (src_piece, _src_side) = position
@@ -143,7 +143,7 @@ mod tests {
     #[test_case(Position::from_fen("5Q1Q/8/7Q/8/8/8/8/K2k4 w - - 0 1").unwrap(), Move::new(H6, F6), "Qh6f6".to_string() ; "ambiguous rank file 3")]
     fn test_move_to_algebraic_notation(pos: Position, mve: Move, want: String) -> TestResult {
         let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-        let got = move_to_algebraic_notation(&pos, &mve, move_gen)?;
+        let got = move_to_algebraic_notation(&pos, mve, move_gen)?;
 
         assert_eq!(got, want);
         Ok(())
