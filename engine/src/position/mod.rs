@@ -404,7 +404,7 @@ impl Position {
 
         self.state.to_move = side.opposite_side();
 
-        if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
+        if piece == Piece::Pawn || captured_piece.is_some() {
             self.state.half_move_clock = 0;
         } else {
             debug_assert!(
