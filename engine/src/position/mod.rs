@@ -6,6 +6,7 @@ use strum_macros::{Display, EnumIter};
 
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Direction, Square};
+use crate::position;
 
 mod fen;
 
@@ -311,7 +312,9 @@ pub struct UnmakeMoveState {
     mve: Move,
     piece_moved: Piece,
     captured_piece: Option<Piece>,
-    state: State,
+    castling_rights: CastlingRights,
+    en_passant_target: Option<Square>,
+    half_move_clock: u8,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -328,32 +331,6 @@ impl Position {
             sides: Sides::start(),
             pieces: Pieces::start(),
         }
-    }
-
-    pub fn unmake_move(&mut self, undo_move_state: UnmakeMoveState) -> Result<(), PositionError> {
-        let side_moved = undo_move_state.state.to_move;
-
-        self.sides
-            .get_mut(side_moved)
-            .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
-        self.pieces
-            .get_mut(undo_move_state.piece_moved)
-            .get_mut(side_moved)
-            .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
-
-        if let Some(captured_piece) = undo_move_state.captured_piece {
-            self.sides
-                .get_mut(self.state.to_move)
-                .set_square(undo_move_state.mve.dest);
-            self.pieces
-                .get_mut(captured_piece)
-                .get_mut(self.state.to_move)
-                .set_square(undo_move_state.mve.dest);
-        }
-
-        self.state = undo_move_state.state;
-
-        Ok(())
     }
 
     pub fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
@@ -375,13 +352,8 @@ impl Position {
     }
 
     pub fn make_move(&mut self, mve: Move) -> Result<UnmakeMoveState, PositionError> {
-        let undo_move_state_state = self.state.clone();
         if self.state.half_move_clock >= 50 {
             return Err(PositionError::GameOverHalfMoveClock(mve.to_string()));
-        }
-
-        if self.state.to_move == Side::Black {
-            self.state.full_move_counter += 1;
         }
 
         let (piece, side) = self
@@ -394,18 +366,6 @@ impl Position {
                 mve.src.to_string(),
                 mve.dest.to_string(),
             ));
-        }
-
-        self.state.to_move = side.opposite_side();
-
-        if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
-            self.state.half_move_clock = 0;
-        } else {
-            debug_assert!(
-                self.state.half_move_clock != 255,
-                "half move clock handling is incorrect, would have overflowed"
-            );
-            self.state.half_move_clock += 1;
         }
 
         let dest_sq = if piece == Piece::Pawn {
@@ -427,7 +387,35 @@ impl Position {
             mve.dest
         };
 
-        let captured_piece = if let Some((opp_piece, opp_side)) = self.is_piece_at(dest_sq) {
+        let captured_piece = self.is_piece_at(dest_sq).map(|(piece, _)| piece);
+
+        let unmake_move_state = UnmakeMoveState {
+            mve,
+            piece_moved: piece,
+            captured_piece,
+            en_passant_target: self.state.en_passant_target,
+            half_move_clock: self.state.half_move_clock,
+            castling_rights: self.state.castling_rights.clone(),
+        };
+
+        if self.state.to_move == Side::Black {
+            self.state.full_move_counter += 1;
+        }
+
+        self.state.to_move = side.opposite_side();
+
+        if piece == Piece::Pawn || self.is_piece_at(mve.dest).is_some() {
+            self.state.half_move_clock = 0;
+        } else {
+            debug_assert!(
+                self.state.half_move_clock != 255,
+                "half move clock handling is incorrect, would have overflowed"
+            );
+            self.state.half_move_clock += 1;
+        }
+
+        if let Some(opp_piece) = captured_piece {
+            let opp_side = side.opposite_side();
             self.sides.get_mut(opp_side).clear_square(dest_sq);
             self.pieces
                 .get_mut(opp_piece)
@@ -445,10 +433,7 @@ impl Position {
                     self.state.castling_rights.black_queen_side = false;
                 }
             }
-            Some(opp_piece)
-        } else {
-            None
-        };
+        }
 
         if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
             let ep_dir = if side == Side::White {
@@ -466,8 +451,8 @@ impl Position {
             self.state.en_passant_target = None;
         }
 
+        // Promotion
         if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
-            // Promotion
             self.sides.get_mut(side).move_piece(mve.src, mve.dest);
 
             self.pieces
@@ -478,13 +463,7 @@ impl Position {
                 .get_mut(mve.promotion.unwrap())
                 .get_mut(side)
                 .set_square(mve.dest);
-
-            return Ok(UnmakeMoveState {
-                mve,
-                piece_moved: Piece::Pawn,
-                captured_piece: None,
-                state: undo_move_state_state,
-            });
+            return Ok(unmake_move_state);
         }
 
         if piece == Piece::King {
@@ -547,12 +526,43 @@ impl Position {
             self
         );
 
-        Ok(UnmakeMoveState {
-            mve,
-            piece_moved: piece,
-            captured_piece,
-            state: undo_move_state_state,
-        })
+        Ok(unmake_move_state)
+    }
+
+    pub fn unmake_move(&mut self, undo_move_state: UnmakeMoveState) -> Result<(), PositionError> {
+        self.state.to_move = self.state.to_move.opposite_side();
+
+        self.sides
+            .get_mut(self.state.to_move)
+            .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
+
+        let piece_moved = undo_move_state
+            .mve
+            .promotion
+            .unwrap_or(undo_move_state.piece_moved);
+        self.pieces
+            .get_mut(piece_moved)
+            .get_mut(self.state.to_move)
+            .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
+
+        if let Some(captured_piece) = undo_move_state.captured_piece {
+            self.sides
+                .get_mut(self.state.to_move.opposite_side())
+                .set_square(undo_move_state.mve.dest);
+            self.pieces
+                .get_mut(captured_piece)
+                .get_mut(self.state.to_move.opposite_side())
+                .set_square(undo_move_state.mve.dest);
+        }
+
+        self.state.castling_rights = undo_move_state.castling_rights;
+        self.state.en_passant_target = undo_move_state.en_passant_target;
+        self.state.half_move_clock = undo_move_state.half_move_clock;
+        if self.state.to_move == Side::Black {
+            self.state.full_move_counter -= 1;
+        }
+
+        Ok(())
     }
 
     pub fn remove_piece(&mut self, square: Square) -> Result<(), PositionError> {
@@ -582,6 +592,12 @@ impl Position {
 
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_fen())
+    }
+}
+
+impl fmt::Debug for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut board_str = String::with_capacity(64 + 7);
         Square::list_white_perspective()
             .into_iter()
@@ -598,13 +614,16 @@ impl fmt::Display for Position {
                     board_str.push('\n');
                 }
             });
-        write!(f, "{}", board_str)
-    }
-}
-
-impl fmt::Debug for Position {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        writeln!(f, "{}", board_str)?;
+        writeln!(
+            f,
+            "half move={}, full move={}, en_passant={:?}, castling_rights={:?}",
+            self.state.half_move_clock,
+            self.state.full_move_counter,
+            self.state.en_passant_target,
+            self.state.castling_rights
+        )?;
+        Ok(())
     }
 }
 
@@ -615,11 +634,11 @@ mod tests {
     use testresult::TestResult;
 
     #[test]
-    fn test_display() {
+    fn test_debug() {
         let got = Position::start();
-        let want = "rnbqkbnr\npppppppp\n........\n........\n........\n........\nPPPPPPPP\nRNBQKBNR";
+        let want = "rnbqkbnr\npppppppp\n........\n........\n........\n........\nPPPPPPPP\nRNBQKBNR\nhalf move=0, full move=1, en_passant=None, castling_rights=CastlingRights { white_king_side: true, white_queen_side: true, black_king_side: true, black_queen_side: true }\n";
 
-        assert_eq!(format!("{}", got), want);
+        assert_eq!(format!("{:?}", got), want);
     }
 
     #[test]
