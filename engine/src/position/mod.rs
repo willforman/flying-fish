@@ -292,7 +292,7 @@ pub struct State {
     pub half_move_clock: u8,
     pub en_passant_target: Option<Square>,
     pub castling_rights: CastlingRights,
-    pub full_move_counter: u16,
+    pub full_move_counter: u8,
 }
 
 impl State {
