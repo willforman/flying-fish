@@ -371,20 +371,19 @@ impl Position {
             ));
         }
 
-        let dest_sq = if piece == Piece::Pawn {
-            match self.state.en_passant_target {
-                Some(ep_capture) if mve.dest == ep_capture => {
-                    let ep_capture_dir = if side == Side::White {
-                        Direction::DecRank
-                    } else {
-                        Direction::IncRank
-                    };
+        let dest_sq = if let Some(en_passant_target) = self.state.en_passant_target {
+            if piece == Piece::Pawn && mve.dest == en_passant_target {
+                let ep_capture_dir = if side == Side::White {
+                    Direction::DecRank
+                } else {
+                    Direction::IncRank
+                };
 
-                    let mut ep_capture_bb = BitBoard::from_square(ep_capture);
-                    ep_capture_bb.shift(ep_capture_dir);
-                    ep_capture_bb.to_squares()[0]
-                }
-                _ => mve.dest,
+                let mut ep_capture_bb = BitBoard::from_square(en_passant_target);
+                ep_capture_bb.shift(ep_capture_dir);
+                ep_capture_bb.to_squares()[0]
+            } else {
+                mve.dest
             }
         } else {
             mve.dest
@@ -542,12 +541,12 @@ impl Position {
             .get_mut(moved_side)
             .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
 
-        // If the move was a promotion, we need to make sure to put pawn back.
         self.pieces
             .get_mut(undo_move_state.piece_moved)
             .get_mut(moved_side)
             .clear_square(undo_move_state.mve.dest);
 
+        // If the move was a promotion, we need to make sure to put pawn back.
         let piece_moved = if undo_move_state.mve.promotion.is_some() {
             Piece::Pawn
         } else {
