@@ -130,7 +130,7 @@ where
                 };
                 if let Some(moves) = moves {
                     for mve in moves {
-                        pos.make_move(mve).unwrap();
+                        pos.make_move(*mve).unwrap();
                     }
                 }
                 Transition(State::uci_enabled(pos))

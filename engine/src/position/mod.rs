@@ -29,6 +29,9 @@ pub enum PositionError {
 
     #[error("cannot undo move, previous move isn't stored")]
     NoMoveToUndo,
+
+    #[error("cannot move pawn to last row without promotion: move {0}")]
+    PawnMoveMissingPromotion(Move),
 }
 
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
@@ -453,6 +456,10 @@ impl Position {
 
         // Promotion
         if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
+            let promotion = mve
+                .promotion
+                .ok_or(PositionError::PawnMoveMissingPromotion(mve))?;
+
             self.sides.get_mut(side).move_piece(mve.src, mve.dest);
 
             self.pieces
@@ -460,7 +467,7 @@ impl Position {
                 .get_mut(side)
                 .clear_square(mve.src);
             self.pieces
-                .get_mut(mve.promotion.unwrap())
+                .get_mut(promotion)
                 .get_mut(side)
                 .set_square(mve.dest);
             return Ok(unmake_move_state);
@@ -530,37 +537,45 @@ impl Position {
     }
 
     pub fn unmake_move(&mut self, undo_move_state: UnmakeMoveState) -> Result<(), PositionError> {
-        self.state.to_move = self.state.to_move.opposite_side();
-
+        let moved_side = self.state.to_move.opposite_side();
         self.sides
-            .get_mut(self.state.to_move)
+            .get_mut(moved_side)
             .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
 
-        let piece_moved = undo_move_state
-            .mve
-            .promotion
-            .unwrap_or(undo_move_state.piece_moved);
+        // If the move was a promotion, we need to make sure to put pawn back.
+        self.pieces
+            .get_mut(undo_move_state.piece_moved)
+            .get_mut(moved_side)
+            .clear_square(undo_move_state.mve.dest);
+
+        let piece_moved = if undo_move_state.mve.promotion.is_some() {
+            Piece::Pawn
+        } else {
+            undo_move_state.piece_moved
+        };
         self.pieces
             .get_mut(piece_moved)
-            .get_mut(self.state.to_move)
-            .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
+            .get_mut(moved_side)
+            .set_square(undo_move_state.mve.src);
 
         if let Some(captured_piece) = undo_move_state.captured_piece {
+            let opp_side = self.state.to_move.opposite_side();
             self.sides
-                .get_mut(self.state.to_move.opposite_side())
+                .get_mut(opp_side)
                 .set_square(undo_move_state.mve.dest);
             self.pieces
                 .get_mut(captured_piece)
-                .get_mut(self.state.to_move.opposite_side())
+                .get_mut(opp_side)
                 .set_square(undo_move_state.mve.dest);
         }
 
         self.state.castling_rights = undo_move_state.castling_rights;
         self.state.en_passant_target = undo_move_state.en_passant_target;
         self.state.half_move_clock = undo_move_state.half_move_clock;
-        if self.state.to_move == Side::Black {
+        if moved_side == Side::Black {
             self.state.full_move_counter -= 1;
         }
+        self.state.to_move = moved_side;
 
         Ok(())
     }
