@@ -52,7 +52,7 @@ fn test_search_terminates() {
 #[test_case(Position::from_fen("8/k7/8/8/8/1r6/r7/7K b - - 0 1").unwrap(), 1, Move::new(B3, B1) ; "rook ladder in 1 black")]
 #[test_case(Position::from_fen("1k6/8/2R5/7R/8/8/8/6K1 w - - 0 1").unwrap(), 3, Move::new(H5, H7) ; "rook ladder in 3 white")]
 #[test_case(Position::from_fen("8/k7/8/8/r7/5r2/8/6K1 b - - 0 1").unwrap(), 3, Move::new(A4, A2) ; "rook ladder in 3 black")]
-// #[test_case(Position::from_fen("2k5/q7/8/8/8/8/8/6QK w - - 0 1").unwrap(), 3, Move::new(G1, A7) ; "obvious queen capture empty board")]
+#[test_case(Position::from_fen("2k5/q7/8/8/8/8/8/6QK w - - 0 1").unwrap(), 3, Move::new(G1, A7) ; "obvious queen capture empty board")]
 #[test_case(Position::from_fen("rnbqkbnr/ppp2ppp/8/3pp3/4P1Q1/2N5/PPPP1PPP/R1B1KBNR b KQkq - 0 1").unwrap(), 3, Move::new(C8, G4) ; "obvious queen capture full board")]
 #[test_case(Position::from_fen("7k/8/8/8/8/3r4/4r3/1K6 w - - 0 1").unwrap(), 3, Move::new(B1, C1) ; "obvious move to avoid mate")]
 fn test_finds_best_move(position: Position, max_depth: u64, best_move_want: Move) -> TestResult {

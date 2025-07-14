@@ -403,7 +403,7 @@ fn search_helper(
     position: &Position,
     params: &SearchParams,
     curr_depth: u64,
-    iterative_deepening_max_depth: u64,
+    max_depth: u64,
     positions_processed: &mut u64,
     start_time: &Instant,
     latest_eval: &mut Eval,
@@ -434,7 +434,7 @@ fn search_helper(
 
     if *positions_processed % 250_000 == 0 {
         write_search_info(
-            iterative_deepening_max_depth,
+            max_depth,
             *positions_processed,
             curr_depth,
             start_time,
@@ -445,12 +445,12 @@ fn search_helper(
 
     // Once we reach max depth, use quiescence search to extend
     // search.
-    if curr_depth == iterative_deepening_max_depth {
+    if curr_depth == max_depth {
         return quiescence_search(
             position,
             params,
-            curr_depth + 1,
-            iterative_deepening_max_depth + 4,
+            curr_depth,
+            max_depth,
             positions_processed,
             start_time,
             latest_eval,
@@ -470,7 +470,7 @@ fn search_helper(
         let move_res = move_position.make_move(mve);
         if let Err(err) = move_res {
             write_search_info(
-                iterative_deepening_max_depth,
+                max_depth,
                 *positions_processed,
                 curr_depth,
                 start_time,
@@ -487,7 +487,7 @@ fn search_helper(
             &move_position,
             params,
             curr_depth + 1,
-            iterative_deepening_max_depth,
+            max_depth,
             positions_processed,
             start_time,
             latest_eval,
@@ -557,6 +557,10 @@ fn quiescence_search(
     }
 
     let standing_pat = position_eval.evaluate(position, move_gen);
+    // If quiescence search exceeds 2x max depth, terminate.
+    if curr_depth >= max_depth * 2 {
+        return Some(standing_pat);
+    }
     if standing_pat >= beta {
         return Some(standing_pat);
     }
@@ -588,7 +592,7 @@ fn quiescence_search(
 
         // Reason for `?`: if the child node is signaling search is terminated,
         // better terminate self.
-        let move_eval = search_helper(
+        let move_eval = quiescence_search(
             &move_position,
             params,
             curr_depth + 1,
@@ -626,4 +630,5 @@ fn write_search_info(
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
     info!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
+    println!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
 }

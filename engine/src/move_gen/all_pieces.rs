@@ -180,6 +180,12 @@ pub(super) fn get_checkers(
     let side = position.state.to_move;
     let opp_side = side.opposite_side();
 
+    debug_assert!(
+        !position.pieces.get(Piece::King).get(side).is_empty(),
+        "{:?} king is somehow missing:\n{:?}",
+        side,
+        position
+    );
     let king_square = position.pieces.get(Piece::King).get(side).pop_lsb();
     let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black);
 
@@ -395,17 +401,27 @@ mod tests {
             let diff_a_b: HashSet<_> = set_a.difference(&set_b).cloned().collect();
             let diff_b_a: HashSet<_> = set_b.difference(&set_a).cloned().collect();
 
-            if !diff_a_b.is_empty() || !diff_b_a.is_empty() {
+            let in_both: HashSet<_> = set_a.intersection(&set_b).cloned().collect();
+
+            let mut diff_a_b_vec: Vec<_> = diff_a_b.into_iter().collect();
+            let mut diff_b_a_vec: Vec<_> = diff_b_a.into_iter().collect();
+
+            diff_a_b_vec.sort();
+            diff_b_a_vec.sort();
+
+            if !diff_a_b_vec.is_empty() || !diff_b_a_vec.is_empty() {
                 panic!(
                     "collections don't have the same elements. \
-                       \nin {} but not {}: {:?}. \
+                       \nin both: {:?}.\
+                       \nin {} but not {}: {:?}.\
                        \nin {} but not {}: {:?}.",
+                    in_both,
                     stringify!($coll_a),
                     stringify!($coll_b),
-                    diff_a_b,
+                    diff_a_b_vec,
                     stringify!($coll_b),
                     stringify!($coll_a),
-                    diff_b_a
+                    diff_b_a_vec,
                 );
             }
         };

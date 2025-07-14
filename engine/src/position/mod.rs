@@ -50,7 +50,7 @@ impl Side {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Hash)]
+#[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Hash, PartialOrd, Ord)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -98,7 +98,7 @@ impl TryFrom<char> for Piece {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Move {
     pub src: Square,
     pub dest: Square,
@@ -371,8 +371,12 @@ impl Position {
             ));
         }
 
-        let dest_sq = if let Some(en_passant_target) = self.state.en_passant_target {
-            if piece == Piece::Pawn && mve.dest == en_passant_target {
+        if self.state.to_move == Side::Black {
+            self.state.full_move_counter += 1;
+        }
+
+        if let Some(en_passant_target) = self.state.en_passant_target {
+            if mve.dest == en_passant_target && piece == Piece::Pawn {
                 let ep_capture_dir = if side == Side::White {
                     Direction::DecRank
                 } else {
@@ -381,15 +385,40 @@ impl Position {
 
                 let mut ep_capture_bb = BitBoard::from_square(en_passant_target);
                 ep_capture_bb.shift(ep_capture_dir);
-                ep_capture_bb.to_squares()[0]
-            } else {
-                mve.dest
-            }
-        } else {
-            mve.dest
-        };
+                let ep_capture_sq = ep_capture_bb.to_squares()[0];
 
-        let captured_piece = self.is_piece_at(dest_sq).map(|(piece, _)| piece);
+                self.sides
+                    .get_mut(side)
+                    .move_piece(mve.src, en_passant_target);
+                self.pieces
+                    .get_mut(Piece::Pawn)
+                    .get_mut(side)
+                    .move_piece(mve.src, en_passant_target);
+
+                let (captured_piece, _) = self
+                    .is_piece_at(ep_capture_sq)
+                    .expect("Piece should be at en passant capture square");
+                let opp_side = side.opposite_side();
+                self.sides.get_mut(opp_side).clear_square(ep_capture_sq);
+                self.pieces
+                    .get_mut(captured_piece)
+                    .get_mut(opp_side)
+                    .clear_square(ep_capture_sq);
+                self.state.en_passant_target = None;
+                self.state.to_move = self.state.to_move.opposite_side();
+
+                return Ok(UnmakeMoveState {
+                    mve,
+                    piece_moved: Piece::Pawn,
+                    captured_piece: Some(captured_piece),
+                    en_passant_target: None,
+                    half_move_clock: 0,
+                    castling_rights: self.state.castling_rights.clone(),
+                });
+            }
+        }
+
+        let captured_piece = self.is_piece_at(mve.dest).map(|(piece, _)| piece);
 
         let unmake_move_state = UnmakeMoveState {
             mve,
@@ -399,10 +428,6 @@ impl Position {
             half_move_clock: self.state.half_move_clock,
             castling_rights: self.state.castling_rights.clone(),
         };
-
-        if self.state.to_move == Side::Black {
-            self.state.full_move_counter += 1;
-        }
 
         self.state.to_move = side.opposite_side();
 
@@ -418,11 +443,11 @@ impl Position {
 
         if let Some(opp_piece) = captured_piece {
             let opp_side = side.opposite_side();
-            self.sides.get_mut(opp_side).clear_square(dest_sq);
+            self.sides.get_mut(opp_side).clear_square(mve.dest);
             self.pieces
                 .get_mut(opp_piece)
                 .get_mut(opp_side)
-                .clear_square(dest_sq);
+                .clear_square(mve.dest);
 
             if opp_piece == Piece::Rook {
                 if mve.dest == H1 {
@@ -558,7 +583,7 @@ impl Position {
             .set_square(undo_move_state.mve.src);
 
         if let Some(captured_piece) = undo_move_state.captured_piece {
-            let opp_side = self.state.to_move.opposite_side();
+            let opp_side = self.state.to_move;
             self.sides
                 .get_mut(opp_side)
                 .set_square(undo_move_state.mve.dest);
@@ -601,6 +626,35 @@ impl Position {
                     .map(move |sq| (piece, side, sq))
             })
         })
+    }
+
+    pub(crate) fn validate_position(&self, mve: Move) -> Result<(), String> {
+        let pieces_vec: Vec<_> = Piece::iter().collect();
+        // Check that no pieces have the same square set.
+        for (idx, piece_outer) in pieces_vec.iter().enumerate() {
+            for piece_inner in &pieces_vec[idx + 1..] {
+                let bb_outer = self.pieces.get(*piece_outer).get(Side::White);
+                let bb_inner = self.pieces.get(*piece_inner).get(Side::White);
+
+                let intersection = bb_outer & bb_inner;
+                if !intersection.is_empty() {
+                    return Err(format!("Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}", mve, Side::White, piece_outer, piece_inner, intersection.to_squares(), intersection));
+                }
+            }
+        }
+
+        for (idx, piece_outer) in pieces_vec.iter().enumerate() {
+            for piece_inner in &pieces_vec[idx + 1..] {
+                let bb_outer = self.pieces.get(*piece_outer).get(Side::Black);
+                let bb_inner = self.pieces.get(*piece_inner).get(Side::Black);
+
+                let intersection = bb_outer & bb_inner;
+                if !intersection.is_empty() {
+                    return Err(format!("Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}", mve, Side::Black, piece_outer, piece_inner, intersection.to_squares(), intersection));
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -726,6 +780,15 @@ mod tests {
         move_position.unmake_move(undo_move_state)?;
 
         assert_eq!(move_position, position);
+        Ok(())
+    }
+
+    #[test_case(Position::from_fen("r3k2r/p1pPqPb1/Bn2PnP1/3PN3/1p2P3/2N4P/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), &[Move::new(E1, D1)] ; "kiwipete to move flipped")]
+    fn test_validate_state_after_moves(mut position: Position, moves: &[Move]) -> TestResult {
+        for &mve in moves {
+            position.make_move(mve)?;
+            position.validate_position(mve)?;
+        }
         Ok(())
     }
 }

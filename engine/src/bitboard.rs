@@ -251,7 +251,7 @@ impl BitBoard {
     }
 
     pub(crate) fn get_lsb(&self) -> Square {
-        debug_assert!(self.0 != 0, "want != 0, got 0");
+        debug_assert!(self.0 != 0, "Bitboard is empty, can't get LSB.");
         let idx: u8 = self.0.trailing_zeros().try_into().unwrap();
         Square::from_repr(idx).unwrap()
     }

@@ -81,12 +81,18 @@ pub fn perft(
     let mut perft_results: HashMap<Move, usize> = HashMap::with_capacity(moves.len());
 
     for mve in moves {
-        let undo_move_state = position.make_move(mve).unwrap();
+        let unmake_move_state = position.make_move(mve).unwrap();
+        #[cfg(debug_assertions)]
+        {
+            if let Err(e) = position.validate_position(mve) {
+                panic!("Validation failed: {}", e);
+            }
+        }
 
-        let moves_count = perft_helper(&position, 1, depth, move_gen);
+        let moves_count = perft_helper(&mut position, 1, depth, move_gen);
         perft_results.insert(mve, moves_count);
 
-        position.unmake_move(undo_move_state).unwrap();
+        position.unmake_move(unmake_move_state).unwrap();
     }
 
     let tot_moves = perft_results.values().sum();
@@ -95,7 +101,7 @@ pub fn perft(
 }
 
 fn perft_helper(
-    position: &Position,
+    position: &mut Position,
     curr_depth: usize,
     max_depth: usize,
     move_gen: impl GenerateMoves + Copy,
@@ -107,11 +113,20 @@ fn perft_helper(
     let mut moves_count = 0;
     let moves = move_gen.gen_moves(position);
     for mve in moves {
-        let mut move_pos = position.clone();
-        move_pos.make_move(mve).unwrap();
+        println!("depth={} {}", curr_depth, position.to_fen());
+        println!("{:?}", position);
+        let unmake_move_state = position.make_move(mve).unwrap();
 
-        let curr_move_moves_count = perft_helper(&move_pos, curr_depth + 1, max_depth, move_gen);
+        #[cfg(debug_assertions)]
+        {
+            if let Err(e) = position.validate_position(mve) {
+                panic!("Validation failed: {}", e);
+            }
+        }
+
+        let curr_move_moves_count = perft_helper(position, curr_depth + 1, max_depth, move_gen);
         moves_count += curr_move_moves_count;
+        position.unmake_move(unmake_move_state).unwrap();
     }
     moves_count
 }
