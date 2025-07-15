@@ -629,6 +629,13 @@ impl Position {
     }
 
     pub(crate) fn validate_position(&self, mve: Move) -> Result<(), String> {
+        if self.pieces.get(Piece::King).get(Side::White).is_empty() {
+            return Err("White king missing".to_string());
+        }
+        if self.pieces.get(Piece::King).get(Side::Black).is_empty() {
+            return Err("Black king missing".to_string());
+        }
+
         let pieces_vec: Vec<_> = Piece::iter().collect();
         // Check that no pieces have the same square set.
         for (idx, piece_outer) in pieces_vec.iter().enumerate() {

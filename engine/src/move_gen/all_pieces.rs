@@ -348,7 +348,14 @@ pub(super) fn gen_moves(
                 moves_bb &= rook_pin_ray;
             }
             if bishop_pin_ray.is_square_set(piece_square) {
-                moves_bb &= bishop_pin_ray;
+                // Handle the case where a piece is pinned on one diagonal from the king,
+                // and there is a piece attacking on the other diagonal, which can be defended by
+                // the pinned piece.
+                let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
+                let piece_king_ray =
+                    BitBoard::from_ray_between_squares_excl(piece_square, king_square)
+                        | BitBoard::from_square(piece_square);
+                moves_bb &= piece_king_ray;
             }
 
             // For each promotion, we need to add 4 moves to the list,
@@ -681,6 +688,9 @@ mod tests {
         Move::new(E8, D8), Move::new(E8, F8),
         Move::new(E8, G8), Move::new(E8, C8),
     ]) ; "kiwipete move to en passant target")]
+    #[test_case(Position::from_fen("rnb1kbnr/pppq1Q1p/8/1B2p3/4P3/2p5/PPPP1PPP/R1B1K1NR b KQkq - 0 1").unwrap(), &[], HashSet::from_iter([
+        Move::new(E8, F7), Move::new(E8, D8),
+    ]) ; "pinned moves from one pin ray to another")]
     fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
         for mve in start_moves {
             position.make_move(*mve).unwrap();

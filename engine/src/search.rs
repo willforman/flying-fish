@@ -8,13 +8,14 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use strum::IntoEnumIterator;
 use tracing::{debug, debug_span, enabled, error, info, warn};
 
 use crate::evaluation::{Eval, EvaluatePosition};
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
-use crate::Side;
-use crate::TRACING_TARGET_SEARCH;
+use crate::{Piece, TRACING_TARGET_SEARCH};
+use crate::{Side, Square};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SearchParams {
@@ -311,6 +312,7 @@ pub fn search(
             iterative_deepening_max_depth, max_depth
         );
         let iterative_deepening_max_depth: u64 = iterative_deepening_max_depth.try_into().unwrap();
+        let mut max_depth_reached: u64 = 1;
 
         // Find value of each move up to current depth
         let mut move_vals = HashMap::with_capacity(moves.len());
@@ -321,6 +323,7 @@ pub fn search(
                 &params,
                 1,
                 iterative_deepening_max_depth,
+                &mut max_depth_reached,
                 &mut positions_processed,
                 &start,
                 &mut latest_eval,
@@ -362,7 +365,7 @@ pub fn search(
         write_search_info(
             iterative_deepening_max_depth,
             positions_processed,
-            iterative_deepening_max_depth,
+            max_depth_reached,
             &start,
             &latest_eval,
             best_move,
@@ -404,6 +407,7 @@ fn search_helper(
     params: &SearchParams,
     curr_depth: u64,
     max_depth: u64,
+    max_depth_reached: &mut u64,
     positions_processed: &mut u64,
     start_time: &Instant,
     latest_eval: &mut Eval,
@@ -431,6 +435,9 @@ fn search_helper(
         }
     }
     *positions_processed += 1;
+    if curr_depth > *max_depth_reached {
+        *max_depth_reached = curr_depth;
+    }
 
     if *positions_processed % 250_000 == 0 {
         write_search_info(
@@ -451,6 +458,7 @@ fn search_helper(
             params,
             curr_depth,
             max_depth,
+            max_depth_reached,
             positions_processed,
             start_time,
             latest_eval,
@@ -468,11 +476,17 @@ fn search_helper(
     for mve in moves {
         let mut move_position = position.clone();
         let move_res = move_position.make_move(mve);
+        #[cfg(debug_assertions)]
+        {
+            if let Err(e) = move_position.validate_position(mve) {
+                panic!("Validation failed: {}", e);
+            }
+        }
         if let Err(err) = move_res {
             write_search_info(
                 max_depth,
                 *positions_processed,
-                curr_depth,
+                *max_depth_reached,
                 start_time,
                 latest_eval,
                 None,
@@ -488,6 +502,7 @@ fn search_helper(
             params,
             curr_depth + 1,
             max_depth,
+            max_depth_reached,
             positions_processed,
             start_time,
             latest_eval,
@@ -524,6 +539,7 @@ fn quiescence_search(
     params: &SearchParams,
     curr_depth: u64,
     max_depth: u64,
+    max_depth_reached: &mut u64,
     positions_processed: &mut u64,
     start_time: &Instant,
     latest_eval: &mut Eval,
@@ -544,12 +560,15 @@ fn quiescence_search(
         }
     }
     *positions_processed += 1;
+    if curr_depth > *max_depth_reached {
+        *max_depth_reached = curr_depth;
+    }
 
     if *positions_processed % 250_000 == 0 {
         write_search_info(
             max_depth,
             *positions_processed,
-            curr_depth,
+            *max_depth_reached,
             start_time,
             latest_eval,
             None,
@@ -557,16 +576,17 @@ fn quiescence_search(
     }
 
     let standing_pat = position_eval.evaluate(position, move_gen);
+    // println!("Stading pat: {:?}", standing_pat);
     // If quiescence search exceeds 2x max depth, terminate.
-    if curr_depth >= max_depth * 2 {
+    if curr_depth >= max_depth * 3 {
         return Some(standing_pat);
     }
-    if standing_pat >= beta {
-        return Some(standing_pat);
-    }
-    if standing_pat > alpha {
-        alpha = standing_pat;
-    }
+    // if standing_pat >= beta {
+    //     return Some(standing_pat);
+    // }
+    // if standing_pat > alpha {
+    //     alpha = standing_pat;
+    // }
 
     let mut best_eval = standing_pat;
     let capture_moves = move_gen
@@ -577,6 +597,44 @@ fn quiescence_search(
     for mve in capture_moves {
         let mut move_position = position.clone();
         let move_res = move_position.make_move(mve);
+        #[cfg(debug_assertions)]
+        {
+            if let Err(e) = move_position.validate_position(mve) {
+                // println!("Curr depth: {curr_depth}");
+                // println!("BEFORE======== {}\n{:?}", position.to_fen(), position);
+                // for side in Side::iter() {
+                //     for piece in Piece::iter() {
+                //         println!(
+                //             "{} {}:\n{:?}",
+                //             side,
+                //             piece,
+                //             position.pieces.get(piece).get(side)
+                //         );
+                //     }
+                // }
+                // println!(
+                //     "AFTER======== {}\n{:?}",
+                //     move_position.to_fen(),
+                //     move_position
+                // );
+                // for side in Side::iter() {
+                //     for piece in Piece::iter() {
+                //         println!(
+                //             "{} {}:\n{:?}",
+                //             side,
+                //             piece,
+                //             move_position.pieces.get(piece).get(side)
+                //         );
+                //     }
+                // }
+                // println!("Moves: {:?}", move_gen.gen_moves(position));
+                // println!(
+                //     "Checkers: {:?}",
+                //     move_gen.gen_checkers(position).to_squares()
+                // );
+                panic!("Validation failed: {}", e);
+            }
+        }
         if let Err(err) = move_res {
             write_search_info(
                 max_depth,
@@ -597,6 +655,7 @@ fn quiescence_search(
             params,
             curr_depth + 1,
             max_depth,
+            max_depth_reached,
             positions_processed,
             start_time,
             latest_eval,
@@ -623,12 +682,12 @@ fn quiescence_search(
 fn write_search_info(
     iterative_deepening_max_depth: u64,
     nodes_processed: u64,
-    curr_depth: u64,
+    max_depth_reached: u64,
     start_time: &Instant,
     latest_eval: &Eval,
     best_move: Option<Move>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    info!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
-    println!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, curr_depth, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
+    info!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, max_depth_reached, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
+    println!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, max_depth_reached, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
 }
