@@ -20,12 +20,12 @@ pub enum Eval {
 impl Display for Eval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Eval::Score(score) => writeln!(f, "cp {}", score / 100.),
+            Eval::Score(score) => write!(f, "cp {}", score / 100.),
             Eval::Mate(plies) => {
                 let sign = if *plies > 0 { '+' } else { '-' };
-                writeln!(f, "{}M{}", sign, plies)
+                write!(f, "{}M{}", sign, plies)
             }
-            Eval::Draw => writeln!(f, "cp 0"),
+            Eval::Draw => write!(f, "cp 0"),
         }
     }
 }
