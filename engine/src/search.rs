@@ -593,6 +593,8 @@ fn quiescence_search(
         .gen_moves(position)
         .into_iter()
         .filter(|mve| position.is_capture(mve));
+    info!("{:?}", position.to_fen());
+    info!("{:?}", capture_moves.clone().collect::<Vec<_>>());
 
     for mve in capture_moves {
         let mut move_position = position.clone();
@@ -600,38 +602,6 @@ fn quiescence_search(
         #[cfg(debug_assertions)]
         {
             if let Err(e) = move_position.validate_position(mve) {
-                // println!("Curr depth: {curr_depth}");
-                // println!("BEFORE======== {}\n{:?}", position.to_fen(), position);
-                // for side in Side::iter() {
-                //     for piece in Piece::iter() {
-                //         println!(
-                //             "{} {}:\n{:?}",
-                //             side,
-                //             piece,
-                //             position.pieces.get(piece).get(side)
-                //         );
-                //     }
-                // }
-                // println!(
-                //     "AFTER======== {}\n{:?}",
-                //     move_position.to_fen(),
-                //     move_position
-                // );
-                // for side in Side::iter() {
-                //     for piece in Piece::iter() {
-                //         println!(
-                //             "{} {}:\n{:?}",
-                //             side,
-                //             piece,
-                //             move_position.pieces.get(piece).get(side)
-                //         );
-                //     }
-                // }
-                // println!("Moves: {:?}", move_gen.gen_moves(position));
-                // println!(
-                //     "Checkers: {:?}",
-                //     move_gen.gen_checkers(position).to_squares()
-                // );
                 panic!("Validation failed: {}", e);
             }
         }
