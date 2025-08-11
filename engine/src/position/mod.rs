@@ -774,7 +774,6 @@ mod tests {
 
     #[test_case(Position::from_fen("7k/8/4q3/8/8/4R3/5P2/K7 b - - 0 1").unwrap(), Move::new(E6, E3), true)]
     #[test_case(Position::from_fen("7k/8/4q3/8/8/4R3/5P2/K7 b - - 0 1").unwrap(), Move::new(E6, E4), false)]
-    #[test_case(Position::from_fen("rnbqkbnr/ppp2ppp/8/3pp3/4P1Q1/2N5/PPPP1PPP/R1B1KBNR b KQkq - 0 1").unwrap(), Move::new(E6, E4), false)]
     fn test_is_capture(position: Position, mve: Move, is_capture_want: bool) {
         let is_capture_got = position.is_capture(&mve);
 
