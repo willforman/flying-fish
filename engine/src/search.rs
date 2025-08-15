@@ -576,17 +576,17 @@ fn quiescence_search(
     }
 
     let standing_pat = position_eval.evaluate(position, move_gen);
-    // println!("Stading pat: {:?}", standing_pat);
-    // If quiescence search exceeds 2x max depth, terminate.
+
     if curr_depth >= max_depth * 3 {
         return Some(standing_pat);
     }
-    // if standing_pat >= beta {
-    //     return Some(standing_pat);
-    // }
-    // if standing_pat > alpha {
-    //     alpha = standing_pat;
-    // }
+
+    if standing_pat >= beta {
+        return Some(standing_pat);
+    }
+    if standing_pat > alpha {
+        alpha = standing_pat;
+    }
 
     let mut best_eval = standing_pat;
     let capture_moves = move_gen
