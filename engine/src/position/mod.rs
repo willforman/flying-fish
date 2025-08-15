@@ -561,6 +561,7 @@ impl Position {
     }
 
     pub fn unmake_move(&mut self, undo_move_state: UnmakeMoveState) -> Result<(), PositionError> {
+        let mve = undo_move_state.mve;
         let moved_side = self.state.to_move.opposite_side();
         self.sides
             .get_mut(moved_side)
@@ -569,10 +570,10 @@ impl Position {
         self.pieces
             .get_mut(undo_move_state.piece_moved)
             .get_mut(moved_side)
-            .clear_square(undo_move_state.mve.dest);
+            .clear_square(mve.dest);
 
         // If the move was a promotion, we need to make sure to put pawn back.
-        let piece_moved = if undo_move_state.mve.promotion.is_some() {
+        let piece_moved = if mve.promotion.is_some() {
             Piece::Pawn
         } else {
             undo_move_state.piece_moved
@@ -581,6 +582,19 @@ impl Position {
             .get_mut(piece_moved)
             .get_mut(moved_side)
             .set_square(undo_move_state.mve.src);
+
+        // Handle undoing castling
+        if piece_moved == Piece::King && mve.src.abs_diff(mve.dest) == 2 {
+            let (rook_src, rook_dest) = match mve.dest {
+                C1 => (A1, D1),
+                G1 => (H1, F1),
+                C8 => (A8, D8),
+                G8 => (H8, F8),
+                _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
+            };
+            self.remove_piece(rook_dest).unwrap();
+            self.add_piece(rook_src, Piece::Rook, moved_side);
+        }
 
         if let Some(captured_piece) = undo_move_state.captured_piece {
             let opp_side = self.state.to_move;
@@ -615,6 +629,11 @@ impl Position {
         } else {
             Err(PositionError::RemoveNoPiece(square.to_string()))
         }
+    }
+
+    fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
+        self.sides.get_mut(side).set_square(square);
+        self.pieces.get_mut(piece).get_mut(side).set_square(square);
     }
 
     pub fn piece_locs(&self) -> impl Iterator<Item = (Piece, Side, Square)> + '_ {
@@ -781,6 +800,7 @@ mod tests {
     }
 
     #[test_case(Position::start(), Move::new(D2, D4))]
+    #[test_case(Position::from_fen("k7/8/8/8/8/8/8/4K2R w K - 0 1").unwrap(), Move::new(E1, G1) ; "castle")]
     fn test_unmake_move(position: Position, mve: Move) -> TestResult {
         let mut move_position = position.clone();
         let undo_move_state = move_position.make_move(mve)?;
