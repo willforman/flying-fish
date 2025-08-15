@@ -513,7 +513,7 @@ fn search_helper(
             Arc::clone(&terminate),
         )?;
 
-        // Then, flip value because it was relative to the other side
+        // Flip value because it was relative to the other side
         let got_eval = got_eval.flip();
 
         if got_eval >= best_eval {
@@ -635,6 +635,8 @@ fn quiescence_search(
             position_eval,
             Arc::clone(&terminate),
         )?;
+        // Flip value because it was relative to the other side
+        let move_eval = move_eval.flip();
 
         if move_eval >= beta {
             return Some(move_eval);
