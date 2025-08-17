@@ -387,21 +387,12 @@ impl Position {
                 ep_capture_bb.shift(ep_capture_dir);
                 let ep_capture_sq = ep_capture_bb.to_squares()[0];
 
-                self.sides
-                    .get_mut(side)
-                    .move_piece(mve.src, en_passant_target);
-                self.pieces
-                    .get_mut(Piece::Pawn)
-                    .get_mut(side)
-                    .move_piece(mve.src, en_passant_target);
+                self.move_piece(mve.src, en_passant_target, Piece::Pawn, side);
 
-                let (captured_piece, _) = self
-                    .is_piece_at(ep_capture_sq)
-                    .expect("Piece should be at en passant capture square");
                 let opp_side = side.opposite_side();
                 self.sides.get_mut(opp_side).clear_square(ep_capture_sq);
                 self.pieces
-                    .get_mut(captured_piece)
+                    .get_mut(Piece::Pawn)
                     .get_mut(opp_side)
                     .clear_square(ep_capture_sq);
                 self.state.en_passant_target = None;
@@ -410,8 +401,8 @@ impl Position {
                 return Ok(UnmakeMoveState {
                     mve,
                     piece_moved: Piece::Pawn,
-                    captured_piece: Some(captured_piece),
-                    en_passant_target: None,
+                    captured_piece: Some(Piece::Pawn),
+                    en_passant_target: Some(mve.dest),
                     half_move_clock: 0,
                     castling_rights: self.state.castling_rights.clone(),
                 });
@@ -562,7 +553,17 @@ impl Position {
 
     pub fn unmake_move(&mut self, undo_move_state: UnmakeMoveState) -> Result<(), PositionError> {
         let mve = undo_move_state.mve;
-        let moved_side = self.state.to_move.opposite_side();
+        let opp_side = self.state.to_move;
+        let moved_side = opp_side.opposite_side();
+
+        self.state.castling_rights = undo_move_state.castling_rights;
+        self.state.en_passant_target = undo_move_state.en_passant_target;
+        self.state.half_move_clock = undo_move_state.half_move_clock;
+        if moved_side == Side::Black {
+            self.state.full_move_counter -= 1;
+        }
+        self.state.to_move = moved_side;
+
         self.sides
             .get_mut(moved_side)
             .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
@@ -596,8 +597,25 @@ impl Position {
             self.add_piece(rook_src, Piece::Rook, moved_side);
         }
 
+        if let Some(en_passant_target) = undo_move_state.en_passant_target {
+            if mve.dest == en_passant_target && undo_move_state.piece_moved == Piece::Pawn {
+                let ep_capture_dir = if moved_side == Side::White {
+                    Direction::DecRank
+                } else {
+                    Direction::IncRank
+                };
+
+                let mut ep_capture_bb = BitBoard::from_square(en_passant_target);
+                ep_capture_bb.shift(ep_capture_dir);
+                let ep_capture_sq = ep_capture_bb.to_squares()[0];
+
+                self.add_piece(ep_capture_sq, Piece::Pawn, opp_side);
+
+                return Ok(());
+            }
+        }
+
         if let Some(captured_piece) = undo_move_state.captured_piece {
-            let opp_side = self.state.to_move;
             self.sides
                 .get_mut(opp_side)
                 .set_square(undo_move_state.mve.dest);
@@ -606,14 +624,6 @@ impl Position {
                 .get_mut(opp_side)
                 .set_square(undo_move_state.mve.dest);
         }
-
-        self.state.castling_rights = undo_move_state.castling_rights;
-        self.state.en_passant_target = undo_move_state.en_passant_target;
-        self.state.half_move_clock = undo_move_state.half_move_clock;
-        if moved_side == Side::Black {
-            self.state.full_move_counter -= 1;
-        }
-        self.state.to_move = moved_side;
 
         Ok(())
     }
@@ -634,6 +644,14 @@ impl Position {
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
         self.sides.get_mut(side).set_square(square);
         self.pieces.get_mut(piece).get_mut(side).set_square(square);
+    }
+
+    fn move_piece(&mut self, src_square: Square, dest_square: Square, piece: Piece, side: Side) {
+        self.sides.get_mut(side).move_piece(src_square, dest_square);
+        self.pieces
+            .get_mut(piece)
+            .get_mut(side)
+            .move_piece(src_square, dest_square);
     }
 
     pub fn piece_locs(&self) -> impl Iterator<Item = (Piece, Side, Square)> + '_ {
@@ -801,9 +819,11 @@ mod tests {
 
     #[test_case(Position::start(), Move::new(D2, D4))]
     #[test_case(Position::from_fen("k7/8/8/8/8/8/8/4K2R w K - 0 1").unwrap(), Move::new(E1, G1) ; "castle")]
+    #[test_case(Position::from_fen("k7/8/8/5Pp1/8/8/8/7K w - g6 0 1").unwrap(), Move::new(F5, G6) ; "en passant white")]
     fn test_unmake_move(position: Position, mve: Move) -> TestResult {
         let mut move_position = position.clone();
         let undo_move_state = move_position.make_move(mve)?;
+        println!("{:?}", undo_move_state);
         move_position.unmake_move(undo_move_state)?;
 
         assert_eq!(move_position, position);
