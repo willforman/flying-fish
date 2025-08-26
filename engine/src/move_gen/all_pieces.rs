@@ -691,6 +691,10 @@ mod tests {
     #[test_case(Position::from_fen("rnb1kbnr/pppq1Q1p/8/1B2p3/4P3/2p5/PPPP1PPP/R1B1K1NR b KQkq - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E8, F7), Move::new(E8, D8),
     ]) ; "pinned moves from one pin ray to another")]
+    #[test_case(Position::from_fen("8/8/8/3b4/8/8/6B1/k6K w - - 0 1").unwrap(), &[], HashSet::from_iter([
+        Move::new(H1, H2), Move::new(H1, G1), Move::new(G2, F3), Move::new(G2, E4), 
+        Move::new(G2, D5), 
+    ]) ; "pinned bishop")]
     fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
         for mve in start_moves {
             position.make_move(*mve).unwrap();

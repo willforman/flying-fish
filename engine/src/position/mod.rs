@@ -818,7 +818,8 @@ mod tests {
     }
 
     #[test_case(Position::start(), Move::new(D2, D4))]
-    #[test_case(Position::from_fen("k7/8/8/8/8/8/8/4K2R w K - 0 1").unwrap(), Move::new(E1, G1) ; "castle")]
+    #[test_case(Position::from_fen("k7/8/8/8/8/8/8/4K2R w K - 0 1").unwrap(), Move::new(E1, G1) ; "castling kingside")]
+    #[test_case(Position::from_fen("k7/8/8/8/8/8/8/R3K3 w K - 0 1").unwrap(), Move::new(E1, C1) ; "castling queenside")]
     #[test_case(Position::from_fen("k7/8/8/5Pp1/8/8/8/7K w - g6 0 1").unwrap(), Move::new(F5, G6) ; "en passant white")]
     fn test_unmake_move(position: Position, mve: Move) -> TestResult {
         let mut move_position = position.clone();
