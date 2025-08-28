@@ -6,6 +6,7 @@ use strum::IntoEnumIterator;
 use super::traits::{GenerateLeapingMoves, GenerateSlidingMoves};
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Direction, Square};
+use crate::move_gen::masks::split_bishop_ray;
 use crate::position::{Move, Piece, Position, Side};
 
 #[derive(thiserror::Error, Debug)]
@@ -352,10 +353,12 @@ pub(super) fn gen_moves(
                 // and there is a piece attacking on the other diagonal, which can be defended by
                 // the pinned piece.
                 let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
-                let piece_king_ray =
-                    BitBoard::from_ray_between_squares_excl(piece_square, king_square)
-                        | BitBoard::from_square(piece_square);
-                moves_bb &= piece_king_ray;
+                let (bishop_pin_ray_diag, bishop_pin_ray_antidiag) = split_bishop_ray(bishop_pin_ray, king_square);
+                if bishop_pin_ray_diag.is_square_set(piece_square) {
+                    moves_bb &= bishop_pin_ray_diag;
+                } else {
+                    moves_bb &= bishop_pin_ray_antidiag;
+                }
             }
 
             // For each promotion, we need to add 4 moves to the list,

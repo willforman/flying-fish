@@ -258,6 +258,13 @@ const fn calc_rank_atks() -> [u8; 64 * 8] {
     rank_atks_list
 }
 
+/// Splits a bishop ray into the diagonal and anti diagonal components.
+pub(crate) fn split_bishop_ray(bishop_ray: BitBoard, start_square: Square) -> (BitBoard, BitBoard) {
+    let diag = bishop_ray & MASKS_LIST.get(start_square).get(MaskType::Diagonal);
+    let anti_diag = bishop_ray & MASKS_LIST.get(start_square).get(MaskType::AntiDiagonal);
+    (diag, anti_diag)
+}
+
 #[cfg(test)]
 mod tests {
     use super::Square::*;
