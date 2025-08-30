@@ -698,6 +698,10 @@ mod tests {
         Move::new(H1, H2), Move::new(H1, G1), Move::new(G2, F3), Move::new(G2, E4), 
         Move::new(G2, D5), 
     ]) ; "pinned bishop")]
+    #[test_case(Position::from_fen("k7/8/8/8/8/8/4p3/K3n3 b - - 0 1").unwrap(), &[], HashSet::from_iter([
+        Move::new(A8, A7), Move::new(A8, B8), Move::new(A8, B7),
+        Move::new(E1, C2), Move::new(E1, D3), Move::new(E1, F3), Move::new(E1, G2),
+    ]) ; "Prevent moving through piece for promotion")]
     fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
         for mve in start_moves {
             position.make_move(*mve).unwrap();
