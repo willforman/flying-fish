@@ -4,10 +4,8 @@ Minimax chess engine, using [bitboards](https://www.chessprogramming.org/Bitboar
 
 ### Performance
 
-Numbers from my M1 macbook:
-
 [Perft](https://www.chessprogramming.org/Perft): measures move generation + move make/unmake (`perft_bench` in `uci` mode)
-- No caching, single threaded: 17.3M positions/second
+- No caching, single threaded: 24.9M positions/second (AMD Ryzen 9 7900x)
 
 ### How to run
 
@@ -29,8 +27,11 @@ then start by running the binary with no arguments.
 - [X] Minimax search
 - [X] Alpha-beta pruning
 - [X] UCI (Universal Chess Interface) support
-- [ ] Time management
-- [ ] Quiescence search
+- [X] Make-unmake over copy-make
+- [X] Time management
+- [X] Quiescence search
+- [ ] Move ordering heuristics
 - [ ] Zobrist Hashing
 - [ ] Transposition Tables
-- [ ] Switch to Magic Bitboards
+- [ ] Parallel search (multithreading)
+- [ ] Null move pruning
