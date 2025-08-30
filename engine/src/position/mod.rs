@@ -573,16 +573,21 @@ impl Position {
             .get_mut(moved_side)
             .clear_square(mve.dest);
 
-        // If the move was a promotion, we need to make sure to put pawn back.
-        let piece_moved = if mve.promotion.is_some() {
-            Piece::Pawn
-        } else {
-            undo_move_state.piece_moved
-        };
+        let mut piece_moved = undo_move_state.piece_moved;
+        // If the move was a promotion, we need to make sure to put the pawn back and
+        // clear the piece that was promoted.
+        if let Some(promotion_piece) = mve.promotion {
+            piece_moved = Piece::Pawn;
+            self.sides.get_mut(moved_side).clear_square(mve.dest);
+            self.pieces
+                .get_mut(promotion_piece)
+                .get_mut(moved_side)
+                .clear_square(mve.dest);
+        }
         self.pieces
             .get_mut(piece_moved)
             .get_mut(moved_side)
-            .set_square(undo_move_state.mve.src);
+            .set_square(mve.src);
 
         // Handle undoing castling
         if piece_moved == Piece::King && mve.src.abs_diff(mve.dest) == 2 {

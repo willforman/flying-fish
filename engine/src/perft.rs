@@ -113,8 +113,6 @@ fn perft_helper(
     let mut moves_count = 0;
     let moves = move_gen.gen_moves(position);
     for mve in moves {
-        println!("{:?}", position.to_fen());
-        println!("{:?}", position);
         let unmake_move_state = position.make_move(mve).unwrap();
 
         #[cfg(debug_assertions)]
