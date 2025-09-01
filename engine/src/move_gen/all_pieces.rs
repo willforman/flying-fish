@@ -6,7 +6,7 @@ use strum::IntoEnumIterator;
 use super::traits::{GenerateLeapingMoves, GenerateSlidingMoves};
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Direction, Square};
-use crate::move_gen::masks::split_bishop_ray;
+use crate::move_gen::masks::{split_bishop_ray, split_rook_ray};
 use crate::position::{Move, Piece, Position, Side};
 
 #[derive(thiserror::Error, Debug)]
@@ -233,11 +233,11 @@ pub(super) fn gen_moves(
     let mut capture_mask = BitBoard::full();
     let mut push_mask = BitBoard::full();
 
+    let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
     let (rook_pin_ray, bishop_pin_ray) = get_pin_rays(position, side, sliding_pieces);
 
     // If the king has more than one checker, than the only legal moves are to move the king
     if num_checkers > 1 {
-        let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
         let mut moves_bb = gen_king_moves(
             position,
             side,
@@ -271,7 +271,6 @@ pub(super) fn gen_moves(
         let checker_square = checkers.get_lsb();
         let (checker_piece_type, _) = position.is_piece_at(checker_square).unwrap();
         push_mask = if checker_piece_type.is_slider() {
-            let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
             BitBoard::from_ray_between_squares_excl(checker_square, king_square)
         } else {
             BitBoard::empty()
@@ -345,14 +344,17 @@ pub(super) fn gen_moves(
                 moves_bb &= capture_mask | push_mask;
             }
 
+            // Handle the case where a piece is pinned in one direction and there is a piece
+            // attacking from the other direction, which can be defended by the pinned piece.
             if rook_pin_ray.is_square_set(piece_square) {
-                moves_bb &= rook_pin_ray;
+                let (rook_pin_ray_rank, rook_pin_ray_file) = split_rook_ray(rook_pin_ray, king_square);
+                if rook_pin_ray_rank.is_square_set(piece_square) {
+                    moves_bb &= rook_pin_ray_rank;
+                } else {
+                    moves_bb &= rook_pin_ray_file;
+                }
             }
             if bishop_pin_ray.is_square_set(piece_square) {
-                // Handle the case where a piece is pinned on one diagonal from the king,
-                // and there is a piece attacking on the other diagonal, which can be defended by
-                // the pinned piece.
-                let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
                 let (bishop_pin_ray_diag, bishop_pin_ray_antidiag) = split_bishop_ray(bishop_pin_ray, king_square);
                 if bishop_pin_ray_diag.is_square_set(piece_square) {
                     moves_bb &= bishop_pin_ray_diag;
@@ -701,7 +703,10 @@ mod tests {
     #[test_case(Position::from_fen("k7/8/8/8/8/8/4p3/K3n3 b - - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(A8, A7), Move::new(A8, B8), Move::new(A8, B7),
         Move::new(E1, C2), Move::new(E1, D3), Move::new(E1, F3), Move::new(E1, G2),
-    ]) ; "Prevent moving through piece for promotion")]
+    ]) ; "prevent moving through piece for promotion")]
+    #[test_case(Position::from_fen("4kb1r/P2pqppp/8/3Q4/1p6/8/P3NPPP/R1r1K2R w KQk - 0 1").unwrap(), &[], HashSet::from_iter([
+        Move::new(E1, D2), Move::new(A1, C1), Move::new(D5, D1),
+    ]) ; "prevent pinned piece from capturing checker")]
     fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
         for mve in start_moves {
             position.make_move(*mve).unwrap();

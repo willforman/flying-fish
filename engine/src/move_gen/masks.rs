@@ -265,6 +265,13 @@ pub(crate) fn split_bishop_ray(bishop_ray: BitBoard, start_square: Square) -> (B
     (diag, anti_diag)
 }
 
+/// Splits a bishop ray into the rank and file components.
+pub(crate) fn split_rook_ray(bishop_ray: BitBoard, start_square: Square) -> (BitBoard, BitBoard) {
+    let rank = bishop_ray & MASKS_LIST.get(start_square).get(MaskType::Rank);
+    let file = bishop_ray & MASKS_LIST.get(start_square).get(MaskType::File);
+    (rank, file)
+}
+
 #[cfg(test)]
 mod tests {
     use super::Square::*;
