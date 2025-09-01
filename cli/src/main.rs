@@ -111,12 +111,15 @@ fn enable_logging() -> Result<()> {
     let log_file =
         File::create(log_path.clone()).context(format!("Couldn't create file {:?}", log_path))?;
 
+    // UCI message specific targets:
+    // - `uci`: this crate
+    // - `uci_info`: the `engine crate`
     let uci_layer = tracing_subscriber::fmt::layer()
         .without_time()
         .with_level(false)
         .with_target(false)
         .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
-            meta.target() == "uci"
+            meta.target() == "uci" || meta.target() == "uci_info"
         }));
 
     let stderr_layer = tracing_subscriber::fmt::layer()

@@ -244,7 +244,6 @@ pub fn search(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
-    panic!("TEST!");
     debug_span!("search", position = position.to_fen(), params = ?params);
     let mut params = params.clone();
     let mut best_move: Option<Move> = None;
@@ -660,6 +659,6 @@ fn write_search_info(
     best_move: Option<Move>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    info!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, max_depth_reached, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
+    info!(target = "uci_info", "info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, max_depth_reached, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
     println!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, max_depth_reached, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
 }
