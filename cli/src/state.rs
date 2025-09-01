@@ -18,6 +18,7 @@ use engine::{
 
 use crate::messages::{UCICommand, UCIResponse};
 use crate::response_writer::{self, ResponseWriter};
+use crate::uci;
 use crate::LOGS_DIRECTORY;
 
 #[derive(Debug)]
@@ -74,19 +75,19 @@ where
     fn initial(&mut self, event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::UCI => {
-                info!(
+                uci!(
                     "{}",
                     &UCIResponse::IDName {
                         name: NAME.to_string()
                     }
                 );
-                info!(
+                uci!(
                     "{}",
                     &UCIResponse::IDAuthor {
                         author: AUTHOR.to_string(),
                     },
                 );
-                info!("{}", UCIResponse::UCIOk);
+                uci!("{}", UCIResponse::UCIOk);
 
                 Transition(State::uci_enabled(Position::start()))
             }
@@ -113,7 +114,7 @@ where
     fn is_ready(&mut self, event: &UCICommand) -> Response<State> {
         match event {
             UCICommand::IsReady => {
-                info!("{}", UCIResponse::ReadyOk);
+                uci!("{}", UCIResponse::ReadyOk);
                 Handled
             }
             _ => Super,
@@ -164,7 +165,7 @@ where
             }
             UCICommand::Eval => {
                 let eval = POSITION_EVALUATOR.evaluate(position, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
-                info!("info string {}", eval);
+                uci!("uci string {}", eval);
                 Handled
             }
             UCICommand::Perft { depth } => {
@@ -178,7 +179,7 @@ where
             }
             UCICommand::PerftFull { depth } => {
                 let perft_results = perft_full(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
-                info!("{}", perft_results);
+                uci!("{}", perft_results);
                 Handled
             }
             UCICommand::PerftBenchmark => {
@@ -193,7 +194,7 @@ where
         let total_start = Instant::now();
         let mut total_nodes = 0;
         for (fen, depth) in PERFT_BENCHMARK_FENS_AND_DEPTHS {
-            info!("Position: [{}], depth {}", fen, depth);
+            uci!("Position: [{}], depth {}", fen, depth);
 
             let position = Position::from_fen(fen)?;
             let position_start = Instant::now();
@@ -211,10 +212,10 @@ where
         }
         let total_time_elapsed = total_start.elapsed();
         let total_nodes_per_second = total_nodes as f64 / total_time_elapsed.as_secs_f64();
-        info!("\n===========================");
-        info!("Total time (ms): {}", total_time_elapsed.as_millis());
-        info!("Nodes searched: {}", total_nodes);
-        info!("Nodes/second: {:.0}", total_nodes_per_second);
+        uci!("\n===========================");
+        uci!("Total time (ms): {}", total_time_elapsed.as_millis());
+        uci!("Nodes searched: {}", total_nodes);
+        uci!("Nodes/second: {:.0}", total_nodes_per_second);
         Ok(())
     }
 }
@@ -231,11 +232,11 @@ fn write_perft_results(
         .join("\n");
     let nodes_per_second = total_count as f64 / time_elapsed.as_secs_f64();
 
-    info!("{}", move_counts_str);
-    info!("");
-    info!("Time (ms): {}", time_elapsed.as_millis());
-    info!("Nodes searched: {}", total_count);
-    info!("Nodes/second: {:.0}", nodes_per_second);
+    uci!("{}", move_counts_str);
+    uci!("");
+    uci!("Time (ms): {}", time_elapsed.as_millis());
+    uci!("Nodes searched: {}", total_count);
+    uci!("Nodes/second: {:.0}", nodes_per_second);
 }
 
 fn open_in_out_logs_file(start_time: &DateTime<Local>) -> Result<File> {
@@ -303,7 +304,7 @@ fn spawn_search(
             Arc::clone(&terminate),
         )
         .unwrap();
-        info!(
+        uci!(
             "{}",
             &UCIResponse::BestMove {
                 mve: best_move.expect("Best move should have been found"),
@@ -319,8 +320,8 @@ fn spawn_search(
                 // Thread finish normally
             }
             Err(_) => {
-                // error!("Search thread errored out");
-                info!("bestmove 0000");
+                error!("Search thread errored out");
+                uci!("bestmove 0000");
             }
         }
     });

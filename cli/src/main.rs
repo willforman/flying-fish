@@ -111,18 +111,36 @@ fn enable_logging() -> Result<()> {
     let log_file =
         File::create(log_path.clone()).context(format!("Couldn't create file {:?}", log_path))?;
 
-    let stdout_layer = tracing_subscriber::fmt::layer()
+    let uci_layer = tracing_subscriber::fmt::layer()
         .without_time()
         .with_level(false)
         .with_target(false)
-        .with_filter(LevelFilter::from_level(Level::INFO));
+        .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+            meta.target() == "uci"
+        }));
+
+    let stderr_layer = tracing_subscriber::fmt::layer()
+        .without_time()
+        .with_level(false)
+        .with_target(false)
+        .with_writer(io::stderr)
+        .with_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                tracing_subscriber::EnvFilter::new("info").add_directive(
+                    "uci=off"
+                        .parse::<tracing_subscriber::filter::Directive>()
+                        .unwrap(),
+                )
+            }),
+        );
 
     let log_layer = tracing_subscriber::fmt::layer()
         .with_writer(log_file)
         .with_filter(LevelFilter::from_level(Level::DEBUG));
 
     Registry::default()
-        .with(stdout_layer)
+        .with(uci_layer)
+        .with(stderr_layer)
         .with(log_layer)
         .init();
 

@@ -12,6 +12,15 @@ use crate::{
     state::UCIState,
 };
 
+/// Macro to emit UCI output.
+/// Routes through `tracing` with target "uci", so only your UCI layer picks it up.
+#[macro_export]
+macro_rules! uci {
+    ($($arg:tt)*) => {
+        tracing::info!(target: "uci", "{}", format_args!($($arg)*));
+    };
+}
+
 #[allow(clippy::upper_case_acronyms)]
 pub struct UCI<G>
 where
