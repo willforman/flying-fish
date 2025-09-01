@@ -4,15 +4,16 @@ use statig::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{stdout, Write};
+use std::panic;
 use std::process;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::{sync::atomic::AtomicBool, thread};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use engine::{
-    perft, perft_full, search, EvaluatePosition, GenerateMoves, Move, Position, AUTHOR,
-    HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME, POSITION_EVALUATOR,
+    perft, perft_full, search, EvaluatePosition, GenerateMoves, Move, Position, SearchError,
+    SearchParams, AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME, POSITION_EVALUATOR,
 };
 
 use crate::messages::{UCICommand, UCIResponse};
@@ -143,29 +144,9 @@ where
                     }
                 }
                 let terminate = Arc::new(AtomicBool::new(false));
-                self.maybe_terminate = Some(Arc::clone(&terminate));
-                let search_position = position.clone();
-                let move_gen = self.move_gen;
-                let params = params.clone();
 
-                thread::spawn(move || {
-                    let (best_move, _) = search(
-                        &search_position,
-                        &params,
-                        move_gen,
-                        POSITION_EVALUATOR,
-                        Arc::clone(&terminate),
-                    )
-                    .unwrap();
-                    info!(
-                        "{}",
-                        &UCIResponse::BestMove {
-                            mve: best_move.expect("Best move should have been found"),
-                            ponder: None,
-                        }
-                    );
-                    terminate.store(true, std::sync::atomic::Ordering::Relaxed);
-                });
+                spawn_search(position.clone(), params.clone(), self.move_gen, terminate);
+
                 Handled
             }
             UCICommand::Stop => {
@@ -302,3 +283,45 @@ const PERFT_BENCHMARK_FENS_AND_DEPTHS: &[(&str, usize)] = &[
     ),
     ("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 5),
 ];
+
+fn spawn_search(
+    search_position: Position,
+    params: SearchParams,
+    move_gen: impl GenerateMoves + Copy + Send + Sync + 'static,
+    terminate: Arc<AtomicBool>,
+) {
+    let search_thread_handle = thread::spawn(move || {
+        panic::set_hook(Box::new(|_| {
+            // Do nothing. Suppresses thread panicking error
+        }));
+
+        let (best_move, _) = search(
+            &search_position,
+            &params,
+            move_gen,
+            POSITION_EVALUATOR,
+            Arc::clone(&terminate),
+        )
+        .unwrap();
+        info!(
+            "{}",
+            &UCIResponse::BestMove {
+                mve: best_move.expect("Best move should have been found"),
+                ponder: None,
+            }
+        );
+        terminate.store(true, std::sync::atomic::Ordering::Relaxed);
+    });
+
+    thread::spawn(move || {
+        match search_thread_handle.join() {
+            Ok(_) => {
+                // Thread finish normally
+            }
+            Err(_) => {
+                // error!("Search thread errored out");
+                info!("bestmove 0000");
+            }
+        }
+    });
+}

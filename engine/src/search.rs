@@ -244,6 +244,7 @@ pub fn search(
     position_eval: impl EvaluatePosition + std::marker::Copy,
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
+    panic!("TEST!");
     debug_span!("search", position = position.to_fen(), params = ?params);
     let mut params = params.clone();
     let mut best_move: Option<Move> = None;
@@ -431,6 +432,7 @@ fn search_helper(
     // If search has exceeded total time, return early
     if let Some(move_time) = params.move_time {
         if start_time.elapsed() >= move_time {
+            debug!("Search elapsed total time: {:?}", move_time);
             return None;
         }
     }
@@ -593,8 +595,6 @@ fn quiescence_search(
         .gen_moves(position)
         .into_iter()
         .filter(|mve| position.is_capture(mve));
-    info!("{:?}", position.to_fen());
-    info!("{:?}", capture_moves.clone().collect::<Vec<_>>());
 
     for mve in capture_moves {
         let mut move_position = position.clone();

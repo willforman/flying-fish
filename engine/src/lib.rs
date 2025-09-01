@@ -20,4 +20,4 @@ pub use evaluation::{EvaluatePosition, POSITION_EVALUATOR};
 pub use move_gen::{GenerateMoves, HyperbolaQuintessenceMoveGen, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
 pub use perft::{perft, perft_full, PerftDepthResult, PerftResult};
 pub use position::{Move, Piece, Position, PositionError, Side};
-pub use search::{search, SearchParams, SearchResultInfo};
+pub use search::{search, SearchError, SearchParams, SearchResultInfo};
