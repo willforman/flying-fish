@@ -294,7 +294,7 @@ fn spawn_search(
     let panic_info = Arc::new(Mutex::new(None));
     let panic_info_clone = Arc::clone(&panic_info);
 
-    let search_thread_handle = thread::spawn(move || {
+    let search_thread_handle = thread::spawn(move || -> Result<(), SearchError> {
         panic::set_hook(Box::new(move |info| {
             let location = if let Some(location) = info.location() {
                 format!(
@@ -324,8 +324,7 @@ fn spawn_search(
             move_gen,
             POSITION_EVALUATOR,
             Arc::clone(&terminate),
-        )
-        .unwrap();
+        )?;
         uci!(
             "{}",
             &UCIResponse::BestMove {
@@ -334,12 +333,17 @@ fn spawn_search(
             }
         );
         terminate.store(true, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
     });
 
     thread::spawn(move || {
         match search_thread_handle.join() {
-            Ok(_) => {
+            Ok(Ok(())) => {
                 // Thread finished normally
+            }
+            Ok(Err(search_error)) => {
+                error!("Search thread error: {}", search_error);
+                uci!("bestmove 0000");
             }
             Err(_) => {
                 if let Some((message, location)) = panic_info.lock().unwrap().take() {
