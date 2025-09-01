@@ -343,6 +343,7 @@ fn spawn_search(
             }
             Ok(Err(search_error)) => {
                 error!("Search thread error: {}", search_error);
+                // Send invalid move so that client realizes we forfeited.
                 uci!("bestmove 0000");
             }
             Err(_) => {
