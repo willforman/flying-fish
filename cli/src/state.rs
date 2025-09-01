@@ -319,8 +319,15 @@ fn spawn_search(
             Ok(_) => {
                 // Thread finish normally
             }
-            Err(_) => {
-                error!("Search thread errored out");
+            Err(err) => {
+                if let Some(s) = err.downcast_ref::<&str>() {
+                    error!("Search thread panicked with message: {}", s);
+                } else if let Some(s) = err.downcast_ref::<&str>() {
+                    error!("Search thread panicked with message: {}", s);
+                } else {
+                    error!("Search thread panicked with unknown payload");
+                }
+
                 uci!("bestmove 0000");
             }
         }
