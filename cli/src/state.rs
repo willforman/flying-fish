@@ -291,9 +291,31 @@ fn spawn_search(
     move_gen: impl GenerateMoves + Copy + Send + Sync + 'static,
     terminate: Arc<AtomicBool>,
 ) {
+    let panic_info = Arc::new(Mutex::new(None));
+    let panic_info_clone = Arc::clone(&panic_info);
+
     let search_thread_handle = thread::spawn(move || {
-        panic::set_hook(Box::new(|_| {
-            // Do nothing. Suppresses thread panicking error
+        panic::set_hook(Box::new(move |info| {
+            let location = if let Some(location) = info.location() {
+                format!(
+                    "{}:{}:{}",
+                    location.file(),
+                    location.line(),
+                    location.column()
+                )
+            } else {
+                "unknown location".to_string()
+            };
+
+            let message = if let Some(s) = info.payload().downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = info.payload().downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "unknown panic message".to_string()
+            };
+
+            *panic_info_clone.lock().unwrap() = Some((message, location));
         }));
 
         let (best_move, _) = search(
@@ -317,13 +339,11 @@ fn spawn_search(
     thread::spawn(move || {
         match search_thread_handle.join() {
             Ok(_) => {
-                // Thread finish normally
+                // Thread finished normally
             }
-            Err(err) => {
-                if let Some(s) = err.downcast_ref::<&str>() {
-                    error!("Search thread panicked with message: {}", s);
-                } else if let Some(s) = err.downcast_ref::<&str>() {
-                    error!("Search thread panicked with message: {}", s);
+            Err(_) => {
+                if let Some((message, location)) = panic_info.lock().unwrap().take() {
+                    error!("Search thread panicked at {}: {}", location, message);
                 } else {
                     error!("Search thread panicked with unknown payload");
                 }
