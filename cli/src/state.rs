@@ -191,8 +191,7 @@ where
     }
 
     fn perft_benchmark(&mut self) -> Result<()> {
-        let total_start = Instant::now();
-        let mut total_nodes = 0;
+        let mut nps_res = vec![];
         for (fen, depth) in PERFT_BENCHMARK_FENS_AND_DEPTHS {
             uci!("Position: [{}], depth {}", fen, depth);
 
@@ -202,7 +201,8 @@ where
                 perft(&position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
             let position_time_elapsed = position_start.elapsed();
 
-            total_nodes += position_total_nodes;
+            let nps = position_total_nodes as f64 / position_time_elapsed.as_secs_f64();
+            nps_res.push(nps);
 
             write_perft_results(
                 position_move_nodes,
@@ -210,12 +210,10 @@ where
                 position_time_elapsed,
             );
         }
-        let total_time_elapsed = total_start.elapsed();
-        let total_nodes_per_second = total_nodes as f64 / total_time_elapsed.as_secs_f64();
+        let avg_nps = nps_res.iter().sum::<f64>() / nps_res.len() as f64;
+
         uci!("\n===========================");
-        uci!("Total time (ms): {}", total_time_elapsed.as_millis());
-        uci!("Nodes searched: {}", total_nodes);
-        uci!("Nodes/second: {:.0}", total_nodes_per_second);
+        uci!("Average nodes/second: {:.0}", avg_nps);
         Ok(())
     }
 }
@@ -276,13 +274,13 @@ fn open_search_logs_file(start_time: &DateTime<Local>) -> Result<File> {
 const PERFT_BENCHMARK_FENS_AND_DEPTHS: &[(&str, usize)] = &[
     (
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        4,
+        6,
     ),
     (
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
-        4,
+        5,
     ),
-    ("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 5),
+    ("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 7),
 ];
 
 fn spawn_search(
