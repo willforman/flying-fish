@@ -44,7 +44,7 @@ impl Write for UCIResponseSaver {
 fn test_happy_path() {
     let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
     let response_saver = Arc::new(Mutex::new(UCIResponseSaver::new()));
-    let mut uci = UCI::new(move_gen, Arc::clone(&response_saver));
+    let mut uci = UCI::new(move_gen);
 
     uci.handle_command("uci").unwrap();
 

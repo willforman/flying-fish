@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use anyhow::Result;
-use engine::{Move, SearchParams, Side, Square};
+use engine::{Move, Piece, SearchParams, Side, Square};
 use winnow::ascii::{alphanumeric1, digit1};
 use winnow::combinator::{alt, opt, preceded, rest, separated, terminated};
 use winnow::token::{one_of, take_until, take_while};
@@ -284,25 +284,34 @@ fn parse_position(input: &mut &str) -> PResult<UCICommand> {
                 Ok::<UCICommand, <Square as FromStr>::Err>(UCICommand::Position {
                     fen: fen.map(|s: String| s.to_string()),
                     moves: moves.map(|moves: &str| {
-                        {
-                            moves.split(' ').map(|mve_str| {
-                                let (src_str, dest_str) = mve_str.split_at(2);
-                                let src = Square::from_str(src_str.to_uppercase().as_str())?;
-                                let dest = Square::from_str(dest_str.to_uppercase().as_str())?;
-                                Ok::<Move, <Square as FromStr>::Err>(Move {
-                                    src,
-                                    dest,
-                                    promotion: None,
-                                })
-                            })
-                        }
-                        .collect::<Result<Vec<Move>, _>>()
-                        .unwrap()
+                        { moves.split(' ').map(parse_position_move) }
+                            .collect::<Result<Vec<Move>, _>>()
+                            .unwrap()
                     }),
                 })
             }),
     )
     .parse_next(input)
+}
+
+fn parse_position_move(mve_str: &str) -> Result<Move> {
+    let src_str = &mve_str[0..2];
+    let dest_str = &mve_str[2..4];
+    let src = Square::from_str(src_str.to_uppercase().as_str())?;
+    let dest = Square::from_str(dest_str.to_uppercase().as_str())?;
+
+    let promotion = if mve_str.len() == 5 {
+        let prom_char = mve_str.chars().last().unwrap();
+        let piece: Piece = prom_char.try_into()?;
+        Some(piece)
+    } else {
+        None
+    };
+    Ok(Move {
+        src,
+        dest,
+        promotion,
+    })
 }
 
 fn parse_position_fen(input: &mut &str) -> PResult<String> {
@@ -625,6 +634,15 @@ mod tests {
     )]
     fn test_from_str_fen(input: String, want: String) -> TestResult {
         let got = parse_position_fen(&mut input.as_str())?;
+
+        assert_eq!(got, want);
+        Ok(())
+    }
+
+    #[test_case("b2b3", Move::new(B2, B3) ; "simple")]
+    #[test_case("a2a1q", Move::with_promotion(A2, A1, Piece::Queen) ; "promotion")]
+    fn test_parse_position_move(input: &str, want: Move) -> TestResult {
+        let got = parse_position_move(input)?;
 
         assert_eq!(got, want);
         Ok(())
