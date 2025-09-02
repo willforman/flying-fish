@@ -8,6 +8,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 use tracing::{debug, debug_span, enabled, error, info, warn};
 
@@ -650,6 +651,18 @@ fn quiescence_search(
     Some(best_eval)
 }
 
+fn order_moves(mut moves: &mut ArrayVec<Move, 80>, position: &Position) {
+    moves.sort_by_key(|mve| get_mvv_lva_value(mve, position));
+}
+
+fn get_mvv_lva_value(mve: &Move, position: &Position) -> i64 {
+    if position.is_capture(mve) {
+        0
+    } else {
+        0
+    }
+}
+
 fn write_search_info(
     iterative_deepening_max_depth: u64,
     nodes_processed: u64,
@@ -661,4 +674,31 @@ fn write_search_info(
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
     info!(target = "uci_info", "info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, max_depth_reached, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
     println!("info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, max_depth_reached, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Square::*;
+    use test_case::test_case;
+
+    #[test_case(Position::from_fen("7k/8/8/8/5q1b/3q1pP1/2r3b1/K3N3 w - - 0 1").unwrap(),
+        [
+            Move::new(E1, C2), Move::new(E1, D3), Move::new(E1, F3), Move::new(E1, G2),
+            Move::new(G3, F4), Move::new(G3, G4), Move::new(G3, H4)
+        ].into_iter().collect(),
+        [
+            Move::new(G3, G4), Move::new(E1, D3), Move::new(E1, C2), Move::new(G3, H4),
+            Move::new(E1, G2), Move::new(E1, F3), Move::new(G3, F4),
+        ].into_iter().collect() ; "simple"
+    )]
+    fn test_mvv_lva(
+        position: Position,
+        mut moves_input: ArrayVec<Move, 80>,
+        moves_want: ArrayVec<Move, 80>,
+    ) {
+        moves_input.sort_by_key(|mve| get_mvv_lva_value(mve, &position));
+
+        assert_eq!(moves_input, moves_want);
+    }
 }
