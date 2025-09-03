@@ -224,20 +224,6 @@ pub enum SearchError {
     OpenSearchLogsFile(PathBuf),
 }
 
-/// Calculate the time to use during search.
-/// Returns a soft and hard limit time.
-fn calc_time_to_use(
-    time_left: Duration,
-    time_inc: Duration,
-    maybe_moves_to_go: Option<u16>,
-) -> (Duration, Duration) {
-    let usable_time = time_left - (time_left / 20);
-    let moves_to_go = maybe_moves_to_go.unwrap_or(40);
-    let soft_limit = (usable_time / moves_to_go.into()) + time_inc;
-    let hard_limit = soft_limit * 2;
-    (soft_limit, hard_limit)
-}
-
 pub fn search(
     position: &Position,
     params: &SearchParams,
@@ -263,27 +249,12 @@ pub fn search(
         (None, None) => 20,
     };
 
-    let (time_soft_limit, time_hard_limit) = if position.state.to_move == Side::White {
-        calc_time_to_use(
-            params.white_time.unwrap_or(Duration::from_secs(60)),
-            params.white_inc.unwrap_or(Duration::from_secs(0)),
-            params.moves_to_go,
-        )
-    } else {
-        calc_time_to_use(
-            params.black_time.unwrap_or(Duration::from_secs(60)),
-            params.black_inc.unwrap_or(Duration::from_secs(0)),
-            params.moves_to_go,
-        )
-    };
+    let (maybe_soft_time_limit, maybe_hard_time_limit) =
+        get_time_to_use(&params, position.state.to_move);
     debug!(
         "Time for this move: soft limit={:?} hard limit={:?}",
-        time_soft_limit, time_hard_limit
+        maybe_soft_time_limit, maybe_hard_time_limit
     );
-
-    if params.move_time.is_none() {
-        params.move_time = Some(time_hard_limit);
-    }
 
     let mut moves = move_gen.gen_moves(position);
 
@@ -384,14 +355,16 @@ pub fn search(
         // Skip if we've elapsed the max amount of time or that we think the next iteration will
         // definitely go over on time
         let elapsed = start.elapsed();
-        if (elapsed + iteration_start_time.elapsed()) > time_soft_limit {
-            debug!(
-                "Search time exceeded soft limit: {:?} > {:?}",
-                elapsed, time_soft_limit
-            );
-            break 'outer;
+        if let Some(soft_time_limit) = maybe_soft_time_limit {
+            if (elapsed + iteration_start_time.elapsed()) > soft_time_limit {
+                debug!(
+                    "Search time exceeded soft limit: {:?} > {:?}",
+                    elapsed, maybe_soft_time_limit
+                );
+                break 'outer;
+            }
         }
-        debug!("Time: {:?} < {:?} to use", elapsed, time_soft_limit);
+        debug!("Time: {:?} < {:?} to use", elapsed, maybe_soft_time_limit);
     }
 
     let search_info = SearchResultInfo {
@@ -400,6 +373,42 @@ pub fn search(
     };
 
     Ok((best_move, search_info))
+}
+
+fn get_time_to_use(
+    params: &SearchParams,
+    side_to_move: Side,
+) -> (Option<Duration>, Option<Duration>) {
+    let (soft, mut hard) = match (side_to_move, params.white_time, params.black_time) {
+        (Side::White, Some(white_time), _) => {
+            let (soft, hard) = calc_time_to_use(white_time, params.black_inc, params.moves_to_go);
+            (Some(soft), Some(hard))
+        }
+        (Side::Black, Some(black_time), _) => {
+            let (soft, hard) = calc_time_to_use(black_time, params.black_inc, params.moves_to_go);
+            (Some(soft), Some(hard))
+        }
+        (_, _, _) => (None, None),
+    };
+    if let Some(move_time) = params.move_time {
+        hard = Some(move_time);
+    }
+    (soft, hard)
+}
+
+/// Calculate the time to use during search.
+/// Returns a soft and hard limit time.
+fn calc_time_to_use(
+    time_left: Duration,
+    maybe_time_inc: Option<Duration>,
+    maybe_moves_to_go: Option<u16>,
+) -> (Duration, Duration) {
+    let time_inc = maybe_time_inc.unwrap_or(Duration::from_secs(0));
+    let usable_time = time_left - (time_left / 20);
+    let moves_to_go = maybe_moves_to_go.unwrap_or(40);
+    let soft_limit = (usable_time / moves_to_go.into()) + time_inc;
+    let hard_limit = soft_limit * 2;
+    (soft_limit, hard_limit)
 }
 
 #[allow(clippy::too_many_arguments)]
