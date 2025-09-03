@@ -651,13 +651,15 @@ fn quiescence_search(
     Some(best_eval)
 }
 
-fn order_moves(mut moves: &mut ArrayVec<Move, 80>, position: &Position) {
-    moves.sort_by_key(|mve| get_mvv_lva_value(mve, position));
+fn order_moves(moves: &mut ArrayVec<Move, 80>, position: &Position) {
+    moves.sort_by_key(|mve| -(get_mvv_lva_value(mve, position) as i64));
 }
 
-fn get_mvv_lva_value(mve: &Move, position: &Position) -> i64 {
+fn get_mvv_lva_value(mve: &Move, position: &Position) -> usize {
     if position.is_capture(mve) {
-        0
+        let (attacker, _) = position.is_piece_at(mve.src).unwrap();
+        let (victim, _) = position.is_piece_at(mve.dest).unwrap();
+        victim.index() * 10 + (5 - attacker.index())
     } else {
         0
     }
@@ -688,8 +690,8 @@ mod tests {
             Move::new(G3, F4), Move::new(G3, G4), Move::new(G3, H4)
         ].into_iter().collect(),
         [
-            Move::new(G3, G4), Move::new(E1, D3), Move::new(E1, C2), Move::new(G3, H4),
-            Move::new(E1, G2), Move::new(E1, F3), Move::new(G3, F4),
+            Move::new(G3, F4), Move::new(E1, D3), Move::new(E1, C2), Move::new(G3, H4),
+            Move::new(E1, G2), Move::new(E1, F3), Move::new(G3, G4),
         ].into_iter().collect() ; "simple"
     )]
     fn test_mvv_lva(
@@ -697,7 +699,7 @@ mod tests {
         mut moves_input: ArrayVec<Move, 80>,
         moves_want: ArrayVec<Move, 80>,
     ) {
-        moves_input.sort_by_key(|mve| get_mvv_lva_value(mve, &position));
+        moves_input.sort_by_key(|mve| -(get_mvv_lva_value(mve, &position) as i64));
 
         assert_eq!(moves_input, moves_want);
     }

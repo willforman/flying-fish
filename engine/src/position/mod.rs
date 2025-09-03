@@ -67,6 +67,11 @@ impl Piece {
             Piece::Bishop | Piece::Rook | Piece::Queen => true,
         }
     }
+
+    #[inline(always)]
+    pub(crate) fn index(self) -> usize {
+        self as usize
+    }
 }
 
 impl Into<char> for Piece {
