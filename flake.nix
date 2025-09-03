@@ -32,6 +32,10 @@
             hash = "sha256-PgAwByWzDe5Blll62aLhiodvcpKKWwoodDiZc+HbD3U=";
           };
 
+          nativeBuildInputs = with pkgs; [
+            gcc
+          ];
+
           postPatch = ''
             sed -i '1i\#include <string>' src/option.h
           '';
@@ -56,6 +60,10 @@
             rev = "3d53576ae009418eea2da61b54c963d670fb83f1";
             hash = "sha256-twPHChinKFew4Ugsm9oDo7d73P1RyFknPyINvll1rk4=";
           };
+
+          nativeBuildInputs = with pkgs; [
+            gcc
+          ];
 
           buildPhase = ''
             make
@@ -86,11 +94,10 @@
             cargo-flamegraph
 
             stockfish
-          ]
-          ++ pkgs.lib.optionals pkgs.stdenv.isLinux ([
+
             shallow-blue
             cee-chess
-          ])
+          ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
               CoreServices
               SystemConfiguration
