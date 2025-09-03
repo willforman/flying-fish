@@ -81,9 +81,14 @@ fn cli_search(fen: &str, depth: u64) -> Result<()> {
 }
 
 fn cli_perft(fen: &str, depth: u64) -> Result<()> {
-    let position = Position::from_fen(fen)?;
-    let (_, tot_moves) = perft(&position, depth as usize, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
-    println!("{:?} moves", tot_moves);
+    let position =
+        Position::from_fen(fen).with_context(|| format!("Couldn't parse given fen: `{}`", fen))?;
+    let (move_counts, tot_moves) =
+        perft(&position, depth as usize, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+    for (mve, move_nodes) in move_counts.into_iter() {
+        println!("{}:  {}", mve, move_nodes);
+    }
+    println!("Total: {:?}", tot_moves);
     Ok(())
 }
 
