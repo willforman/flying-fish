@@ -472,7 +472,8 @@ fn search_helper(
         );
     }
 
-    let moves = move_gen.gen_moves(position);
+    let mut moves = move_gen.gen_moves(position);
+    order_moves(&mut moves, position);
 
     let mut best_eval = Eval::Mate(0);
     for mve in moves {
@@ -591,10 +592,13 @@ fn quiescence_search(
     }
 
     let mut best_eval = standing_pat;
-    let capture_moves = move_gen
+    let mut capture_moves: ArrayVec<Move, 80> = move_gen
         .gen_moves(position)
         .into_iter()
-        .filter(|mve| position.is_capture(mve));
+        .filter(|mve| position.is_capture(mve))
+        .collect();
+
+    order_moves(&mut capture_moves, position);
 
     for mve in capture_moves {
         let mut move_position = position.clone();
