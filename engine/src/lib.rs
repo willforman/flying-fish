@@ -1,6 +1,3 @@
-#![feature(const_option)]
-#![feature(const_trait_impl)]
-
 mod algebraic_notation;
 mod bitboard;
 mod evaluation;
