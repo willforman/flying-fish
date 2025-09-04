@@ -74,10 +74,10 @@
           '';
         };
 
-        rust = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
+        rust = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
           targets = [ "wasm32-unknown-unknown" ];
-        });
+        };
       in
       {
         devShells.default = pkgs.mkShell {
