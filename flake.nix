@@ -76,7 +76,6 @@
 
         rust = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
-          targets = [ "wasm32-unknown-unknown" ];
         };
       in
       {
@@ -84,10 +83,6 @@
           packages = with pkgs; [
             rust
             libiconv
-            cargo-leptos
-            wasm-bindgen-cli
-            cargo-generate
-            tailwindcss
             lldb_20
             libllvm
             cargo-flamegraph
