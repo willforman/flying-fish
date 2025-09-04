@@ -89,7 +89,7 @@
             wasm-bindgen-cli
             cargo-generate
             tailwindcss
-            lldb_17
+            lldb_20
             libllvm
             cargo-flamegraph
 
@@ -97,11 +97,11 @@
 
             shallow-blue
             cee-chess
-          ]
-          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
-              CoreServices
-              SystemConfiguration
-          ]);
+          ];
+          # ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs.apple-sdk_15.frameworks; [
+          #     CoreServices
+          #     SystemConfiguration
+          # ]);
           RUST_LOG = 1;
         };
       }
