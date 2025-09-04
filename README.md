@@ -35,3 +35,10 @@ then start by running the binary with no arguments.
 - [ ] Transposition Tables
 - [ ] Parallel search (multithreading)
 - [ ] Null move pruning
+
+### Notes
+
+Tricky move generation bugs I encountered found:
+- En passant pinning
+- A pawn that can be en passant'd is checking the king
+- A piece that is pinned can move to block/capture a checker

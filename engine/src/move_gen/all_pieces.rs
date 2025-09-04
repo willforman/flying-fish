@@ -344,6 +344,12 @@ pub(super) fn gen_moves(
                 moves_bb &= capture_mask | push_mask;
             }
 
+            if let Some(en_passant_target) = position.state.en_passant_target {
+                if piece_type != Piece::Pawn && num_checkers == 1 && moves_bb.is_square_set(en_passant_target) {
+                    moves_bb.clear_square(en_passant_target);
+                }
+            }
+
             // Handle the case where a piece is pinned in one direction and there is a piece
             // attacking from the other direction, which can be defended by the pinned piece.
             if rook_pin_ray.is_square_set(piece_square) {
@@ -707,6 +713,10 @@ mod tests {
     #[test_case(Position::from_fen("4kb1r/P2pqppp/8/3Q4/1p6/8/P3NPPP/R1r1K2R w KQk - 0 1").unwrap(), &[], HashSet::from_iter([
         Move::new(E1, D2), Move::new(A1, C1), Move::new(D5, D1),
     ]) ; "prevent pinned piece from capturing checker")]
+    #[test_case(Position::from_fen("1R6/r1Pb1pp1/p2B3p/P5k1/2P1p2P/4P3/3K1PP1/8 b - h3 0 1").unwrap(), &[], HashSet::from_iter([
+        Move::new(G5, G6), Move::new(G5, G4), Move::new(G5, H4),
+        Move::new(G5, F5), Move::new(G5, H5), Move::new(G5, F6),
+    ]) ; "capture en passant target check bug")]
     fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
         for mve in start_moves {
             position.make_move(*mve).unwrap();
