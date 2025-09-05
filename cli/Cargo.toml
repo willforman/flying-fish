@@ -1,18 +1,18 @@
 [package]
 name = "cli"
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-anyhow = "1.0.80"
-chrono = "0.4.38"
-clap = { version = "4.5.39", features = ["derive"] }
-dirs = "5.0.1"
+anyhow = "1.0.99"
+chrono = "0.4.41"
+clap = { version = "4.5.47", features = ["derive"] }
+dirs = "6.0.0"
 engine = { path = "../engine" }
-mimalloc = "0.1.46"
-statig = "0.3.0"
+mimalloc = "0.1.48"
+statig = "0.4.1"
 test-case = "3.3.1"
-testresult = "0.4.0"
+testresult = "0.4.1"
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-winnow = "0.6.5"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
+winnow = "0.7.13"

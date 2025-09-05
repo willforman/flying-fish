@@ -244,7 +244,7 @@ pub fn search(
         (Some(max_depth), None) => max_depth.try_into().unwrap(),
         (None, Some(mate)) => mate.try_into().unwrap(),
         (Some(max_depth), Some(mate)) => {
-            return Err(SearchError::DepthAndMatePassed(max_depth, mate))
+            return Err(SearchError::DepthAndMatePassed(max_depth, mate));
         }
         (None, None) => 20,
     };
@@ -687,7 +687,20 @@ fn write_search_info(
     best_move: Option<Move>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
-    info!(target = "uci_info", "info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}", iterative_deepening_max_depth, max_depth_reached, 1, latest_eval, nodes_processed, nps, 0, 0, start_time.elapsed().as_millis(), best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()));
+    info!(
+        target = "uci_info",
+        "info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}",
+        iterative_deepening_max_depth,
+        max_depth_reached,
+        1,
+        latest_eval,
+        nodes_processed,
+        nps,
+        0,
+        0,
+        start_time.elapsed().as_millis(),
+        best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase())
+    );
 }
 
 #[cfg(test)]

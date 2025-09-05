@@ -1,26 +1,24 @@
 [package]
 name = "engine"
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
 authors = ["Will Forman wf8581@gmail.com"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [profile.release]
 debug = 1
 
 [dependencies]
-arrayvec = "0.7.4"
-strum = "0.24.1"
-strum_macros = "0.24.3"
-tabled = "0.12.2"
-testresult = "0.3.0"
-thiserror = "1.0.40"
+arrayvec = "0.7.6"
+strum = "0.27.2"
+strum_macros = "0.27.2"
+tabled = "0.20.0"
+testresult = "0.4.1"
+thiserror = "2.0.16"
 tracing = "0.1"
 
 [dev-dependencies]
-criterion = "0.5.1"
-test-case = "3.1.0"
+criterion = "0.7.0"
+test-case = "3.3.1"
 
 [[bench]]
 name = "criterion"

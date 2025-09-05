@@ -1,11 +1,7 @@
-use std::{
-    io::{self, Write},
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use std::str::FromStr;
 
 use engine::GenerateMoves;
-use statig::prelude::{InitializedStateMachine, IntoStateMachineExt};
+use statig::prelude::{IntoStateMachineExt, StateMachine};
 
 use crate::{
     messages::{UCICommand, UCICommandParseError},
@@ -26,7 +22,7 @@ pub struct UCI<G>
 where
     G: GenerateMoves + Copy + Send + Sync + 'static,
 {
-    state_machine: InitializedStateMachine<UCIState<G>>,
+    state_machine: StateMachine<UCIState<G>>,
 }
 
 impl<G> UCI<G>
@@ -35,9 +31,8 @@ where
 {
     pub fn new(move_gen: G) -> Self {
         let uci_state = UCIState::new(move_gen);
-        let uci_state_machine = uci_state.uninitialized_state_machine().init();
         Self {
-            state_machine: uci_state_machine,
+            state_machine: uci_state.state_machine(),
         }
     }
 

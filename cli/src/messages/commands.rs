@@ -6,10 +6,11 @@ use std::time::Duration;
 
 use anyhow::Result;
 use engine::{Move, Piece, SearchParams, Side, Square};
+use winnow::Parser;
+use winnow::Result as WinnowResult;
 use winnow::ascii::{alphanumeric1, digit1};
-use winnow::combinator::{alt, opt, preceded, rest, separated, terminated};
-use winnow::token::{one_of, take_until, take_while};
-use winnow::{PResult, Parser};
+use winnow::combinator::{alt, opt, preceded, separated, terminated};
+use winnow::token::{one_of, rest, take_until, take_while};
 
 pub trait ReadUCICommand {
     fn read_uci_command(&self) -> Result<String>;
@@ -214,21 +215,21 @@ impl FromStr for UCICommand {
 // Winnow Parsing functions (non go commands)
 // ======================================================
 
-fn parse_uci(input: &mut &str) -> PResult<UCICommand> {
+fn parse_uci(input: &mut &str) -> WinnowResult<UCICommand> {
     "uci".parse_next(input).map(|_| UCICommand::UCI)
 }
 
-fn parse_debug(input: &mut &str) -> PResult<UCICommand> {
+fn parse_debug(input: &mut &str) -> WinnowResult<UCICommand> {
     preceded("debug ", alt(("on".value(true), "off".value(false))))
         .parse_next(input)
         .map(|on| UCICommand::Debug { on })
 }
 
-fn parse_isready(input: &mut &str) -> PResult<UCICommand> {
+fn parse_isready(input: &mut &str) -> WinnowResult<UCICommand> {
     "isready".parse_next(input).map(|_| UCICommand::IsReady)
 }
 
-fn parse_setoption(input: &mut &str) -> PResult<UCICommand> {
+fn parse_setoption(input: &mut &str) -> WinnowResult<UCICommand> {
     preceded(
         "setoption name ",
         alt((
@@ -247,7 +248,7 @@ fn parse_setoption(input: &mut &str) -> PResult<UCICommand> {
     .parse_next(input)
 }
 
-fn parse_register(input: &mut &str) -> PResult<UCICommand> {
+fn parse_register(input: &mut &str) -> WinnowResult<UCICommand> {
     preceded(
         "register name ",
         (take_until(0.., " code"), preceded(" code ", rest)).map(|(name, code): (&str, &str)| {
@@ -260,17 +261,17 @@ fn parse_register(input: &mut &str) -> PResult<UCICommand> {
     .parse_next(input)
 }
 
-fn parse_register_later(input: &mut &str) -> PResult<UCICommand> {
+fn parse_register_later(input: &mut &str) -> WinnowResult<UCICommand> {
     "register later"
         .value(UCICommand::RegisterLater)
         .parse_next(input)
 }
 
-fn parse_ucinewgame(input: &mut &str) -> PResult<UCICommand> {
+fn parse_ucinewgame(input: &mut &str) -> WinnowResult<UCICommand> {
     "ucinewgame".value(UCICommand::UCINewGame).parse_next(input)
 }
 
-fn parse_position(input: &mut &str) -> PResult<UCICommand> {
+fn parse_position(input: &mut &str) -> WinnowResult<UCICommand> {
     preceded(
         "position ",
         (
@@ -314,7 +315,7 @@ fn parse_position_move(mve_str: &str) -> Result<Move> {
     })
 }
 
-fn parse_position_fen(input: &mut &str) -> PResult<String> {
+fn parse_position_fen(input: &mut &str) -> WinnowResult<String> {
     (
         terminated(separated(8, alphanumeric1, '/'), ' '),
         terminated(one_of(['w', 'b']), ' '),
@@ -332,23 +333,23 @@ fn parse_position_fen(input: &mut &str) -> PResult<String> {
         .parse_next(input)
 }
 
-fn parse_stop(input: &mut &str) -> PResult<UCICommand> {
+fn parse_stop(input: &mut &str) -> WinnowResult<UCICommand> {
     "stop".value(UCICommand::Stop).parse_next(input)
 }
 
-fn parse_ponderhit(input: &mut &str) -> PResult<UCICommand> {
+fn parse_ponderhit(input: &mut &str) -> WinnowResult<UCICommand> {
     "ponderhit".value(UCICommand::PonderHit).parse_next(input)
 }
 
-fn parse_quit(input: &mut &str) -> PResult<UCICommand> {
+fn parse_quit(input: &mut &str) -> WinnowResult<UCICommand> {
     "quit".value(UCICommand::Quit).parse_next(input)
 }
 
-fn parse_eval(input: &mut &str) -> PResult<UCICommand> {
+fn parse_eval(input: &mut &str) -> WinnowResult<UCICommand> {
     "eval".value(UCICommand::Eval).parse_next(input)
 }
 
-fn parse_perft(input: &mut &str) -> PResult<UCICommand> {
+fn parse_perft(input: &mut &str) -> WinnowResult<UCICommand> {
     // We parse this separately than a GoParameter, even though it starts with `go`.
     // This is just to be consistent with stockfish
     preceded(
@@ -359,7 +360,7 @@ fn parse_perft(input: &mut &str) -> PResult<UCICommand> {
     .parse_next(input)
 }
 
-fn parse_perft_full(input: &mut &str) -> PResult<UCICommand> {
+fn parse_perft_full(input: &mut &str) -> WinnowResult<UCICommand> {
     // We parse this separately than a GoParameter, even though it starts with `go`.
     // This is just to be consistent with stockfish
     preceded(
@@ -369,7 +370,7 @@ fn parse_perft_full(input: &mut &str) -> PResult<UCICommand> {
     .map(|depth: usize| UCICommand::PerftFull { depth })
     .parse_next(input)
 }
-fn parse_perft_benchmark(input: &mut &str) -> PResult<UCICommand> {
+fn parse_perft_benchmark(input: &mut &str) -> WinnowResult<UCICommand> {
     "perft_bench"
         .value(UCICommand::PerftBenchmark)
         .parse_next(input)
@@ -379,7 +380,7 @@ fn parse_perft_benchmark(input: &mut &str) -> PResult<UCICommand> {
 // Winnow Parsing functions (go commands)
 // ======================================================
 
-fn parse_go(input: &mut &str) -> PResult<UCICommand> {
+fn parse_go(input: &mut &str) -> WinnowResult<UCICommand> {
     preceded(
         "go ",
         separated(
@@ -479,7 +480,7 @@ fn parse_go(input: &mut &str) -> PResult<UCICommand> {
     .parse_next(input)
 }
 
-fn parse_go_searchmoves(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_searchmoves(input: &mut &str) -> WinnowResult<GoParameter> {
     preceded("searchmoves ", rest)
         .try_map(|moves: &str| {
             Ok::<GoParameter, <Square as FromStr>::Err>(GoParameter::SearchMoves {
@@ -501,11 +502,11 @@ fn parse_go_searchmoves(input: &mut &str) -> PResult<GoParameter> {
         .parse_next(input)
 }
 
-fn parse_go_ponder(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_ponder(input: &mut &str) -> WinnowResult<GoParameter> {
     "ponder".value(GoParameter::Ponder).parse_next(input)
 }
 
-fn parse_go_time(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_time(input: &mut &str) -> WinnowResult<GoParameter> {
     alt((
         preceded("wtime ", digit1.try_map(|msec: &str| u64::from_str(msec)))
             .map(|msec: u64| Duration::from_millis(msec))
@@ -523,7 +524,7 @@ fn parse_go_time(input: &mut &str) -> PResult<GoParameter> {
     .parse_next(input)
 }
 
-fn parse_go_inc(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_inc(input: &mut &str) -> WinnowResult<GoParameter> {
     alt((
         preceded("winc ", digit1.try_map(|msec: &str| u64::from_str(msec)))
             .map(|msec: u64| Duration::from_millis(msec))
@@ -541,7 +542,7 @@ fn parse_go_inc(input: &mut &str) -> PResult<GoParameter> {
     .parse_next(input)
 }
 
-fn parse_go_movestogo(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_movestogo(input: &mut &str) -> WinnowResult<GoParameter> {
     preceded(
         "movestogo ",
         digit1.try_map(|moves: &str| u16::from_str(moves)),
@@ -550,25 +551,25 @@ fn parse_go_movestogo(input: &mut &str) -> PResult<GoParameter> {
     .parse_next(input)
 }
 
-fn parse_go_depth(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_depth(input: &mut &str) -> WinnowResult<GoParameter> {
     preceded("depth ", digit1.try_map(|moves: &str| u64::from_str(moves)))
         .map(|moves: u64| GoParameter::Depth { moves })
         .parse_next(input)
 }
 
-fn parse_go_nodes(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_nodes(input: &mut &str) -> WinnowResult<GoParameter> {
     preceded("nodes ", digit1.try_map(|nodes: &str| u64::from_str(nodes)))
         .map(|nodes: u64| GoParameter::Nodes { nodes })
         .parse_next(input)
 }
 
-fn parse_go_mate(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_mate(input: &mut &str) -> WinnowResult<GoParameter> {
     preceded("mate ", digit1.try_map(|moves: &str| u64::from_str(moves)))
         .map(|moves: u64| GoParameter::Mate { moves })
         .parse_next(input)
 }
 
-fn parse_go_movetime(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_movetime(input: &mut &str) -> WinnowResult<GoParameter> {
     preceded(
         "movetime ",
         digit1.try_map(|msec: &str| u64::from_str(msec)),
@@ -578,7 +579,7 @@ fn parse_go_movetime(input: &mut &str) -> PResult<GoParameter> {
     .parse_next(input)
 }
 
-fn parse_go_infinite(input: &mut &str) -> PResult<GoParameter> {
+fn parse_go_infinite(input: &mut &str) -> WinnowResult<GoParameter> {
     "infinite".value(GoParameter::Infinite).parse_next(input)
 }
 

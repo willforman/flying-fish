@@ -3,7 +3,7 @@ use chrono::{DateTime, Local};
 use statig::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{stdout, Write};
+use std::io::{Write, stdout};
 use std::panic;
 use std::process;
 use std::sync::{Arc, Mutex};
@@ -12,14 +12,14 @@ use std::{sync::atomic::AtomicBool, thread};
 use tracing::{debug, error, info, warn};
 
 use engine::{
-    perft, perft_full, search, EvaluatePosition, GenerateMoves, Move, Position, SearchError,
-    SearchParams, AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME, POSITION_EVALUATOR,
+    AUTHOR, EvaluatePosition, GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN, Move, NAME,
+    POSITION_EVALUATOR, Position, SearchError, SearchParams, perft, perft_full, search,
 };
 
+use crate::LOGS_DIRECTORY;
 use crate::messages::{UCICommand, UCIResponse};
 use crate::response_writer::{self, ResponseWriter};
 use crate::uci;
-use crate::LOGS_DIRECTORY;
 
 #[derive(Debug)]
 pub(crate) struct UCIState<G>
@@ -46,14 +46,19 @@ where
         }
     }
 
-    fn on_dispatch(&mut self, _: StateOrSuperstate<UCIState<G>>, event: &UCICommand) {
+    fn before_dispatch(
+        &mut self,
+        _state: StateOrSuperstate<'_, State, Superstate>,
+        event: &UCICommand,
+        _context: &mut (),
+    ) {
         debug!("> {}", event);
     }
 }
 
 #[state_machine(
     initial = "State::initial()",
-    on_dispatch = "Self::on_dispatch",
+    before_dispatch = "Self::before_dispatch",
     state(derive(PartialEq, Eq, Debug)),
     superstate(derive(Debug))
 )]
