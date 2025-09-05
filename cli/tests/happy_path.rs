@@ -7,6 +7,7 @@ use std::{
 
 use cli::UCI;
 use engine::{AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME};
+use tracing_subscriber::{layer::SubscriberExt, prelude::*};
 
 #[derive(Clone, Debug)]
 struct UCIResponseSaver {
@@ -20,6 +21,10 @@ impl UCIResponseSaver {
         }
     }
 
+    fn with_responses(responses: Arc<Mutex<Vec<String>>>) -> Self {
+        Self { responses }
+    }
+
     fn get_new_responses(&self) -> Vec<String> {
         let mut responses = self.responses.lock().unwrap();
         let result = responses.clone();
@@ -28,8 +33,16 @@ impl UCIResponseSaver {
     }
 }
 
+fn get_new_responses(logs: Arc<Mutex<Vec<String>>>) -> Vec<String> {
+    let mut responses = logs.lock().unwrap();
+    let result = responses.clone();
+    responses.clear();
+    result
+}
+
 impl Write for UCIResponseSaver {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        println!("HIT!!!!!!!");
         let uci_res = String::from_utf8(buf.to_vec()).unwrap();
         self.responses.lock().unwrap().push(uci_res);
         Ok(buf.len())
@@ -42,13 +55,29 @@ impl Write for UCIResponseSaver {
 
 // #[test]
 // fn test_happy_path() {
+//     // let response_saver = Arc::new(Mutex::new(UCIResponseSaver::new()));
+//     let responses = Arc::new(Mutex::new(vec![]));
+//     let make_writer = move || {
+//         UCIResponseSaver::with_responses(Arc::clone(&responses));
+//     };
+//     let subscriber = tracing_subscriber::fmt::layer()
+//         .with_writer(make_writer)
+//         .without_time()
+//         .with_level(false)
+//         .with_target(false)
+//         .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+//             meta.target() == "uci"
+//         }));
+//     tracing_subscriber::Registry::default()
+//         .with(subscriber)
+//         .init();
+//
 //     let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
-//     let response_saver = Arc::new(Mutex::new(UCIResponseSaver::new()));
 //     let mut uci = UCI::new(move_gen);
 //
 //     uci.handle_command("uci").unwrap();
 //
-//     let responses = response_saver.lock().unwrap().get_new_responses();
+//     let responses = response_saver.get_new_responses();
 //
 //     let id_name = format!("id name {}", NAME);
 //     let id_author = format!("id author {}", AUTHOR);
@@ -64,7 +93,7 @@ impl Write for UCIResponseSaver {
 //
 //     uci.handle_command("isready").unwrap();
 //
-//     let responses = response_saver.lock().unwrap().get_new_responses();
+//     let responses = response_saver.get_new_responses();
 //     assert_eq!(responses, vec!["readyok"]);
 //
 //     uci.handle_command("ucinewgame").unwrap();
@@ -74,6 +103,6 @@ impl Write for UCIResponseSaver {
 //     uci.handle_command("stop").unwrap();
 //     thread::sleep(Duration::new(0, 1_000_000));
 //
-//     let responses = response_saver.lock().unwrap().get_new_responses();
+//     let responses = response_saver.get_new_responses();
 //     assert_eq!(responses, vec!["bestmove b2b4"]);
 // }
