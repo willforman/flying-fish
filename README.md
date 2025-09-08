@@ -30,11 +30,12 @@ then start by running the binary with no arguments.
 - [X] Make-unmake over copy-make
 - [X] Time management
 - [X] Quiescence search
-- [ ] Move ordering heuristics
-- [ ] Zobrist Hashing
+- [X] Most-Valuable-Victim Least-Valuable-Attacker
+- [X] Zobrist Hashing
 - [ ] Transposition Tables
+- [ ] Other move ordering heuristics
 - [ ] Parallel search (multithreading)
-- [ ] Null move pruning
+
 
 ### Notes
 

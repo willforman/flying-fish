@@ -220,6 +220,7 @@ pub(super) fn gen_moves(
         return moves;
     }
     let side = position.state.to_move;
+    let opp_side = side.opposite_side();
 
     let friendly_pieces = position.sides.get(side);
     let opp_pieces = position.sides.get(side.opposite_side());
@@ -324,7 +325,7 @@ pub(super) fn gen_moves(
                         let en_passant_pawn_loc = en_passant_pawn_loc_bb.to_squares()[0];
 
                         let mut pos_without_ep = position.clone();
-                        pos_without_ep.remove_piece(en_passant_pawn_loc).unwrap();
+                        pos_without_ep.remove_piece(en_passant_pawn_loc, Piece::Pawn, opp_side);
                         let (rook_ray_without_ep_pawn, _) =
                             get_pin_rays(&pos_without_ep, side, sliding_pieces);
                         if !rook_ray_without_ep_pawn.is_square_set(piece_square) {

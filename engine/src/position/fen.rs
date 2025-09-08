@@ -1,5 +1,6 @@
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Square};
+use crate::position::zobrist_hash::ZobristHash;
 use crate::position::{CastlingRights, Piece, Pieces, Position, Side, Sides, State};
 use std::str::FromStr;
 
@@ -67,10 +68,13 @@ impl Position {
             full_move_counter,
         };
 
+        let zobrist_hash = ZobristHash::calculate(&pieces, &state);
+
         Ok(Position {
             sides,
             pieces,
             state,
+            zobrist_hash,
         })
     }
 
@@ -194,7 +198,7 @@ fn castling_rights_from_fen(castling_rights_str: &str) -> Result<CastlingRights,
                 return Err(FenParseError::CastlingRights(
                     castling_rights_str.to_string(),
                     idx,
-                ))
+                ));
             }
         }
     }

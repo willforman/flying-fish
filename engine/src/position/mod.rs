@@ -7,8 +7,10 @@ use strum_macros::{Display, EnumIter};
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position;
+use crate::position::zobrist_hash::ZobristHash;
 
 mod fen;
+mod zobrist_hash;
 
 #[derive(thiserror::Error, Debug)]
 pub enum PositionError {
@@ -330,6 +332,7 @@ pub struct Position {
     pub state: State,
     pub(crate) sides: Sides,
     pub(crate) pieces: Pieces,
+    pub(crate) zobrist_hash: ZobristHash,
 }
 
 impl Position {
@@ -338,6 +341,7 @@ impl Position {
             state: State::start(),
             sides: Sides::start(),
             pieces: Pieces::start(),
+            zobrist_hash: ZobristHash::calculate(&Pieces::start(), &State::start()),
         }
     }
 
@@ -379,8 +383,13 @@ impl Position {
         if self.state.to_move == Side::Black {
             self.state.full_move_counter += 1;
         }
+        self.zobrist_hash.flip_side_to_move();
+
+        let opp_side = side.opposite_side();
 
         if let Some(en_passant_target) = self.state.en_passant_target {
+            // Clear previous en passant target.
+            self.zobrist_hash.flip_en_passant_file(en_passant_target);
             if mve.dest == en_passant_target && piece == Piece::Pawn {
                 let ep_capture_dir = if side == Side::White {
                     Direction::DecRank
@@ -394,12 +403,7 @@ impl Position {
 
                 self.move_piece(mve.src, en_passant_target, Piece::Pawn, side);
 
-                let opp_side = side.opposite_side();
-                self.sides.get_mut(opp_side).clear_square(ep_capture_sq);
-                self.pieces
-                    .get_mut(Piece::Pawn)
-                    .get_mut(opp_side)
-                    .clear_square(ep_capture_sq);
+                self.remove_piece(ep_capture_sq, Piece::Pawn, opp_side);
                 self.state.en_passant_target = None;
                 self.state.to_move = self.state.to_move.opposite_side();
 
@@ -438,12 +442,7 @@ impl Position {
         }
 
         if let Some(opp_piece) = captured_piece {
-            let opp_side = side.opposite_side();
-            self.sides.get_mut(opp_side).clear_square(mve.dest);
-            self.pieces
-                .get_mut(opp_piece)
-                .get_mut(opp_side)
-                .clear_square(mve.dest);
+            self.remove_piece(mve.dest, opp_piece, opp_side);
 
             if opp_piece == Piece::Rook {
                 if mve.dest == H1 {
@@ -470,6 +469,7 @@ impl Position {
             let ep_target = ep_target_bb.to_squares()[0];
 
             self.state.en_passant_target = Some(ep_target);
+            self.zobrist_hash.flip_en_passant_file(ep_target);
         } else {
             self.state.en_passant_target = None;
         }
@@ -480,67 +480,64 @@ impl Position {
                 .promotion
                 .ok_or(PositionError::PawnMoveMissingPromotion(mve))?;
 
-            self.sides.get_mut(side).move_piece(mve.src, mve.dest);
+            self.remove_piece(mve.src, Piece::Pawn, side);
+            self.add_piece(mve.dest, promotion, side);
 
-            self.pieces
-                .get_mut(Piece::Pawn)
-                .get_mut(side)
-                .clear_square(mve.src);
-            self.pieces
-                .get_mut(promotion)
-                .get_mut(side)
-                .set_square(mve.dest);
             return Ok(unmake_move_state);
         }
 
         if piece == Piece::King {
             if side == Side::White {
-                self.state.castling_rights.white_king_side = false;
-                self.state.castling_rights.white_queen_side = false;
+                if self.state.castling_rights.white_queen_side {
+                    self.state.castling_rights.white_queen_side = false;
+                    self.zobrist_hash.flip_castling_rights_white_queenside();
+                }
+                if self.state.castling_rights.white_king_side {
+                    self.state.castling_rights.white_king_side = false;
+                    self.zobrist_hash.flip_castling_rights_white_kingside();
+                }
             } else {
-                self.state.castling_rights.black_king_side = false;
-                self.state.castling_rights.black_queen_side = false;
+                if self.state.castling_rights.black_queen_side {
+                    self.state.castling_rights.black_queen_side = false;
+                    self.zobrist_hash.flip_castling_rights_black_queenside();
+                }
+                if self.state.castling_rights.black_king_side {
+                    self.state.castling_rights.black_king_side = false;
+                    self.zobrist_hash.flip_castling_rights_black_kingside();
+                }
             }
 
             if mve.src.abs_diff(mve.dest) == 2 {
                 // Castled
-                let rook_move = match mve.dest {
-                    C1 => Move::new(A1, D1),
-                    G1 => Move::new(H1, F1),
-                    C8 => Move::new(A8, D8),
-                    G8 => Move::new(H8, F8),
-                    _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
+                let (rook_src, rook_dest) = match mve.dest {
+                    C1 => (A1, D1),
+                    G1 => (H1, F1),
+                    C8 => (A8, D8),
+                    G8 => (H8, F8),
+                    _ => unreachable!("want: [C1, G1, C8, G8], got: {}", mve.dest),
                 };
 
-                self.sides
-                    .get_mut(side)
-                    .move_piece(rook_move.src, rook_move.dest);
-                self.pieces
-                    .get_mut(Piece::Rook)
-                    .get_mut(side)
-                    .move_piece(rook_move.src, rook_move.dest);
+                self.move_piece(rook_src, rook_dest, Piece::Rook, side);
             }
         }
 
         if piece == Piece::Rook {
-            if mve.src == A1 {
+            if self.state.castling_rights.white_queen_side && mve.src == A1 {
                 self.state.castling_rights.white_queen_side = false;
-            } else if mve.src == H1 {
+                self.zobrist_hash.flip_castling_rights_white_queenside();
+            } else if self.state.castling_rights.white_king_side && mve.src == H1 {
                 self.state.castling_rights.white_king_side = false;
-            }
-            if mve.src == A8 {
+                self.zobrist_hash.flip_castling_rights_white_kingside();
+            } else if self.state.castling_rights.black_queen_side && mve.src == A8 {
                 self.state.castling_rights.black_queen_side = false;
-            }
-            if mve.src == H8 {
+                self.zobrist_hash.flip_castling_rights_black_queenside();
+            } else if self.state.castling_rights.black_king_side && mve.src == H8 {
                 self.state.castling_rights.black_king_side = false;
+                self.zobrist_hash.flip_castling_rights_black_kingside();
             }
         }
 
-        self.sides.get_mut(side).move_piece(mve.src, mve.dest);
-        self.pieces
-            .get_mut(piece)
-            .get_mut(side)
-            .move_piece(mve.src, mve.dest);
+        self.move_piece(mve.src, mve.dest, piece, side);
 
         debug_assert!(
             !self.pieces.kings.white.is_empty(),
@@ -560,39 +557,51 @@ impl Position {
         let mve = undo_move_state.mve;
         let opp_side = self.state.to_move;
         let moved_side = opp_side.opposite_side();
+        let mut piece_moved = undo_move_state.piece_moved;
 
+        if self.state.castling_rights.white_queen_side
+            != undo_move_state.castling_rights.white_queen_side
+        {
+            self.zobrist_hash.flip_castling_rights_white_queenside();
+        }
+        if self.state.castling_rights.white_queen_side
+            != undo_move_state.castling_rights.white_king_side
+        {
+            self.zobrist_hash.flip_castling_rights_white_kingside();
+        }
+        if self.state.castling_rights.black_queen_side
+            != undo_move_state.castling_rights.black_queen_side
+        {
+            self.zobrist_hash.flip_castling_rights_black_queenside();
+        }
+        if self.state.castling_rights.black_queen_side
+            != undo_move_state.castling_rights.black_king_side
+        {
+            self.zobrist_hash.flip_castling_rights_black_kingside();
+        }
         self.state.castling_rights = undo_move_state.castling_rights;
+
+        if let Some(prev_en_passant_target) = self.state.en_passant_target {
+            self.zobrist_hash
+                .flip_en_passant_file(prev_en_passant_target);
+        }
         self.state.en_passant_target = undo_move_state.en_passant_target;
+
         self.state.half_move_clock = undo_move_state.half_move_clock;
         if moved_side == Side::Black {
             self.state.full_move_counter -= 1;
         }
         self.state.to_move = moved_side;
+        self.zobrist_hash.flip_side_to_move();
 
-        self.sides
-            .get_mut(moved_side)
-            .move_piece(undo_move_state.mve.dest, undo_move_state.mve.src);
+        self.move_piece(mve.dest, mve.src, piece_moved, moved_side);
 
-        self.pieces
-            .get_mut(undo_move_state.piece_moved)
-            .get_mut(moved_side)
-            .clear_square(mve.dest);
-
-        let mut piece_moved = undo_move_state.piece_moved;
         // If the move was a promotion, we need to make sure to put the pawn back and
         // clear the piece that was promoted.
         if let Some(promotion_piece) = mve.promotion {
             piece_moved = Piece::Pawn;
-            self.sides.get_mut(moved_side).clear_square(mve.dest);
-            self.pieces
-                .get_mut(promotion_piece)
-                .get_mut(moved_side)
-                .clear_square(mve.dest);
+            self.remove_piece(mve.dest, promotion_piece, moved_side);
         }
-        self.pieces
-            .get_mut(piece_moved)
-            .get_mut(moved_side)
-            .set_square(mve.src);
 
         // Handle undoing castling
         if piece_moved == Piece::King && mve.src.abs_diff(mve.dest) == 2 {
@@ -601,13 +610,13 @@ impl Position {
                 G1 => (H1, F1),
                 C8 => (A8, D8),
                 G8 => (H8, F8),
-                _ => panic!("want: [C1, G1, C8, G8], got: {}", mve.dest),
+                _ => unreachable!("want: [C1, G1, C8, G8], got: {}", mve.dest),
             };
-            self.remove_piece(rook_dest).unwrap();
-            self.add_piece(rook_src, Piece::Rook, moved_side);
+            self.move_piece(rook_dest, rook_src, Piece::Rook, moved_side);
         }
 
         if let Some(en_passant_target) = undo_move_state.en_passant_target {
+            self.zobrist_hash.flip_en_passant_file(en_passant_target);
             if mve.dest == en_passant_target && undo_move_state.piece_moved == Piece::Pawn {
                 let ep_capture_dir = if moved_side == Side::White {
                     Direction::DecRank
@@ -626,42 +635,45 @@ impl Position {
         }
 
         if let Some(captured_piece) = undo_move_state.captured_piece {
-            self.sides
-                .get_mut(opp_side)
-                .set_square(undo_move_state.mve.dest);
-            self.pieces
-                .get_mut(captured_piece)
-                .get_mut(opp_side)
-                .set_square(undo_move_state.mve.dest);
+            self.add_piece(mve.dest, captured_piece, opp_side);
         }
 
         Ok(())
     }
 
-    pub fn remove_piece(&mut self, square: Square) -> Result<(), PositionError> {
-        if let Some((piece, side)) = self.is_piece_at(square) {
-            self.sides.get_mut(side).clear_square(square);
-            self.pieces
-                .get_mut(piece)
-                .get_mut(side)
-                .clear_square(square);
-            Ok(())
-        } else {
-            Err(PositionError::RemoveNoPiece(square.to_string()))
-        }
-    }
-
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
+        debug_assert!(!self.is_piece_at(square).is_some());
+
         self.sides.get_mut(side).set_square(square);
         self.pieces.get_mut(piece).get_mut(side).set_square(square);
+
+        self.zobrist_hash.add_piece(square, piece, side);
+    }
+
+    pub fn remove_piece(&mut self, square: Square, piece: Piece, side: Side) {
+        debug_assert!(self.is_piece_at(square).is_some());
+
+        self.sides.get_mut(side).clear_square(square);
+        self.pieces
+            .get_mut(piece)
+            .get_mut(side)
+            .clear_square(square);
+
+        self.zobrist_hash.remove_piece(square, piece, side);
     }
 
     fn move_piece(&mut self, src_square: Square, dest_square: Square, piece: Piece, side: Side) {
+        debug_assert!(self.is_piece_at(src_square).is_some());
+        debug_assert!(!self.is_piece_at(dest_square).is_some());
+
         self.sides.get_mut(side).move_piece(src_square, dest_square);
         self.pieces
             .get_mut(piece)
             .get_mut(side)
             .move_piece(src_square, dest_square);
+
+        self.zobrist_hash
+            .move_piece(src_square, dest_square, piece, side);
     }
 
     pub fn piece_locs(&self) -> impl Iterator<Item = (Piece, Side, Square)> + '_ {
@@ -692,7 +704,15 @@ impl Position {
 
                 let intersection = bb_outer & bb_inner;
                 if !intersection.is_empty() {
-                    return Err(format!("Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}", mve, Side::White, piece_outer, piece_inner, intersection.to_squares(), intersection));
+                    return Err(format!(
+                        "Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}",
+                        mve,
+                        Side::White,
+                        piece_outer,
+                        piece_inner,
+                        intersection.to_squares(),
+                        intersection
+                    ));
                 }
             }
         }
@@ -704,7 +724,15 @@ impl Position {
 
                 let intersection = bb_outer & bb_inner;
                 if !intersection.is_empty() {
-                    return Err(format!("Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}", mve, Side::Black, piece_outer, piece_inner, intersection.to_squares(), intersection));
+                    return Err(format!(
+                        "Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}",
+                        mve,
+                        Side::Black,
+                        piece_outer,
+                        piece_inner,
+                        intersection.to_squares(),
+                        intersection
+                    ));
                 }
             }
         }
@@ -739,11 +767,12 @@ impl fmt::Debug for Position {
         writeln!(f, "{}", board_str)?;
         writeln!(
             f,
-            "half move={}, full move={}, en_passant={:?}, castling_rights={:?}",
+            "half move={}, full move={}, en_passant={:?}, castling_rights={:?} zobrist={}",
             self.state.half_move_clock,
             self.state.full_move_counter,
             self.state.en_passant_target,
-            self.state.castling_rights
+            self.state.castling_rights,
+            self.zobrist_hash,
         )?;
         Ok(())
     }
@@ -751,17 +780,11 @@ impl fmt::Debug for Position {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
     use test_case::test_case;
     use testresult::TestResult;
-
-    #[test]
-    fn test_debug() {
-        let got = Position::start();
-        let want = "rnbqkbnr\npppppppp\n........\n........\n........\n........\nPPPPPPPP\nRNBQKBNR\nhalf move=0, full move=1, en_passant=None, castling_rights=CastlingRights { white_king_side: true, white_queen_side: true, black_king_side: true, black_queen_side: true }\n";
-
-        assert_eq!(format!("{:?}", got), want);
-    }
 
     #[test]
     fn test_state_start() {
@@ -847,6 +870,44 @@ mod tests {
             position.make_move(mve)?;
             position.validate_position(mve)?;
         }
+        Ok(())
+    }
+
+    #[test_case(Position::start(), vec![Move::new(E2, E4), Move::new(E7, E5)] ; "basic")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), vec![Move::new(F3, H3), Move::new(C7, C5), Move::new(D5, C6), Move::new(B6, C4), Move::new(E1, D1)] ; "en passant and castling")]
+    fn test_zobrist_hash_updating(mut position: Position, moves: Vec<Move>) -> TestResult {
+        let mut unmake_move_state_stack = vec![];
+        let mut hash_stack = vec![];
+        for mve in moves.iter() {
+            assert!(!hash_stack.contains(&position.zobrist_hash));
+            hash_stack.push(position.zobrist_hash);
+
+            let unmake_move_state = position.make_move(*mve)?;
+            unmake_move_state_stack.push(unmake_move_state);
+
+            // Ensure incremental hash is the same as hash generated from scratch.
+            let full_gen_hash = ZobristHash::calculate(&position.pieces, &position.state);
+            assert_eq!(
+                full_gen_hash, position.zobrist_hash,
+                "Incremental hash not the same for: {:?}",
+                mve
+            );
+        }
+        println!("{:?}", hash_stack);
+
+        for (unmake_move_state, hash) in unmake_move_state_stack
+            .into_iter()
+            .rev()
+            .zip(hash_stack.into_iter().rev())
+        {
+            position.unmake_move(unmake_move_state.clone())?;
+            assert_eq!(
+                position.zobrist_hash, hash,
+                "Hash not the same after unmake move for {:?}",
+                unmake_move_state.mve
+            );
+        }
+
         Ok(())
     }
 }
