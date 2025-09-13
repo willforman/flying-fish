@@ -17,8 +17,10 @@ pub fn move_to_algebraic_notation(
     mve: Move,
     move_gen: impl GenerateMoves,
 ) -> Result<String, AlgebraicNotationError> {
-    let (src_piece, _src_side) = position
-        .is_piece_at(mve.src)
+    let side = position.state.to_move;
+    let opp_side = side.opposite_side();
+    let src_piece = position
+        .is_piece_at(mve.src, position.state.to_move)
         .ok_or(AlgebraicNotationError::NoPieceAtSrc(mve.src.to_string()))?;
 
     let move_abs_diff = mve.src.abs_diff(mve.dest);
@@ -35,7 +37,7 @@ pub fn move_to_algebraic_notation(
         res.push(src_piece_char.to_ascii_uppercase());
     }
 
-    if position.is_piece_at(mve.dest).is_some() {
+    if position.is_piece_at(mve.dest, opp_side).is_some() {
         if src_piece == Piece::Pawn {
             let src_str = mve.src.to_string();
             let file_char = src_str.chars().next().unwrap().to_ascii_lowercase();
@@ -46,7 +48,7 @@ pub fn move_to_algebraic_notation(
 
     // En passant
     if src_piece == Piece::Pawn && (move_abs_diff != 8 && move_abs_diff != 16) {
-        if position.is_piece_at(mve.dest).is_none() {
+        if position.is_piece_at(mve.dest, opp_side).is_none() {
             let src_str = mve.src.to_string();
             let file_char = src_str.chars().next().unwrap().to_ascii_lowercase();
             res.push(file_char);
@@ -64,7 +66,7 @@ pub fn move_to_algebraic_notation(
             // looking at
             .filter(|&other_mve| {
                 // Filter out moves not from the same piece type
-                let (move_piece, _) = position.is_piece_at(other_mve.src).unwrap();
+                let move_piece = position.is_piece_at(other_mve.src, side).unwrap();
                 move_piece == src_piece
             })
             .collect();
@@ -129,8 +131,8 @@ mod tests {
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(D5, E6), "dxe6".to_string() ; "capture pawn")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(E1, G1), "O-O".to_string() ; "castle king side white")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(E1, C1), "O-O-O".to_string() ; "castle queen side white")]
-    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(E8, G8), "O-O".to_string() ; "castle king side black")]
-    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(E8, C8), "O-O-O".to_string() ; "castle queen side black")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1").unwrap(), Move::new(E8, G8), "O-O".to_string() ; "castle king side black")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1").unwrap(), Move::new(E8, C8), "O-O-O".to_string() ; "castle queen side black")]
     #[test_case(Position::from_fen("8/8/8/8/k2Pp3/8/8/7K b - d3 0 1").unwrap(), Move::new(E4, D3), "exd3".to_string() ; "en passant")]
     #[test_case(Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap(), Move::new(D2, D4), "d4".to_string() ; "pawn double push")]
     #[test_case(Position::from_fen("8/8/3P4/8/k7/8/4p2K/8 b - - 0 3").unwrap(), Move::with_promotion(E2, E1, Piece::Queen), "e1Q".to_string() ; "promotion")]

@@ -646,8 +646,12 @@ fn order_moves(moves: &mut ArrayVec<Move, 80>, position: &Position) {
 
 fn get_mvv_lva_value(mve: &Move, position: &Position) -> usize {
     if position.is_capture(mve) {
-        let (attacker, _) = position.is_piece_at(mve.src).unwrap();
-        let (victim, _) = position.is_piece_at(mve.dest).unwrap();
+        let attacker = position
+            .is_piece_at(mve.src, position.state.to_move)
+            .unwrap();
+        let victim = position
+            .is_piece_at(mve.dest, position.state.to_move.opposite_side())
+            .unwrap();
         victim.index() * 10 + (5 - attacker.index())
     } else {
         0

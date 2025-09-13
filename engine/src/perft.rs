@@ -185,7 +185,7 @@ fn perft_full_helper(
     if let Some(ep_target) = position.state.en_passant_target {
         for mve in moves.clone() {
             if mve.dest == ep_target {
-                let (piece_type, _) = position.is_piece_at(mve.src).unwrap();
+                let piece_type = position.is_piece_at(mve.src, side).unwrap();
                 if piece_type == Piece::Pawn {
                     curr_res.captures += 1;
                 }
@@ -215,7 +215,7 @@ fn perft_full_helper(
     let castles: u64 = moves
         .iter()
         .filter(|&mve| {
-            let (p, _) = position.is_piece_at(mve.src).unwrap();
+            let p = position.is_piece_at(mve.src, side).unwrap();
             if p == Piece::King {
                 mve.src.abs_diff(mve.dest) == 2
             } else {

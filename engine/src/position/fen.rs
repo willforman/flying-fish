@@ -83,7 +83,7 @@ impl Position {
         let mut curr_empty_count = 0;
 
         for (idx, &sq) in Square::list_black_perspective().iter().rev().enumerate() {
-            if let Some((piece, side)) = self.is_piece_at(sq) {
+            if let Some((piece, side)) = self.is_piece_at_no_side(sq) {
                 if curr_empty_count != 0 {
                     pieces += &curr_empty_count.to_string();
                     curr_empty_count = 0;

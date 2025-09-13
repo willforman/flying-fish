@@ -345,16 +345,23 @@ impl Position {
         }
     }
 
-    pub fn is_piece_at(&self, square: Square) -> Option<(Piece, Side)> {
+    pub fn is_piece_at(&self, square: Square, side: Side) -> Option<Piece> {
         for piece in Piece::iter() {
-            let sides = &self.pieces.get(piece);
-            if sides.white.is_square_set(square) {
-                return Some((piece, Side::White));
-            } else if sides.black.is_square_set(square) {
-                return Some((piece, Side::Black));
+            if self.pieces.get(piece).get(side).is_square_set(square) {
+                return Some(piece);
             }
         }
 
+        None
+    }
+
+    pub fn is_piece_at_no_side(&self, square: Square) -> Option<(Piece, Side)> {
+        if let Some(piece) = self.is_piece_at(square, Side::White) {
+            return Some((piece, Side::White));
+        }
+        if let Some(piece) = self.is_piece_at(square, Side::Black) {
+            return Some((piece, Side::Black));
+        }
         None
     }
 
@@ -369,16 +376,17 @@ impl Position {
             "Game is over the half move clock"
         );
 
-        let (piece, side) = self.is_piece_at(mve.src).expect("No piece to move found");
+        let side = self.state.to_move;
+        let opp_side = side.opposite_side();
 
-        debug_assert!(side != self.state.to_move, "Piece to move is wrong side");
+        let piece = self
+            .is_piece_at(mve.src, side)
+            .expect("No piece to move found");
 
         if self.state.to_move == Side::Black {
             self.state.full_move_counter += 1;
         }
         self.zobrist_hash.flip_side_to_move();
-
-        let opp_side = side.opposite_side();
 
         if let Some(en_passant_target) = self.state.en_passant_target {
             // Clear previous en passant target.
@@ -411,7 +419,7 @@ impl Position {
             }
         }
 
-        let captured_piece = self.is_piece_at(mve.dest).map(|(piece, _)| piece);
+        let captured_piece = self.is_piece_at(mve.dest, opp_side);
 
         let unmake_move_state = UnmakeMoveState {
             mve,
@@ -422,7 +430,7 @@ impl Position {
             castling_rights: self.state.castling_rights.clone(),
         };
 
-        self.state.to_move = side.opposite_side();
+        self.state.to_move = opp_side;
 
         if piece == Piece::Pawn || captured_piece.is_some() {
             self.state.half_move_clock = 0;
@@ -635,7 +643,7 @@ impl Position {
     }
 
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
-        debug_assert!(!self.is_piece_at(square).is_some());
+        debug_assert!(!self.is_piece_at(square, side).is_some());
 
         self.sides.get_mut(side).set_square(square);
         self.pieces.get_mut(piece).get_mut(side).set_square(square);
@@ -644,7 +652,7 @@ impl Position {
     }
 
     pub fn remove_piece(&mut self, square: Square, piece: Piece, side: Side) {
-        debug_assert!(self.is_piece_at(square).is_some());
+        debug_assert!(self.is_piece_at(square, side).is_some());
 
         self.sides.get_mut(side).clear_square(square);
         self.pieces
@@ -656,8 +664,8 @@ impl Position {
     }
 
     fn move_piece(&mut self, src_square: Square, dest_square: Square, piece: Piece, side: Side) {
-        debug_assert!(self.is_piece_at(src_square).is_some());
-        debug_assert!(!self.is_piece_at(dest_square).is_some());
+        debug_assert!(self.is_piece_at(src_square, side).is_some());
+        debug_assert!(!self.is_piece_at(dest_square, side).is_some());
 
         self.sides.get_mut(side).move_piece(src_square, dest_square);
         self.pieces
@@ -746,10 +754,13 @@ impl fmt::Debug for Position {
             .into_iter()
             .enumerate()
             .for_each(|(idx, square)| {
-                let ch = match self.is_piece_at(square) {
-                    Some((p, Side::White)) => <Piece as Into<char>>::into(p).to_ascii_uppercase(),
-                    Some((p, Side::Black)) => <Piece as Into<char>>::into(p),
-                    None => '.',
+                let ch = match (
+                    self.is_piece_at(square, Side::White),
+                    self.is_piece_at(square, Side::Black),
+                ) {
+                    (Some(p), None) => <Piece as Into<char>>::into(p).to_ascii_uppercase(),
+                    (None, Some(p)) => <Piece as Into<char>>::into(p),
+                    _ => '.',
                 };
 
                 board_str.push(ch);
@@ -793,15 +804,20 @@ mod tests {
         assert_eq!(pos.state.to_move, Side::White);
     }
 
-    #[test_case(Position::start(), Move::new(D2, D4))]
-    fn test_make_move(mut position: Position, mve: Move) {
-        assert!(position.is_piece_at(mve.src).is_some());
-        assert!(position.is_piece_at(mve.dest).is_none());
+    #[test_case(Position::start(), Move::new(D2, D4), Side::White)]
+    fn test_make_move(mut position: Position, mve: Move, side: Side) {
+        assert!(position.is_piece_at(mve.src, side).is_some());
+        assert!(position.is_piece_at(mve.dest, side).is_none());
 
         let _ = position.make_move(mve);
 
-        assert!(position.is_piece_at(mve.src).is_none());
-        assert!(position.is_piece_at(mve.dest).is_some());
+        assert!(position.is_piece_at(mve.src, side).is_none());
+        assert!(
+            position
+                .is_piece_at(mve.src, side.opposite_side())
+                .is_none()
+        );
+        assert!(position.is_piece_at(mve.dest, side).is_some());
     }
 
     // #[test_case(Position::start(), Move::new(D7, D5))]

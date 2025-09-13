@@ -258,7 +258,7 @@ pub(super) fn gen_moves(
     if num_checkers == 1 {
         capture_mask = checkers;
         if let Some(ep_target) = position.state.en_passant_target {
-            let ep_dir = if side.opposite_side() == Side::White {
+            let ep_dir = if opp_side == Side::White {
                 Direction::IncRank
             } else {
                 Direction::DecRank
@@ -270,7 +270,7 @@ pub(super) fn gen_moves(
         }
 
         let checker_square = checkers.get_lsb();
-        let (checker_piece_type, _) = position.is_piece_at(checker_square).unwrap();
+        let checker_piece_type = position.is_piece_at(checker_square, opp_side).unwrap();
         push_mask = if checker_piece_type.is_slider() {
             BitBoard::from_ray_between_squares_excl(checker_square, king_square)
         } else {
