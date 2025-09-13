@@ -446,14 +446,18 @@ impl Position {
             self.remove_piece(mve.dest, opp_piece, opp_side);
 
             if opp_piece == Piece::Rook {
-                if mve.dest == H1 {
+                if self.state.castling_rights.white_king_side && mve.dest == H1 {
                     self.state.castling_rights.white_king_side = false;
-                } else if mve.dest == A1 {
+                    self.zobrist_hash.flip_castling_rights_white_kingside();
+                } else if self.state.castling_rights.white_queen_side && mve.dest == A1 {
                     self.state.castling_rights.white_queen_side = false;
-                } else if mve.dest == H8 {
+                    self.zobrist_hash.flip_castling_rights_white_queenside();
+                } else if self.state.castling_rights.black_king_side && mve.dest == H8 {
                     self.state.castling_rights.black_king_side = false;
-                } else if mve.dest == A8 {
+                    self.zobrist_hash.flip_castling_rights_black_kingside();
+                } else if self.state.castling_rights.black_queen_side && mve.dest == A8 {
                     self.state.castling_rights.black_queen_side = false;
+                    self.zobrist_hash.flip_castling_rights_black_queenside();
                 }
             }
         }
