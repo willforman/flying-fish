@@ -9,7 +9,7 @@ use tabled::{Table, Tabled};
 
 use crate::move_gen::{GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
 use crate::position::{Piece, Position};
-use crate::{bitboard::BitBoard, move_gen, Move};
+use crate::{Move, bitboard::BitBoard, move_gen};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Tabled)]
 pub struct PerftDepthResult {
@@ -81,7 +81,7 @@ pub fn perft(
     let mut perft_results: HashMap<Move, usize> = HashMap::with_capacity(moves.len());
 
     for mve in moves {
-        let unmake_move_state = position.make_move(mve).unwrap();
+        let unmake_move_state = position.make_move(mve);
         #[cfg(debug_assertions)]
         {
             if let Err(e) = position.validate_position(mve) {
@@ -113,7 +113,7 @@ fn perft_helper(
     let mut moves_count = 0;
     let moves = move_gen.gen_moves(position);
     for mve in moves {
-        let unmake_move_state = position.make_move(mve).unwrap();
+        let unmake_move_state = position.make_move(mve);
 
         #[cfg(debug_assertions)]
         {
@@ -242,7 +242,7 @@ fn perft_full_helper(
 
     for mve in moves {
         let mut move_position = position.clone();
-        move_position.make_move(mve).unwrap();
+        move_position.make_move(mve);
 
         let mut checkers = move_gen.gen_checkers(&move_position);
         if !checkers.is_empty() {

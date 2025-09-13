@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use engine::Square::*;
 use engine::{
-    perft, perft_full, Move, PerftDepthResult, Position, HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+    HYPERBOLA_QUINTESSENCE_MOVE_GEN, Move, PerftDepthResult, Position, perft, perft_full,
 };
 
 use test_case::test_case;
@@ -386,7 +386,7 @@ fn test_perft(
     moves_want: HashMap<Move, usize>,
 ) {
     for mve in start_moves {
-        starting_position.make_move(*mve).unwrap();
+        starting_position.make_move(*mve);
     }
 
     let (moves_got, tot_moves_got) =

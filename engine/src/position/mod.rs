@@ -363,7 +363,7 @@ impl Position {
         opp_pieces.is_square_set(mve.dest)
     }
 
-    pub fn make_move(&mut self, mve: Move) -> Result<UnmakeMoveState, PositionError> {
+    pub fn make_move(&mut self, mve: Move) -> UnmakeMoveState {
         debug_assert!(
             self.state.half_move_clock < 50,
             "Game is over the half move clock"
@@ -400,14 +400,14 @@ impl Position {
                 self.state.en_passant_target = None;
                 self.state.to_move = self.state.to_move.opposite_side();
 
-                return Ok(UnmakeMoveState {
+                return UnmakeMoveState {
                     mve,
                     piece_moved: Piece::Pawn,
                     captured_piece: Some(Piece::Pawn),
                     en_passant_target: Some(mve.dest),
                     half_move_clock: 0,
                     castling_rights: self.state.castling_rights.clone(),
-                });
+                };
             }
         }
 
@@ -471,12 +471,12 @@ impl Position {
         if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
             let promotion = mve
                 .promotion
-                .ok_or(PositionError::PawnMoveMissingPromotion(mve))?;
+                .expect("Pawn moved to end of board, expected promotion");
 
             self.remove_piece(mve.src, Piece::Pawn, side);
             self.add_piece(mve.dest, promotion, side);
 
-            return Ok(unmake_move_state);
+            return unmake_move_state;
         }
 
         if piece == Piece::King {
@@ -543,7 +543,7 @@ impl Position {
             self
         );
 
-        Ok(unmake_move_state)
+        unmake_move_state
     }
 
     pub fn unmake_move(&mut self, undo_move_state: UnmakeMoveState) -> Result<(), PositionError> {
@@ -798,19 +798,17 @@ mod tests {
         assert!(position.is_piece_at(mve.src).is_some());
         assert!(position.is_piece_at(mve.dest).is_none());
 
-        let res = position.make_move(mve);
-
-        assert!(res.is_ok());
+        let _ = position.make_move(mve);
 
         assert!(position.is_piece_at(mve.src).is_none());
         assert!(position.is_piece_at(mve.dest).is_some());
     }
 
-    #[test_case(Position::start(), Move::new(D7, D5))]
-    fn test_make_move_err(mut position: Position, mve: Move) {
-        let res = position.make_move(mve);
-        assert!(res.is_err());
-    }
+    // #[test_case(Position::start(), Move::new(D7, D5))]
+    // fn test_make_move_err(mut position: Position, mve: Move) {
+    //     let res = position.make_move(mve);
+    //     assert!(res.is_err());
+    // }
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 
         Move::new(A2, A4),A3 ; "kiwipete")]
@@ -819,7 +817,7 @@ mod tests {
         mve: Move,
         want_en_passant_target: Square,
     ) -> TestResult {
-        position.make_move(mve)?;
+        position.make_move(mve);
         assert!(position.state.en_passant_target.is_some());
         assert_eq!(
             position.state.en_passant_target.unwrap(),
@@ -849,7 +847,7 @@ mod tests {
     #[test_case(Position::from_fen("k7/8/8/5Pp1/8/8/8/7K w - g6 0 1").unwrap(), Move::new(F5, G6) ; "en passant white")]
     fn test_unmake_move(position: Position, mve: Move) -> TestResult {
         let mut move_position = position.clone();
-        let undo_move_state = move_position.make_move(mve)?;
+        let undo_move_state = move_position.make_move(mve);
         println!("{:?}", undo_move_state);
         move_position.unmake_move(undo_move_state)?;
 
@@ -860,7 +858,7 @@ mod tests {
     #[test_case(Position::from_fen("r3k2r/p1pPqPb1/Bn2PnP1/3PN3/1p2P3/2N4P/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), &[Move::new(E1, D1)] ; "kiwipete to move flipped")]
     fn test_validate_state_after_moves(mut position: Position, moves: &[Move]) -> TestResult {
         for &mve in moves {
-            position.make_move(mve)?;
+            position.make_move(mve);
             position.validate_position(mve)?;
         }
         Ok(())
@@ -875,7 +873,7 @@ mod tests {
             assert!(!hash_stack.contains(&position.zobrist_hash));
             hash_stack.push(position.zobrist_hash);
 
-            let unmake_move_state = position.make_move(*mve)?;
+            let unmake_move_state = position.make_move(*mve);
             unmake_move_state_stack.push(unmake_move_state);
 
             // Ensure incremental hash is the same as hash generated from scratch.

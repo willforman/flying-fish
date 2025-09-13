@@ -268,7 +268,7 @@ pub fn search(
         .into_iter()
         .map(|mve| {
             let mut move_position = position.clone();
-            move_position.make_move(mve).unwrap();
+            move_position.make_move(mve);
             (mve, move_position)
         })
         .collect();
@@ -487,24 +487,12 @@ fn search_helper(
     let mut best_eval = Eval::Mate(0);
     for mve in moves {
         let mut move_position = position.clone();
-        let move_res = move_position.make_move(mve);
+        let unmake_move_state = move_position.make_move(mve);
         #[cfg(debug_assertions)]
         {
             if let Err(e) = move_position.validate_position(mve) {
                 panic!("Validation failed: {}", e);
             }
-        }
-        if let Err(err) = move_res {
-            write_search_info(
-                max_depth,
-                *positions_processed,
-                *max_depth_reached,
-                start_time,
-                latest_eval,
-                None,
-            );
-            error!("Error for move {}: {}", mve, err);
-            panic!("Err encountered searching, exiting");
         }
 
         // Reason for `?`: if the child node is signaling search is terminated,
@@ -611,24 +599,12 @@ fn quiescence_search(
 
     for mve in capture_moves {
         let mut move_position = position.clone();
-        let move_res = move_position.make_move(mve);
+        let unmake_move_state = move_position.make_move(mve);
         #[cfg(debug_assertions)]
         {
             if let Err(e) = move_position.validate_position(mve) {
                 panic!("Validation failed: {}", e);
             }
-        }
-        if let Err(err) = move_res {
-            write_search_info(
-                max_depth,
-                *positions_processed,
-                curr_depth,
-                start_time,
-                latest_eval,
-                None,
-            );
-            error!("Error for move {}: {}", mve, err);
-            panic!("Err encountered searching, exiting");
         }
 
         // Reason for `?`: if the child node is signaling search is terminated,

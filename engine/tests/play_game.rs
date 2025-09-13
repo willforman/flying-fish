@@ -55,7 +55,7 @@ use testresult::TestResult;
 ], Position::from_fen("r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4").unwrap() ; "scholars mate")]
 fn test_play_game(mut starting_position: Position, moves: Vec<Move>, want: Position) -> TestResult {
     for mve in moves {
-        starting_position.make_move(mve)?;
+        starting_position.make_move(mve);
     }
 
     assert_eq!(starting_position, want);

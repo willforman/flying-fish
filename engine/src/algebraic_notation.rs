@@ -98,9 +98,7 @@ pub fn move_to_algebraic_notation(
     }
 
     let mut move_pos = position.clone();
-    move_pos
-        .make_move(mve)
-        .map_err(|_| AlgebraicNotationError::InvalidMove(mve.to_string()))?;
+    move_pos.make_move(mve);
 
     if !move_gen.gen_checkers(&move_pos).is_empty() {
         res.push('+');
