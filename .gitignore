@@ -6,3 +6,4 @@ target/
 **/.DS_STORE
 flamegraph.svg
 .aider*
+profile.json.gz

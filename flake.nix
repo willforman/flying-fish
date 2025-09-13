@@ -85,7 +85,7 @@
             libiconv
             lldb_20
             libllvm
-            cargo-flamegraph
+            samply
 
             stockfish
 

@@ -5,3 +5,7 @@ members = [
     "engine",
     "cli",
 ]
+
+[profile.profiling]
+inherits = "release"
+debug = true
