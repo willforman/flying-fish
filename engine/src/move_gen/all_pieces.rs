@@ -250,8 +250,7 @@ pub(super) fn gen_moves(
         moves_bb &= !friendly_pieces;
         return moves_bb
             .to_squares()
-            .iter()
-            .map(|&sq| Move::new(king_square, sq))
+            .map(|sq| Move::new(king_square, sq))
             .collect();
     }
 
@@ -322,7 +321,7 @@ pub(super) fn gen_moves(
 
                         let mut en_passant_pawn_loc_bb = BitBoard::from_square(ep_target);
                         en_passant_pawn_loc_bb.shift(en_passant_loc_dir);
-                        let en_passant_pawn_loc = en_passant_pawn_loc_bb.to_squares()[0];
+                        let en_passant_pawn_loc = en_passant_pawn_loc_bb.to_square();
 
                         let mut pos_without_ep = position.clone();
                         pos_without_ep.remove_piece(en_passant_pawn_loc, Piece::Pawn, opp_side);
@@ -378,8 +377,7 @@ pub(super) fn gen_moves(
             {
                 moves_bb
                     .to_squares()
-                    .iter()
-                    .flat_map(|&sq| {
+                    .flat_map(|sq| {
                         [
                             Move::with_promotion(piece_square, sq, Piece::Knight),
                             Move::with_promotion(piece_square, sq, Piece::Bishop),
@@ -391,8 +389,7 @@ pub(super) fn gen_moves(
             } else {
                 moves_bb
                     .to_squares()
-                    .iter()
-                    .map(|&sq| Move::new(piece_square, sq))
+                    .map(|sq| Move::new(piece_square, sq))
                     .collect()
             };
 

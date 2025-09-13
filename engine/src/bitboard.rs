@@ -204,13 +204,18 @@ impl BitBoard {
         })
     }
 
-    pub(crate) fn to_squares(mut self) -> ArrayVec<Square, 32> {
-        let mut sqs = ArrayVec::new();
-        while !self.is_empty() {
-            let sq = self.pop_lsb();
-            sqs.push(sq);
-        }
-        sqs
+    pub(crate) fn to_squares(mut self) -> impl Iterator<Item = Square> {
+        std::iter::from_fn(move || {
+            if self.is_empty() {
+                None
+            } else {
+                Some(self.pop_lsb())
+            }
+        })
+    }
+
+    pub(crate) fn to_square(mut self) -> Square {
+        self.pop_lsb()
     }
 
     pub(crate) fn move_piece(&mut self, src: Square, dest: Square) {

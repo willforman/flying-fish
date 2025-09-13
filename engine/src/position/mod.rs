@@ -400,7 +400,7 @@ impl Position {
 
                 let mut ep_capture_bb = BitBoard::from_square(en_passant_target);
                 ep_capture_bb.shift(ep_capture_dir);
-                let ep_capture_sq = ep_capture_bb.to_squares()[0];
+                let ep_capture_sq = ep_capture_bb.to_square();
 
                 self.move_piece(mve.src, en_passant_target, Piece::Pawn, side);
 
@@ -474,7 +474,7 @@ impl Position {
 
                 let mut ep_target_bb = BitBoard::from_square(mve.src);
                 ep_target_bb.shift(ep_dir);
-                let ep_target = ep_target_bb.to_squares()[0];
+                let ep_target = ep_target_bb.to_square();
 
                 self.state.en_passant_target = Some(ep_target);
                 self.zobrist_hash.flip_en_passant_file(ep_target);
@@ -629,7 +629,7 @@ impl Position {
 
                 let mut ep_capture_bb = BitBoard::from_square(en_passant_target);
                 ep_capture_bb.shift(ep_capture_dir);
-                let ep_capture_sq = ep_capture_bb.to_squares()[0];
+                let ep_capture_sq = ep_capture_bb.to_square();
 
                 self.add_piece(ep_capture_sq, Piece::Pawn, opp_side);
 
@@ -713,7 +713,7 @@ impl Position {
                         Side::White,
                         piece_outer,
                         piece_inner,
-                        intersection.to_squares(),
+                        intersection.to_squares().collect::<Vec<_>>(),
                         intersection
                     ));
                 }
@@ -733,7 +733,7 @@ impl Position {
                         Side::Black,
                         piece_outer,
                         piece_inner,
-                        intersection.to_squares(),
+                        intersection.to_squares().collect::<Vec<_>>(),
                         intersection
                     ));
                 }
