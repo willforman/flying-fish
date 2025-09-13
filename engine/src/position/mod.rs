@@ -431,6 +431,7 @@ impl Position {
         };
 
         self.state.to_move = opp_side;
+        self.state.en_passant_target = None;
 
         if piece == Piece::Pawn || captured_piece.is_some() {
             self.state.half_move_clock = 0;
@@ -462,33 +463,34 @@ impl Position {
             }
         }
 
-        if piece == Piece::Pawn && mve.src.abs_diff(mve.dest) == 16 {
-            let ep_dir = if side == Side::White {
-                Direction::IncRank
-            } else {
-                Direction::DecRank
-            };
+        if piece == Piece::Pawn {
+            // Setting en passant square.
+            if mve.src.abs_diff(mve.dest) == 16 {
+                let ep_dir = if side == Side::White {
+                    Direction::IncRank
+                } else {
+                    Direction::DecRank
+                };
 
-            let mut ep_target_bb = BitBoard::from_square(mve.src);
-            ep_target_bb.shift(ep_dir);
-            let ep_target = ep_target_bb.to_squares()[0];
+                let mut ep_target_bb = BitBoard::from_square(mve.src);
+                ep_target_bb.shift(ep_dir);
+                let ep_target = ep_target_bb.to_squares()[0];
 
-            self.state.en_passant_target = Some(ep_target);
-            self.zobrist_hash.flip_en_passant_file(ep_target);
-        } else {
-            self.state.en_passant_target = None;
-        }
+                self.state.en_passant_target = Some(ep_target);
+                self.zobrist_hash.flip_en_passant_file(ep_target);
+            }
 
-        // Promotion
-        if piece == Piece::Pawn && (mve.dest >= A8 || mve.dest <= H1) {
-            let promotion = mve
-                .promotion
-                .expect("Pawn moved to end of board, expected promotion");
+            // Promotion
+            if mve.dest >= A8 || mve.dest <= H1 {
+                let promotion = mve
+                    .promotion
+                    .expect("Pawn moved to end of board, expected promotion");
 
-            self.remove_piece(mve.src, Piece::Pawn, side);
-            self.add_piece(mve.dest, promotion, side);
+                self.remove_piece(mve.src, Piece::Pawn, side);
+                self.add_piece(mve.dest, promotion, side);
 
-            return unmake_move_state;
+                return unmake_move_state;
+            }
         }
 
         if piece == Piece::King {
