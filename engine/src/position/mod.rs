@@ -364,21 +364,14 @@ impl Position {
     }
 
     pub fn make_move(&mut self, mve: Move) -> Result<UnmakeMoveState, PositionError> {
-        if self.state.half_move_clock >= 50 {
-            return Err(PositionError::GameOverHalfMoveClock(mve.to_string()));
-        }
+        debug_assert!(
+            self.state.half_move_clock < 50,
+            "Game is over the half move clock"
+        );
 
-        let (piece, side) = self
-            .is_piece_at(mve.src)
-            .ok_or(PositionError::MoveNoPiece(mve.src.to_string()))?;
+        let (piece, side) = self.is_piece_at(mve.src).expect("No piece to move found");
 
-        if side != self.state.to_move {
-            return Err(PositionError::MoveNotToMove(
-                side.to_string(),
-                mve.src.to_string(),
-                mve.dest.to_string(),
-            ));
-        }
+        debug_assert!(side != self.state.to_move, "Piece to move is wrong side");
 
         if self.state.to_move == Side::Black {
             self.state.full_move_counter += 1;
