@@ -3,11 +3,12 @@ use std::collections::HashSet;
 use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 
-use super::traits::{GenerateLeapingMoves, GenerateSlidingMoves};
+use super::traits::{GenerateSlidingMoves};
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::move_gen::masks::{split_bishop_ray, split_rook_ray};
 use crate::position::{Move, Piece, Position, Side};
+use crate::move_gen::leaping_pieces::LeapingPiecesMoveGen;
 
 #[derive(thiserror::Error, Debug)]
 pub enum MoveGenError {
@@ -23,7 +24,7 @@ fn gen_king_moves(
     side: Side,
     king_square: Square,
     occupancy: BitBoard,
-    leaping_pieces: impl GenerateLeapingMoves,
+    leaping_pieces: LeapingPiecesMoveGen,
     sliding_pieces: impl GenerateSlidingMoves,
 ) -> BitBoard {
     let mut moves = leaping_pieces.gen_king_moves(king_square);
@@ -87,7 +88,7 @@ fn gen_king_moves(
 fn gen_attacked_squares(
     position: &Position,
     side: Side,
-    leaping_pieces: impl GenerateLeapingMoves,
+    leaping_pieces: LeapingPiecesMoveGen,
     sliding_pieces: impl GenerateSlidingMoves,
 ) -> BitBoard {
     // Get occupancy but exclude king to handle kings moving away from checking sliding piece
@@ -175,7 +176,7 @@ fn get_pin_rays(
 
 pub(super) fn get_checkers(
     position: &Position,
-    leaping_pieces: impl GenerateLeapingMoves,
+    leaping_pieces: LeapingPiecesMoveGen,
     sliding_pieces: impl GenerateSlidingMoves,
 ) -> BitBoard {
     let side = position.state.to_move;
@@ -210,7 +211,7 @@ pub(super) fn get_checkers(
 
 pub(super) fn gen_moves(
     position: &Position,
-    leaping_pieces: impl GenerateLeapingMoves + std::marker::Copy,
+    leaping_pieces: LeapingPiecesMoveGen,
     sliding_pieces: impl GenerateSlidingMoves + std::marker::Copy,
 ) -> ArrayVec<Move, 80> {
     debug_assert!(position.state.half_move_clock <= 50);

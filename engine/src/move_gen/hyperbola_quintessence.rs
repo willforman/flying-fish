@@ -1,6 +1,6 @@
 use strum::IntoEnumIterator;
 
-use super::masks::{MaskType, MASKS_LIST, RANK_ATKS};
+use super::masks::{MASKS_LIST, MaskType, RANK_ATKS};
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::Piece;
 

@@ -4,8 +4,6 @@ use std::string::ToString;
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::{Piece, Side};
 
-use super::traits::GenerateLeapingMoves;
-
 struct SquareToMoveDatabase([BitBoard; 64]);
 
 impl SquareToMoveDatabase {
@@ -35,20 +33,20 @@ impl ColoredSquareToMoveDatabase {
 #[derive(Clone, Copy)]
 pub struct LeapingPiecesMoveGen;
 
-impl GenerateLeapingMoves for LeapingPiecesMoveGen {
-    fn gen_knight_moves(&self, square: Square) -> BitBoard {
+impl LeapingPiecesMoveGen {
+    pub(crate) fn gen_knight_moves(&self, square: Square) -> BitBoard {
         KNIGHT_ATKS.get_bitboard(square)
     }
 
-    fn gen_king_moves(&self, square: Square) -> BitBoard {
+    pub(crate) fn gen_king_moves(&self, square: Square) -> BitBoard {
         KING_ATKS.get_bitboard(square)
     }
 
-    fn gen_pawn_pushes(&self, square: Square, side: Side) -> BitBoard {
+    pub(crate) fn gen_pawn_pushes(&self, square: Square, side: Side) -> BitBoard {
         PAWN_PUSHES.get_square_db(side).get_bitboard(square)
     }
 
-    fn gen_pawn_atks(&self, square: Square, side: Side) -> BitBoard {
+    pub(crate) fn gen_pawn_atks(&self, square: Square, side: Side) -> BitBoard {
         PAWN_ATKS.get_square_db(side).get_bitboard(square)
     }
 }
