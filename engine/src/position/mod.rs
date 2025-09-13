@@ -491,9 +491,7 @@ impl Position {
 
                 return unmake_move_state;
             }
-        }
-
-        if piece == Piece::King {
+        } else if piece == Piece::King {
             if side == Side::White {
                 if self.state.castling_rights.white_queen_side {
                     self.state.castling_rights.white_queen_side = false;
@@ -526,9 +524,7 @@ impl Position {
 
                 self.move_piece(rook_src, rook_dest, Piece::Rook, side);
             }
-        }
-
-        if piece == Piece::Rook {
+        } else if piece == Piece::Rook {
             if self.state.castling_rights.white_queen_side && mve.src == A1 {
                 self.state.castling_rights.white_queen_side = false;
                 self.zobrist_hash.flip_castling_rights_white_queenside();
