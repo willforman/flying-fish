@@ -256,6 +256,10 @@ pub fn search(
         maybe_soft_time_limit, maybe_hard_time_limit
     );
 
+    if let Some(hard_time_limit) = maybe_hard_time_limit {
+        params.move_time = Some(hard_time_limit);
+    }
+
     let mut moves = move_gen.gen_moves(position);
 
     // Filter out moves not in search moves
