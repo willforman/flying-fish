@@ -4,8 +4,8 @@ Minimax chess engine, using [bitboards](https://www.chessprogramming.org/Bitboar
 
 ### Performance
 
-[Perft](https://www.chessprogramming.org/Perft): measures move generation + move make/unmake (`perft_bench` in `uci` mode)
-- No caching, single threaded: 24.9M positions/second (AMD Ryzen 9 7900x)
+[Perft](https://www.chessprogramming.org/Perft): measures move generation + move make/unmake (`cargo bench -p engine -- perft`)
+- No caching, single threaded: 58.0M positions/second (M4 Pro)
 
 ### How to run
 
