@@ -123,7 +123,7 @@ mod tests {
 
     use crate::bitboard::BitBoard;
     use crate::bitboard::Square::*;
-    use crate::move_gen::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+    use crate::move_gen::MOVE_GEN;
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(C3, B5), "Nb5".to_string() ; "no capture non pawn")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), Move::new(B2, B3), "b3".to_string() ; "no capture pawn")]
@@ -142,7 +142,7 @@ mod tests {
     #[test_case(Position::from_fen("5Q1Q/8/7Q/8/8/8/8/K2k4 w - - 0 1").unwrap(), Move::new(H8, F6), "Qh8f6".to_string() ; "ambiguous rank file 2")]
     #[test_case(Position::from_fen("5Q1Q/8/7Q/8/8/8/8/K2k4 w - - 0 1").unwrap(), Move::new(H6, F6), "Qh6f6".to_string() ; "ambiguous rank file 3")]
     fn test_move_to_algebraic_notation(pos: Position, mve: Move, want: String) -> TestResult {
-        let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+        let move_gen = MOVE_GEN;
         let got = move_to_algebraic_notation(&pos, mve, move_gen)?;
 
         assert_eq!(got, want);

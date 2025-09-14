@@ -4,12 +4,10 @@ use super::masks::{MASKS_LIST, MaskType, RANK_ATKS};
 use crate::bitboard::{BitBoard, Direction, Square};
 use crate::position::Piece;
 
-use super::traits::GenerateSlidingMoves;
-
 #[derive(Clone, Copy)]
-pub struct HyperbolaQuintessence {}
+pub struct SlidingPiecesMoveGen {}
 
-impl HyperbolaQuintessence {
+impl SlidingPiecesMoveGen {
     fn get_moves(&self, occupancy: BitBoard, mask: BitBoard, bit_mask: BitBoard) -> BitBoard {
         let mut forward = occupancy & mask;
         let mut reverse = forward.swap_bytes();
@@ -35,8 +33,8 @@ impl HyperbolaQuintessence {
     }
 }
 
-impl GenerateSlidingMoves for HyperbolaQuintessence {
-    fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard {
+impl SlidingPiecesMoveGen {
+    pub(crate) fn gen_moves(&self, piece: Piece, square: Square, occupancy: BitBoard) -> BitBoard {
         let masks = MASKS_LIST.get(square);
         let bit_mask = masks.get(MaskType::Bit);
 
@@ -63,10 +61,12 @@ impl GenerateSlidingMoves for HyperbolaQuintessence {
     }
 }
 
-pub(crate) static HYPERBOLA_QUINTESSENCE: HyperbolaQuintessence = HyperbolaQuintessence {};
+pub(crate) static SLIDING_PIECES_MOVE_GEN: SlidingPiecesMoveGen = SlidingPiecesMoveGen {};
 
 #[cfg(test)]
 mod tests {
+    use crate::move_gen::leaping_pieces::LeapingPiecesMoveGen;
+
     use super::Square::*;
     use super::*;
     use test_case::test_case;
@@ -78,7 +78,7 @@ mod tests {
     #[test_case(D4, BitBoard::from_squares(&[A4, F4]), BitBoard::from_squares(&[A4, B4, C4, E4, F4]) ; "both sides")]
     #[test_case(D4, BitBoard::from_squares(&[C4, E4]), BitBoard::from_squares(&[C4, E4]) ; "both sides close")]
     fn test_gen_rank_moves(square: Square, occupancy: BitBoard, want: BitBoard) {
-        let hq = HyperbolaQuintessence {};
+        let hq = SlidingPiecesMoveGen {};
 
         let got = hq.get_rank_moves(occupancy, square);
         assert_eq!(got, want);
@@ -94,7 +94,7 @@ mod tests {
     #[test_case(Piece::Queen, D4, BitBoard::from_squares(&[]), BitBoard::from_squares(&[A1, B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1, D1, D2, D3, D5, D6, D7, D8, A4, B4, C4, E4, F4, G4, H4]) ; "queen no blockers")]
     #[test_case(Piece::Queen, D4, BitBoard::from_squares(&[D5, B2, H4]), BitBoard::from_squares(&[B2, C3, E5, F6, G7, H8, C5, B6, A7, E3, F2, G1, D1, D2, D3, D5, A4, B4, C4, E4, F4, G4, H4]) ; "queen blockers")]
     fn test_gen_moves(piece: Piece, square: Square, occupancy: BitBoard, want: BitBoard) {
-        let hq = HyperbolaQuintessence {};
+        let hq = SlidingPiecesMoveGen {};
 
         let got = hq.gen_moves(piece, square, occupancy);
         assert_eq!(got, want);

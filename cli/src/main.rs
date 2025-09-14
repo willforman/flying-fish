@@ -2,28 +2,22 @@ use std::{
     env,
     fs::File,
     io::{self, BufRead},
-    panic,
     path::PathBuf,
     str::FromStr,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{Arc, atomic::AtomicBool},
 };
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use engine::{
-    perft, search, HyperbolaQuintessenceMoveGen, Position, SearchParams,
-    HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
-};
+use engine::{MOVE_GEN, POSITION_EVALUATOR, Position, SearchParams, perft, search};
 use mimalloc::MiMalloc;
-use tracing::{debug, level_filters::LevelFilter, warn, Level};
-use tracing_subscriber::{layer::SubscriberExt, prelude::*, util::SubscriberInitExt, Registry};
+use tracing::{Level, debug, level_filters::LevelFilter, warn};
+use tracing_subscriber::{Registry, layer::SubscriberExt, prelude::*, util::SubscriberInitExt};
 
 use cli::{LOGS_DIRECTORY, UCI};
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
-
-static MOVE_GEN: HyperbolaQuintessenceMoveGen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
 
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -83,8 +77,7 @@ fn cli_search(fen: &str, depth: u64) -> Result<()> {
 fn cli_perft(fen: &str, depth: u64) -> Result<()> {
     let position =
         Position::from_fen(fen).with_context(|| format!("Couldn't parse given fen: `{}`", fen))?;
-    let (move_counts, tot_moves) =
-        perft(&position, depth as usize, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+    let (move_counts, tot_moves) = perft(&position, depth as usize, MOVE_GEN);
     for (mve, move_nodes) in move_counts.into_iter() {
         println!("{}:  {}", mve, move_nodes);
     }

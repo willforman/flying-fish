@@ -7,7 +7,7 @@ use std::{
 
 use tabled::{Table, Tabled};
 
-use crate::move_gen::{GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN};
+use crate::move_gen::{GenerateMoves, MOVE_GEN};
 use crate::position::{Piece, Position};
 use crate::{Move, bitboard::BitBoard, move_gen};
 

@@ -1,15 +1,13 @@
 use std::{
     io::Write,
-    sync::{atomic::AtomicBool, mpsc, Arc, Mutex},
+    sync::{Arc, Mutex, atomic::AtomicBool, mpsc},
     thread,
     time::{Duration, Instant},
 };
 use test_case::test_case;
 
 use engine::Square::*;
-use engine::{
-    search, Move, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
-};
+use engine::{MOVE_GEN, Move, POSITION_EVALUATOR, Position, SearchParams, search};
 use testresult::TestResult;
 
 #[test]
@@ -25,7 +23,7 @@ fn test_search_terminates() {
                 move_time: Some(Duration::from_secs(2)),
                 ..SearchParams::default()
             },
-            HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+            MOVE_GEN,
             POSITION_EVALUATOR,
             Arc::clone(&terminate_cloned),
         )
@@ -65,7 +63,7 @@ fn test_finds_best_move(position: Position, max_depth: u64, best_move_want: Move
     let (best_move_got, _) = search(
         &position,
         &search_params,
-        HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+        MOVE_GEN,
         POSITION_EVALUATOR,
         Arc::new(AtomicBool::new(false)),
     )?;
@@ -82,7 +80,7 @@ fn test_doesnt_find_stalemate(position: Position, stalemate_move_dont_want: Move
     let (best_move_got, _) = search(
         &position,
         &search_params,
-        HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+        MOVE_GEN,
         POSITION_EVALUATOR,
         Arc::new(AtomicBool::new(false)),
     )?;
@@ -100,7 +98,7 @@ fn test_avoids_horizon_effect(position: Position, horizon_effect_move: Move) -> 
     let (best_move_got, _) = search(
         &position,
         &search_params,
-        HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+        MOVE_GEN,
         POSITION_EVALUATOR,
         Arc::new(AtomicBool::new(false)),
     )?;

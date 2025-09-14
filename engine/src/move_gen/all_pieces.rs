@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 
-use super::traits::{GenerateSlidingMoves};
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Direction, Square};
+use crate::move_gen::hyperbola_quintessence::SlidingPiecesMoveGen;
 use crate::move_gen::masks::{split_bishop_ray, split_rook_ray};
 use crate::position::{Move, Piece, Position, Side};
 use crate::move_gen::leaping_pieces::LeapingPiecesMoveGen;
@@ -25,7 +25,7 @@ fn gen_king_moves(
     king_square: Square,
     occupancy: BitBoard,
     leaping_pieces: LeapingPiecesMoveGen,
-    sliding_pieces: impl GenerateSlidingMoves,
+    sliding_pieces: SlidingPiecesMoveGen,
 ) -> BitBoard {
     let mut moves = leaping_pieces.gen_king_moves(king_square);
     let king_danger_squares = gen_attacked_squares(
@@ -89,7 +89,7 @@ fn gen_attacked_squares(
     position: &Position,
     side: Side,
     leaping_pieces: LeapingPiecesMoveGen,
-    sliding_pieces: impl GenerateSlidingMoves,
+    sliding_pieces: SlidingPiecesMoveGen,
 ) -> BitBoard {
     // Get occupancy but exclude king to handle kings moving away from checking sliding piece
     let occupancy = (position.sides.get(Side::White) | position.sides.get(Side::Black))
@@ -121,7 +121,7 @@ fn gen_attacked_squares(
 fn get_pin_rays(
     position: &Position,
     side: Side,
-    sliding_pieces: impl GenerateSlidingMoves,
+    sliding_pieces: SlidingPiecesMoveGen,
 ) -> (BitBoard, BitBoard) {
     let opp_side = side.opposite_side();
 
@@ -177,7 +177,7 @@ fn get_pin_rays(
 pub(super) fn get_checkers(
     position: &Position,
     leaping_pieces: LeapingPiecesMoveGen,
-    sliding_pieces: impl GenerateSlidingMoves,
+    sliding_pieces: SlidingPiecesMoveGen,
 ) -> BitBoard {
     let side = position.state.to_move;
     let opp_side = side.opposite_side();
@@ -212,7 +212,7 @@ pub(super) fn get_checkers(
 pub(super) fn gen_moves(
     position: &Position,
     leaping_pieces: LeapingPiecesMoveGen,
-    sliding_pieces: impl GenerateSlidingMoves + std::marker::Copy,
+    sliding_pieces: SlidingPiecesMoveGen,
 ) -> ArrayVec<Move, 80> {
     debug_assert!(position.state.half_move_clock <= 50);
     let mut moves = ArrayVec::new();
@@ -407,7 +407,8 @@ mod tests {
     use test_case::test_case;
     use testresult::TestResult;
 
-    use crate::move_gen::hyperbola_quintessence::HYPERBOLA_QUINTESSENCE;
+    use crate::move_gen::hyperbola_quintessence::SLIDING_PIECES_MOVE_GEN;
+    use crate::move_gen::MOVE_GEN;
     use crate::move_gen::leaping_pieces::LEAPING_PIECES;
 
     macro_rules! assert_eq_collections {
@@ -722,7 +723,7 @@ mod tests {
         }
 
         println!("{:?}", position);
-        let got = gen_moves(&position, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE);
+        let got = gen_moves(&position, LEAPING_PIECES, SLIDING_PIECES_MOVE_GEN);
 
         assert_eq_collections!(got, want);
     }
@@ -732,7 +733,7 @@ mod tests {
         A2, B2, C2, D2, E2, F2, G2, H2,
         A3, B3, C3, D3, E3, F3, G3, H3]))]
     fn test_gen_attacked_squares(position: Position, side: Side, want: BitBoard) {
-        let got = gen_attacked_squares(&position, side, LEAPING_PIECES, HYPERBOLA_QUINTESSENCE);
+        let got = gen_attacked_squares(&position, side, LEAPING_PIECES, SLIDING_PIECES_MOVE_GEN);
 
         assert_eq!(got, want);
     }
@@ -746,7 +747,7 @@ mod tests {
         want_bishop_pin_ray: BitBoard,
     ) {
         let (got_rook_pin_ray, got_bishop_pin_ray) =
-            get_pin_rays(&position, Side::Black, HYPERBOLA_QUINTESSENCE);
+            get_pin_rays(&position, Side::Black, SLIDING_PIECES_MOVE_GEN);
         assert_eq!(got_rook_pin_ray, want_rook_pin_ray);
         assert_eq!(got_bishop_pin_ray, want_bishop_pin_ray);
     }

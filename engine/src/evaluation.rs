@@ -5,9 +5,9 @@ use std::ops::Neg;
 
 use strum::IntoEnumIterator;
 
+use crate::GenerateMoves;
 use crate::bitboard::Square;
 use crate::position::{Piece, Position, Side};
-use crate::GenerateMoves;
 
 /// An evaluation of a position. Is always from the side to move's perspective.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -252,7 +252,7 @@ pub static POSITION_EVALUATOR: PositionEvaluator = PositionEvaluator {};
 
 #[cfg(test)]
 mod tests {
-    use crate::HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+    use crate::move_gen::MOVE_GEN;
 
     use super::*;
 
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn test_obvious_eval() -> TestResult {
         let position = Position::from_fen("2k5/Q7/8/8/8/8/8/7K w - - 0 1")?;
-        let move_gen = HYPERBOLA_QUINTESSENCE_MOVE_GEN;
+        let move_gen = MOVE_GEN;
         let eval = POSITION_EVALUATOR.evaluate(&position, move_gen);
 
         // Should be at least 5 pawns better than the opponent

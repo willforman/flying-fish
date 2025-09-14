@@ -12,8 +12,8 @@ use std::{sync::atomic::AtomicBool, thread};
 use tracing::{debug, error, info, warn};
 
 use engine::{
-    AUTHOR, EvaluatePosition, GenerateMoves, HYPERBOLA_QUINTESSENCE_MOVE_GEN, Move, NAME,
-    POSITION_EVALUATOR, Position, SearchError, SearchParams, perft, perft_full, search,
+    AUTHOR, EvaluatePosition, GenerateMoves, MOVE_GEN, Move, NAME, POSITION_EVALUATOR, Position,
+    SearchError, SearchParams, perft, perft_full, search,
 };
 
 use crate::LOGS_DIRECTORY;
@@ -169,21 +169,20 @@ where
                 process::exit(0);
             }
             UCICommand::Eval => {
-                let eval = POSITION_EVALUATOR.evaluate(position, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+                let eval = POSITION_EVALUATOR.evaluate(position, MOVE_GEN);
                 uci!("uci string {}", eval);
                 Handled
             }
             UCICommand::Perft { depth } => {
                 let start = Instant::now();
-                let (move_counts, total_count) =
-                    perft(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+                let (move_counts, total_count) = perft(position, *depth, MOVE_GEN);
                 let time_elapsed = start.elapsed();
 
                 write_perft_results(move_counts, total_count, time_elapsed);
                 Handled
             }
             UCICommand::PerftFull { depth } => {
-                let perft_results = perft_full(position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+                let perft_results = perft_full(position, *depth, MOVE_GEN);
                 uci!("{}", perft_results);
                 Handled
             }
@@ -202,8 +201,7 @@ where
 
             let position = Position::from_fen(fen)?;
             let position_start = Instant::now();
-            let (position_move_nodes, position_total_nodes) =
-                perft(&position, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+            let (position_move_nodes, position_total_nodes) = perft(&position, *depth, MOVE_GEN);
             let position_time_elapsed = position_start.elapsed();
 
             let nps = position_total_nodes as f64 / position_time_elapsed.as_secs_f64();

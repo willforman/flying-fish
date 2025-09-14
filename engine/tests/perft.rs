@@ -1,9 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use engine::Square::*;
-use engine::{
-    HYPERBOLA_QUINTESSENCE_MOVE_GEN, Move, PerftDepthResult, Position, perft, perft_full,
-};
+use engine::{MOVE_GEN, Move, PerftDepthResult, Position, perft, perft_full};
 
 use test_case::test_case;
 
@@ -68,7 +66,7 @@ use test_case::test_case;
 )]
 #[ignore]
 fn test_perft_full(starting_position: Position, depth: usize, want: PerftDepthResult) {
-    let res = perft_full(&starting_position, depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+    let res = perft_full(&starting_position, depth, MOVE_GEN);
     println!("{}", res);
 
     assert_eq!(res.depth_results.len(), depth);
@@ -389,8 +387,7 @@ fn test_perft(
         starting_position.make_move(*mve);
     }
 
-    let (moves_got, tot_moves_got) =
-        perft(&starting_position, depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+    let (moves_got, tot_moves_got) = perft(&starting_position, depth, MOVE_GEN);
 
     assert_eq_maps!(moves_got, moves_want);
     assert_eq!(tot_moves_got, tot_moves_want);

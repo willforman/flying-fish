@@ -6,7 +6,7 @@ use std::{
 };
 
 use cli::UCI;
-use engine::{AUTHOR, HYPERBOLA_QUINTESSENCE_MOVE_GEN, NAME};
+use engine::{AUTHOR, MOVE_GEN, NAME};
 use tracing_subscriber::{layer::SubscriberExt, prelude::*};
 
 #[derive(Clone, Debug)]

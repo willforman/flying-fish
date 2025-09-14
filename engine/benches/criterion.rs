@@ -1,10 +1,8 @@
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{Arc, atomic::AtomicBool};
 use std::time::Instant;
 
-use criterion::{criterion_group, criterion_main, Criterion};
-use engine::{
-    perft, search, Position, SearchParams, HYPERBOLA_QUINTESSENCE_MOVE_GEN, POSITION_EVALUATOR,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
+use engine::{MOVE_GEN, POSITION_EVALUATOR, Position, SearchParams, perft, search};
 
 const PERFT_BENCHMARK_FENS_AND_DEPTHS: &[(&str, usize, &str)] = &[
     (
@@ -34,7 +32,7 @@ pub fn benchmark_perft(c: &mut Criterion) {
                 let mut total_nodes = 0;
 
                 for _ in 0..iters {
-                    let (_, nodes) = perft(&pos, *depth, HYPERBOLA_QUINTESSENCE_MOVE_GEN);
+                    let (_, nodes) = perft(&pos, *depth, MOVE_GEN);
                     total_nodes += nodes;
                 }
 
@@ -83,7 +81,7 @@ pub fn benchmark_search(c: &mut Criterion) {
                     let (_, search_result) = search(
                         &pos,
                         &search_params,
-                        HYPERBOLA_QUINTESSENCE_MOVE_GEN,
+                        MOVE_GEN,
                         POSITION_EVALUATOR,
                         Arc::new(AtomicBool::new(false)),
                     )
