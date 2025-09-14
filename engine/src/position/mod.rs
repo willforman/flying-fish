@@ -345,14 +345,28 @@ impl Position {
         }
     }
 
+    #[rustfmt::skip]
     pub fn is_piece_at(&self, square: Square, side: Side) -> Option<Piece> {
-        for piece in Piece::iter() {
-            if self.pieces.get(piece).get(side).is_square_set(square) {
-                return Some(piece);
+        match side {
+            Side::White => {
+                if self.pieces.pawns.white.is_square_set(square) { return Some(Piece::Pawn); }
+                if self.pieces.knights.white.is_square_set(square) { return Some(Piece::Knight); }
+                if self.pieces.bishops.white.is_square_set(square) { return Some(Piece::Bishop); }
+                if self.pieces.rooks.white.is_square_set(square) { return Some(Piece::Rook); }
+                if self.pieces.queens.white.is_square_set(square) { return Some(Piece::Queen); }
+                if self.pieces.kings.white.is_square_set(square) { return Some(Piece::King); }
+                None
+            }
+            Side::Black => {
+                if self.pieces.pawns.black.is_square_set(square) { return Some(Piece::Pawn); }
+                if self.pieces.knights.black.is_square_set(square) { return Some(Piece::Knight); }
+                if self.pieces.bishops.black.is_square_set(square) { return Some(Piece::Bishop); }
+                if self.pieces.rooks.black.is_square_set(square) { return Some(Piece::Rook); }
+                if self.pieces.queens.black.is_square_set(square) { return Some(Piece::Queen); }
+                if self.pieces.kings.black.is_square_set(square) { return Some(Piece::King); }
+                None
             }
         }
-
-        None
     }
 
     pub fn is_piece_at_no_side(&self, square: Square) -> Option<(Piece, Side)> {
