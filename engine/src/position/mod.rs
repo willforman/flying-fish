@@ -556,41 +556,41 @@ impl Position {
         unmake_move_state
     }
 
-    pub fn unmake_move(&mut self, undo_move_state: UnmakeMoveState) -> Result<(), PositionError> {
-        let mve = undo_move_state.mve;
+    pub fn unmake_move(&mut self, unmake_move_state: UnmakeMoveState) -> Result<(), PositionError> {
+        let mve = unmake_move_state.mve;
         let opp_side = self.state.to_move;
         let moved_side = opp_side.opposite_side();
-        let mut piece_moved = undo_move_state.piece_moved;
+        let mut piece_moved = unmake_move_state.piece_moved;
 
         if self.state.castling_rights.white_queen_side
-            != undo_move_state.castling_rights.white_queen_side
+            != unmake_move_state.castling_rights.white_queen_side
         {
             self.zobrist_hash.flip_castling_rights_white_queenside();
         }
         if self.state.castling_rights.white_queen_side
-            != undo_move_state.castling_rights.white_king_side
+            != unmake_move_state.castling_rights.white_king_side
         {
             self.zobrist_hash.flip_castling_rights_white_kingside();
         }
         if self.state.castling_rights.black_queen_side
-            != undo_move_state.castling_rights.black_queen_side
+            != unmake_move_state.castling_rights.black_queen_side
         {
             self.zobrist_hash.flip_castling_rights_black_queenside();
         }
         if self.state.castling_rights.black_queen_side
-            != undo_move_state.castling_rights.black_king_side
+            != unmake_move_state.castling_rights.black_king_side
         {
             self.zobrist_hash.flip_castling_rights_black_kingside();
         }
-        self.state.castling_rights = undo_move_state.castling_rights;
+        self.state.castling_rights = unmake_move_state.castling_rights;
 
         if let Some(prev_en_passant_target) = self.state.en_passant_target {
             self.zobrist_hash
                 .flip_en_passant_file(prev_en_passant_target);
         }
-        self.state.en_passant_target = undo_move_state.en_passant_target;
+        self.state.en_passant_target = unmake_move_state.en_passant_target;
 
-        self.state.half_move_clock = undo_move_state.half_move_clock;
+        self.state.half_move_clock = unmake_move_state.half_move_clock;
         if moved_side == Side::Black {
             self.state.full_move_counter -= 1;
         }
@@ -618,9 +618,9 @@ impl Position {
             self.move_piece(rook_dest, rook_src, Piece::Rook, moved_side);
         }
 
-        if let Some(en_passant_target) = undo_move_state.en_passant_target {
+        if let Some(en_passant_target) = unmake_move_state.en_passant_target {
             self.zobrist_hash.flip_en_passant_file(en_passant_target);
-            if mve.dest == en_passant_target && undo_move_state.piece_moved == Piece::Pawn {
+            if mve.dest == en_passant_target && unmake_move_state.piece_moved == Piece::Pawn {
                 let ep_capture_dir = if moved_side == Side::White {
                     Direction::DecRank
                 } else {
@@ -637,7 +637,7 @@ impl Position {
             }
         }
 
-        if let Some(captured_piece) = undo_move_state.captured_piece {
+        if let Some(captured_piece) = unmake_move_state.captured_piece {
             self.add_piece(mve.dest, captured_piece, opp_side);
         }
 

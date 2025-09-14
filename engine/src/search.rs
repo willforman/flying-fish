@@ -289,9 +289,9 @@ pub fn search(
         // Find value of each move up to current depth
         let mut move_vals = HashMap::with_capacity(moves.len());
         for mve in moves.clone() {
-            let move_position = &move_positions[&mve];
+            let mut move_position = move_positions[&mve].clone();
             let maybe_move_eval = search_helper(
-                move_position,
+                &mut move_position,
                 &params,
                 1,
                 iterative_deepening_max_depth,
@@ -413,7 +413,7 @@ fn calc_time_to_use(
 
 #[allow(clippy::too_many_arguments)]
 fn search_helper(
-    position: &Position,
+    position: &mut Position,
     params: &SearchParams,
     curr_depth: u64,
     max_depth: u64,
@@ -486,11 +486,10 @@ fn search_helper(
 
     let mut best_eval = Eval::Mate(0);
     for mve in moves {
-        let mut move_position = position.clone();
-        let unmake_move_state = move_position.make_move(mve);
+        let unmake_move_state = position.make_move(mve);
         #[cfg(debug_assertions)]
         {
-            if let Err(e) = move_position.validate_position(mve) {
+            if let Err(e) = position.validate_position(mve) {
                 panic!("Validation failed: {}", e);
             }
         }
@@ -498,7 +497,7 @@ fn search_helper(
         // Reason for `?`: if the child node is signaling search is terminated,
         // better terminate self.
         let got_eval = search_helper(
-            &move_position,
+            position,
             params,
             curr_depth + 1,
             max_depth,
@@ -515,6 +514,7 @@ fn search_helper(
 
         // Flip value because it was relative to the other side
         let got_eval = got_eval.flip();
+        position.unmake_move(unmake_move_state);
 
         if got_eval >= best_eval {
             best_eval = got_eval;
@@ -535,7 +535,7 @@ fn search_helper(
 /// Source: https://www.chessprogramming.org/Quiescence_Search
 #[allow(clippy::too_many_arguments)]
 fn quiescence_search(
-    position: &Position,
+    position: &mut Position,
     params: &SearchParams,
     curr_depth: u64,
     max_depth: u64,
@@ -598,11 +598,10 @@ fn quiescence_search(
     order_moves(&mut capture_moves, position);
 
     for mve in capture_moves {
-        let mut move_position = position.clone();
-        let unmake_move_state = move_position.make_move(mve);
+        let unmake_move_state = position.make_move(mve);
         #[cfg(debug_assertions)]
         {
-            if let Err(e) = move_position.validate_position(mve) {
+            if let Err(e) = position.validate_position(mve) {
                 panic!("Validation failed: {}", e);
             }
         }
@@ -610,7 +609,7 @@ fn quiescence_search(
         // Reason for `?`: if the child node is signaling search is terminated,
         // better terminate self.
         let move_eval = quiescence_search(
-            &move_position,
+            position,
             params,
             curr_depth + 1,
             max_depth,
@@ -626,6 +625,7 @@ fn quiescence_search(
         )?;
         // Flip value because it was relative to the other side
         let move_eval = move_eval.flip();
+        position.unmake_move(unmake_move_state);
 
         if move_eval >= beta {
             return Some(move_eval);
