@@ -92,7 +92,7 @@ pub fn perft(
         let moves_count = perft_helper(&mut position, 1, depth, move_gen);
         perft_results.insert(mve, moves_count);
 
-        position.unmake_move(unmake_move_state).unwrap();
+        position.unmake_move(unmake_move_state);
     }
 
     let tot_moves = perft_results.values().sum();
@@ -124,7 +124,7 @@ fn perft_helper(
 
         let curr_move_moves_count = perft_helper(position, curr_depth + 1, max_depth, move_gen);
         moves_count += curr_move_moves_count;
-        position.unmake_move(unmake_move_state).unwrap();
+        position.unmake_move(unmake_move_state);
     }
     moves_count
 }

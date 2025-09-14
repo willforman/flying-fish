@@ -556,7 +556,7 @@ impl Position {
         unmake_move_state
     }
 
-    pub fn unmake_move(&mut self, unmake_move_state: UnmakeMoveState) -> Result<(), PositionError> {
+    pub fn unmake_move(&mut self, unmake_move_state: UnmakeMoveState) {
         let mve = unmake_move_state.mve;
         let opp_side = self.state.to_move;
         let moved_side = opp_side.opposite_side();
@@ -633,15 +633,13 @@ impl Position {
 
                 self.add_piece(ep_capture_sq, Piece::Pawn, opp_side);
 
-                return Ok(());
+                return;
             }
         }
 
         if let Some(captured_piece) = unmake_move_state.captured_piece {
             self.add_piece(mve.dest, captured_piece, opp_side);
         }
-
-        Ok(())
     }
 
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
@@ -867,7 +865,7 @@ mod tests {
         let mut move_position = position.clone();
         let undo_move_state = move_position.make_move(mve);
         println!("{:?}", undo_move_state);
-        move_position.unmake_move(undo_move_state)?;
+        move_position.unmake_move(undo_move_state);
 
         assert_eq!(move_position, position);
         Ok(())
@@ -909,7 +907,7 @@ mod tests {
             .rev()
             .zip(hash_stack.into_iter().rev())
         {
-            position.unmake_move(unmake_move_state.clone())?;
+            position.unmake_move(unmake_move_state.clone());
             assert_eq!(
                 position.zobrist_hash, hash,
                 "Hash not the same after unmake move for {:?}",
