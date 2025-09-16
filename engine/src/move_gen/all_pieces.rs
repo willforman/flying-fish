@@ -92,13 +92,13 @@ fn gen_attacked_squares(
     sliding_pieces: SlidingPiecesMoveGen,
 ) -> BitBoard {
     // Get occupancy but exclude king to handle kings moving away from checking sliding piece
-    let occupancy = (position.sides.get(Side::White) | position.sides.get(Side::Black))
-        & !position.pieces.get(Piece::King).get(side.opposite_side());
+    let occupancy = position.occupancy_bb()
+        & !position.get_piece_bb(side.opposite_side(), Piece::King);
 
     let mut attacked_squares = BitBoard::empty();
 
     for piece_type in Piece::iter() {
-        let mut pieces = position.pieces.get(piece_type).get(side);
+        let mut pieces = position.get_piece_bb(side, piece_type);
 
         while !pieces.is_empty() {
             let piece_square = pieces.pop_lsb();
@@ -125,15 +125,15 @@ fn get_pin_rays(
 ) -> (BitBoard, BitBoard) {
     let opp_side = side.opposite_side();
 
-    let pinner_occupancy = position.pieces.get(Piece::King).get(side);
+    let pinner_occupancy = position.get_piece_bb(side, Piece::King);
     let king_square = pinner_occupancy.get_lsb();
-    let king_ray_occupancy = position.sides.get(opp_side);
+    let king_ray_occupancy = position.get_side_bb(opp_side);
 
     // Rook pin ray
     let king_ray = sliding_pieces.gen_moves(Piece::Rook, king_square, king_ray_occupancy);
 
-    let possible_pinners = position.pieces.get(Piece::Rook).get(opp_side)
-        | position.pieces.get(Piece::Queen).get(opp_side);
+    let possible_pinners = position.get_piece_bb(opp_side, Piece::Rook)
+        | position.get_piece_bb(opp_side, Piece::Queen);
     let mut pinners = king_ray & possible_pinners;
 
     let mut rook_pin_ray = BitBoard::empty();
@@ -144,7 +144,7 @@ fn get_pin_rays(
         moves.set_square(pinner_square); // Want to include capturing pinner in ray
         let possible_pin_ray = moves & king_ray;
         // If there's multiple pieces in the ray, then there's no pin
-        if (possible_pin_ray & position.sides.get(side)).num_squares_set() > 1 {
+        if (possible_pin_ray & position.get_side_bb(side)).num_squares_set() > 1 {
             continue;
         }
         rook_pin_ray |= moves & king_ray;
@@ -153,8 +153,8 @@ fn get_pin_rays(
     // Bishop pin ray
     let king_ray = sliding_pieces.gen_moves(Piece::Bishop, king_square, king_ray_occupancy);
 
-    let possible_pinners = position.pieces.get(Piece::Bishop).get(opp_side)
-        | position.pieces.get(Piece::Queen).get(opp_side);
+    let possible_pinners = position.get_piece_bb(opp_side, Piece::Bishop)
+        | position.get_piece_bb(opp_side, Piece::Queen);
     let mut pinners = king_ray & possible_pinners;
 
     let mut bishop_pin_ray = BitBoard::empty();
@@ -165,7 +165,7 @@ fn get_pin_rays(
         moves.set_square(pinner_square); // Want to include capturing pinner in ray
         let possible_pin_ray = moves & king_ray;
         // If there's multiple pieces in the ray, then there's no pin
-        if (possible_pin_ray & position.sides.get(side)).num_squares_set() > 1 {
+        if (possible_pin_ray & position.get_side_bb(side)).num_squares_set() > 1 {
             continue;
         }
         bishop_pin_ray |= moves & king_ray;
@@ -183,13 +183,13 @@ pub(super) fn get_checkers(
     let opp_side = side.opposite_side();
 
     debug_assert!(
-        !position.pieces.get(Piece::King).get(side).is_empty(),
+        !position.get_piece_bb(side, Piece::King).is_empty(),
         "{:?} king is somehow missing:\n{:?}",
         side,
         position
     );
-    let king_square = position.pieces.get(Piece::King).get(side).pop_lsb();
-    let occupancy = position.sides.get(Side::White) | position.sides.get(Side::Black);
+    let king_square = position.get_piece_bb(side, Piece::King).to_square();
+    let occupancy = position.occupancy_bb();
 
     let mut checkers = BitBoard::empty();
 
@@ -202,7 +202,7 @@ pub(super) fn get_checkers(
             Piece::Pawn => leaping_pieces.gen_pawn_atks(king_square, side),
             Piece::King => BitBoard::empty(), // Pass
         };
-        let pieces = position.pieces.get(piece_type).get(opp_side);
+        let pieces = position.get_piece_bb(opp_side, piece_type);
         checkers |= moves & pieces;
     }
 
@@ -223,8 +223,8 @@ pub(super) fn gen_moves(
     let side = position.state.to_move;
     let opp_side = side.opposite_side();
 
-    let friendly_pieces = position.sides.get(side);
-    let opp_pieces = position.sides.get(side.opposite_side());
+    let friendly_pieces = position.get_side_bb(side);
+    let opp_pieces = position.get_side_bb(side.opposite_side());
 
     let occupancy = friendly_pieces | opp_pieces;
 
@@ -235,7 +235,7 @@ pub(super) fn gen_moves(
     let mut capture_mask = BitBoard::full();
     let mut push_mask = BitBoard::full();
 
-    let king_square = position.pieces.get(Piece::King).get(side).get_lsb();
+    let king_square = position.get_piece_bb(side, Piece::King).to_square();
     let (rook_pin_ray, bishop_pin_ray) = get_pin_rays(position, side, sliding_pieces);
 
     // If the king has more than one checker, than the only legal moves are to move the king
@@ -279,7 +279,7 @@ pub(super) fn gen_moves(
     }
 
     for piece_type in Piece::iter() {
-        let pieces = position.pieces.get(piece_type).get(side);
+        let pieces = position.get_piece_bb(side, piece_type);
 
         for piece_square in pieces.to_squares() {
             let mut moves_bb = match piece_type {

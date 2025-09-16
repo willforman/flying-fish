@@ -1,7 +1,7 @@
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Square};
 use crate::position::zobrist_hash::ZobristHash;
-use crate::position::{CastlingRights, Piece, Pieces, Position, Side, Sides, State};
+use crate::position::{CastlingRights, Piece, Position, Side, State};
 use std::str::FromStr;
 
 use strum::IntoEnumIterator;
@@ -230,9 +230,9 @@ const FEN_SQUARE_ORDER: [Square; 64] = [
     A2, B2, C2, D2, E2, F2, G2, H2, A1, B1, C1, D1, E1, F1, G1, H1,
 ];
 
-fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
-    let mut sides = Sides::new();
-    let mut pieces = Pieces::new();
+fn pieces_from_fen(pieces_str: &str) -> Result<([BitBoard; 2], [BitBoard; 12]), FenParseError> {
+    let mut sides = [BitBoard::empty(); 2];
+    let mut pieces = [BitBoard::empty(); 12];
     let mut sq_idx = 0;
 
     for (ch_idx, ch) in pieces_str.chars().enumerate() {
@@ -244,8 +244,8 @@ fn pieces_from_fen(pieces_str: &str) -> Result<(Sides, Pieces), FenParseError> {
                 Side::Black
             };
 
-            sides.get_mut(side).set_square(square);
-            pieces.get_mut(piece).get_mut(side).set_square(square);
+            sides[side as usize].set_square(square);
+            pieces[piece as usize + (side as usize * 6)].set_square(square);
 
             sq_idx += 1;
         } else if let Some(digit) = ch.to_digit(10) {
@@ -301,54 +301,45 @@ mod tests {
     }
 
     // 1R2k3/2Q5/8/8/7p/8/5P1P/6K1 b - - 7 42
-    #[test_case("1R2k3/2Q5/8/8/7p/8/5P1P/6K1", Sides {
-        white: BitBoard::from_squares(&[B8, C7, F2, G1, H2]),
-        black: BitBoard::from_squares(&[E8, H4])
-    }, Pieces {
-        pawns: Sides {
-            white: BitBoard::from_squares(&[F2, H2]),
-            black: BitBoard::from_squares(&[H4]),
-        },
-        knights: Sides {
-            white: BitBoard::from_squares(&[]),
-            black: BitBoard::from_squares(&[]),
-        },
-        bishops: Sides {
-            white: BitBoard::from_squares(&[]),
-            black: BitBoard::from_squares(&[]),
-        },
-        rooks: Sides {
-            white: BitBoard::from_squares(&[B8]),
-            black: BitBoard::from_squares(&[]),
-        },
-        queens: Sides {
-            white: BitBoard::from_squares(&[C7]),
-            black: BitBoard::from_squares(&[]),
-        },
-        kings: Sides {
-            white: BitBoard::from_squares(&[G1]),
-            black: BitBoard::from_squares(&[E8]),
-        },
-    } ; "first")]
-    fn test_pieces_from_fen_(inp: &str, sides_want: Sides, pieces_want: Pieces) -> TestResult {
+    #[test_case("1R2k3/2Q5/8/8/7p/8/5P1P/6K1", [
+        BitBoard::from_squares(&[B8, C7, F2, G1, H2]),
+        BitBoard::from_squares(&[E8, H4])
+    ], [
+            BitBoard::from_squares(&[F2, H2]),
+            BitBoard::from_squares(&[]),
+            BitBoard::from_squares(&[]),
+            BitBoard::from_squares(&[B8]),
+            BitBoard::from_squares(&[C7]),
+            BitBoard::from_squares(&[G1]),
+            BitBoard::from_squares(&[H4]),
+            BitBoard::from_squares(&[]),
+            BitBoard::from_squares(&[]),
+            BitBoard::from_squares(&[]),
+            BitBoard::from_squares(&[]),
+            BitBoard::from_squares(&[E8]),
+    ] ; "first")]
+    fn test_pieces_from_fen(
+        inp: &str,
+        sides_want: [BitBoard; 2],
+        pieces_want: [BitBoard; 12],
+    ) -> TestResult {
         let (sides, pieces) = pieces_from_fen(inp)?;
 
-        assert_eq!(sides.white, sides_want.white);
-        assert_eq!(sides.black, sides_want.black);
+        assert_eq!(sides[0], sides_want[0]);
+        assert_eq!(sides[1], sides_want[1]);
 
-        assert_eq!(pieces.pawns.white, pieces_want.pawns.white);
-        assert_eq!(pieces.knights.white, pieces_want.knights.white);
-        assert_eq!(pieces.bishops.white, pieces_want.bishops.white);
-        assert_eq!(pieces.rooks.white, pieces_want.rooks.white);
-        assert_eq!(pieces.queens.white, pieces_want.queens.white);
-        assert_eq!(pieces.kings.white, pieces_want.kings.white);
-
-        assert_eq!(pieces.pawns.black, pieces_want.pawns.black);
-        assert_eq!(pieces.knights.black, pieces_want.knights.black);
-        assert_eq!(pieces.bishops.black, pieces_want.bishops.black);
-        assert_eq!(pieces.rooks.black, pieces_want.rooks.black);
-        assert_eq!(pieces.queens.black, pieces_want.queens.black);
-        assert_eq!(pieces.kings.black, pieces_want.kings.black);
+        assert_eq!(pieces[0], pieces_want[0]);
+        assert_eq!(pieces[1], pieces_want[1]);
+        assert_eq!(pieces[2], pieces_want[2]);
+        assert_eq!(pieces[3], pieces_want[3]);
+        assert_eq!(pieces[4], pieces_want[4]);
+        assert_eq!(pieces[5], pieces_want[5]);
+        assert_eq!(pieces[6], pieces_want[6]);
+        assert_eq!(pieces[7], pieces_want[7]);
+        assert_eq!(pieces[8], pieces_want[8]);
+        assert_eq!(pieces[9], pieces_want[9]);
+        assert_eq!(pieces[10], pieces_want[10]);
+        assert_eq!(pieces[11], pieces_want[11]);
 
         Ok(())
     }

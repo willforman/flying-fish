@@ -2,10 +2,7 @@ use std::fmt::{Display, write};
 
 use strum::IntoEnumIterator;
 
-use crate::{
-    Piece, Side, Square,
-    position::{Pieces, State},
-};
+use crate::{Piece, Side, Square, bitboard::BitBoard, position::State};
 
 const RNG_SEED: u64 = 123456789;
 
@@ -82,14 +79,15 @@ impl Display for ZobristHash {
 }
 
 impl ZobristHash {
-    pub(crate) fn calculate(pieces: &Pieces, state: &State) -> ZobristHash {
+    pub(crate) fn calculate(pieces: &[BitBoard; 12], state: &State) -> ZobristHash {
         let mut hash = 0;
-        for (sq_idx, square) in Square::iter().enumerate() {
-            for (piece_idx, piece) in Piece::iter().enumerate() {
-                if pieces.get(piece).get(Side::White).is_square_set(square) {
-                    hash ^= ZOBRIST_RANDOM_HASHES.pieces[piece_idx * sq_idx];
-                } else if pieces.get(piece).get(Side::Black).is_square_set(square) {
-                    hash ^= ZOBRIST_RANDOM_HASHES.pieces[piece_idx * 2 * sq_idx];
+        for side in Side::iter() {
+            for square in Square::iter() {
+                for piece in Piece::iter() {
+                    let bb_idx = piece as usize + (side as usize * 6);
+                    if pieces[bb_idx].is_square_set(square) {
+                        hash ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (square as usize)];
+                    }
                 }
             }
         }
@@ -120,17 +118,15 @@ impl ZobristHash {
     }
 
     pub(crate) fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
-        let piece_idx = piece as usize;
-        let sq_multiplier = if side == Side::White { 1 } else { 2 };
+        let bb_idx = piece as usize + (side as usize * 6);
 
-        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[piece_idx * sq_multiplier * (square as usize)];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (square as usize)];
     }
 
     pub(crate) fn remove_piece(&mut self, square: Square, piece: Piece, side: Side) {
-        let piece_idx = piece as usize;
-        let sq_multiplier = if side == Side::White { 1 } else { 2 };
+        let bb_idx = piece as usize + (side as usize * 6);
 
-        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[piece_idx * sq_multiplier * (square as usize)];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (square as usize)];
     }
 
     pub(crate) fn move_piece(
@@ -140,11 +136,10 @@ impl ZobristHash {
         piece: Piece,
         side: Side,
     ) {
-        let piece_idx = piece as usize;
-        let sq_multiplier = if side == Side::White { 1 } else { 2 };
+        let bb_idx = piece as usize + (side as usize * 6);
 
-        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[piece_idx * sq_multiplier * (src_square as usize)];
-        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[piece_idx * sq_multiplier * (dest_square as usize)];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (src_square as usize)];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (dest_square as usize)];
     }
 
     pub(crate) fn flip_side_to_move(&mut self) {

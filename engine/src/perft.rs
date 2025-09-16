@@ -178,7 +178,7 @@ fn perft_full_helper(
     let curr_res = depth_results.get_mut(curr_depth).unwrap();
 
     let side = position.state.to_move;
-    let opp_pieces = position.sides.get(side.opposite_side());
+    let opp_pieces = position.get_side_bb(side.opposite_side());
 
     curr_res.tot += u64::try_from(moves.len()).unwrap();
 
@@ -202,7 +202,7 @@ fn perft_full_helper(
     }
 
     if let Some(ep_target) = position.state.en_passant_target {
-        for pawn_square in position.pieces.get(Piece::Pawn).get(side).to_squares() {
+        for pawn_square in position.get_piece_bb(side, Piece::Pawn).to_squares() {
             let has_en_passant = moves
                 .iter()
                 .any(|&mve| mve.src == pawn_square && mve.dest == ep_target);

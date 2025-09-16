@@ -36,6 +36,7 @@ pub enum PositionError {
     PawnMoveMissingPromotion(Move),
 }
 
+#[repr(u8)]
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display)]
 pub enum Side {
     White,
@@ -52,6 +53,7 @@ impl Side {
     }
 }
 
+#[repr(u8)]
 #[derive(Debug, PartialEq, Eq, EnumIter, Clone, Copy, Display, Hash, PartialOrd, Ord)]
 pub enum Piece {
     Pawn,
@@ -151,118 +153,6 @@ impl fmt::Display for Move {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Sides {
-    white: BitBoard,
-    black: BitBoard,
-}
-
-impl Sides {
-    fn new() -> Self {
-        Self {
-            white: BitBoard::empty(),
-            black: BitBoard::empty(),
-        }
-    }
-    fn start() -> Self {
-        Self {
-            white: BitBoard::from_squares(&[
-                A1, B1, C1, D1, E1, F1, G1, H1, A2, B2, C2, D2, E2, F2, G2, H2,
-            ]),
-            black: BitBoard::from_squares(&[
-                A7, B7, C7, D7, E7, F7, G7, H7, A8, B8, C8, D8, E8, F8, G8, H8,
-            ]),
-        }
-    }
-
-    pub(crate) fn get(&self, side: Side) -> BitBoard {
-        match side {
-            Side::White => self.white,
-            Side::Black => self.black,
-        }
-    }
-
-    fn get_mut(&mut self, side: Side) -> &mut BitBoard {
-        match side {
-            Side::White => &mut self.white,
-            Side::Black => &mut self.black,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Pieces {
-    pawns: Sides,
-    knights: Sides,
-    bishops: Sides,
-    rooks: Sides,
-    queens: Sides,
-    kings: Sides,
-}
-
-impl Pieces {
-    fn new() -> Self {
-        Self {
-            pawns: Sides::new(),
-            knights: Sides::new(),
-            bishops: Sides::new(),
-            rooks: Sides::new(),
-            queens: Sides::new(),
-            kings: Sides::new(),
-        }
-    }
-    fn start() -> Self {
-        Self {
-            pawns: Sides {
-                white: { BitBoard::from_squares(&[A2, B2, C2, D2, E2, F2, G2, H2]) },
-                black: { BitBoard::from_squares(&[A7, B7, C7, D7, E7, F7, G7, H7]) },
-            },
-            knights: Sides {
-                white: { BitBoard::from_squares(&[B1, G1]) },
-                black: { BitBoard::from_squares(&[B8, G8]) },
-            },
-            bishops: Sides {
-                white: { BitBoard::from_squares(&[C1, F1]) },
-                black: { BitBoard::from_squares(&[C8, F8]) },
-            },
-            rooks: Sides {
-                white: { BitBoard::from_squares(&[A1, H1]) },
-                black: { BitBoard::from_squares(&[A8, H8]) },
-            },
-            queens: Sides {
-                white: { BitBoard::from_squares(&[D1]) },
-                black: { BitBoard::from_squares(&[D8]) },
-            },
-            kings: Sides {
-                white: { BitBoard::from_squares(&[E1]) },
-                black: { BitBoard::from_squares(&[E8]) },
-            },
-        }
-    }
-
-    pub(crate) fn get(&self, piece: Piece) -> &Sides {
-        match piece {
-            Piece::Pawn => &self.pawns,
-            Piece::Knight => &self.knights,
-            Piece::Bishop => &self.bishops,
-            Piece::Rook => &self.rooks,
-            Piece::Queen => &self.queens,
-            Piece::King => &self.kings,
-        }
-    }
-
-    fn get_mut(&mut self, piece: Piece) -> &mut Sides {
-        match piece {
-            Piece::Pawn => &mut self.pawns,
-            Piece::Knight => &mut self.knights,
-            Piece::Bishop => &mut self.bishops,
-            Piece::Rook => &mut self.rooks,
-            Piece::Queen => &mut self.queens,
-            Piece::King => &mut self.kings,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CastlingRights {
     pub white_king_side: bool,
@@ -330,43 +220,83 @@ pub struct UnmakeMoveState {
 #[derive(Clone, PartialEq, Eq)]
 pub struct Position {
     pub state: State,
-    pub(crate) sides: Sides,
-    pub(crate) pieces: Pieces,
+    pieces: [BitBoard; 12],
+    sides: [BitBoard; 2],
     pub(crate) zobrist_hash: ZobristHash,
 }
+
+const fn compute_start_piece_bitboards() -> [BitBoard; 12] {
+    use crate::Square::*;
+    [
+        BitBoard::from_squares(&[A2, B2, C2, D2, E2, F2, G2, H2]),
+        BitBoard::from_squares(&[B1, G1]),
+        BitBoard::from_squares(&[C1, F1]),
+        BitBoard::from_squares(&[A1, H1]),
+        BitBoard::from_squares(&[D1]),
+        BitBoard::from_squares(&[E1]),
+        BitBoard::from_squares(&[A7, B7, C7, D7, E7, F7, G7, H7]),
+        BitBoard::from_squares(&[B8, G8]),
+        BitBoard::from_squares(&[C8, F8]),
+        BitBoard::from_squares(&[A8, H8]),
+        BitBoard::from_squares(&[D8]),
+        BitBoard::from_squares(&[E8]),
+    ]
+}
+
+const fn compute_start_side_bitboards() -> [BitBoard; 2] {
+    use crate::Square::*;
+    [
+        BitBoard::from_squares(&[
+            A1, B1, C1, D1, E1, F1, G1, H1, A2, B2, C2, D2, E2, F2, G2, H2,
+        ]),
+        BitBoard::from_squares(&[
+            A7, B7, C7, D7, E7, F7, G7, H7, A8, B8, C8, D8, E8, F8, G8, H8,
+        ]),
+    ]
+}
+
+const START_PIECE_BITBOARDS: [BitBoard; 12] = compute_start_piece_bitboards();
+const START_SIDE_BITBOARDS: [BitBoard; 2] = compute_start_side_bitboards();
 
 impl Position {
     pub fn start() -> Self {
         Self {
             state: State::start(),
-            sides: Sides::start(),
-            pieces: Pieces::start(),
-            zobrist_hash: ZobristHash::calculate(&Pieces::start(), &State::start()),
+            pieces: START_PIECE_BITBOARDS,
+            sides: START_SIDE_BITBOARDS,
+            zobrist_hash: ZobristHash::calculate(&START_PIECE_BITBOARDS, &State::start()),
         }
+    }
+
+    pub(crate) fn get_piece_bb(&self, side: Side, piece: Piece) -> BitBoard {
+        self.pieces[piece as usize + (side as usize * 6)]
+    }
+
+    pub(crate) fn get_piece_bb_mut(&mut self, side: Side, piece: Piece) -> &mut BitBoard {
+        &mut self.pieces[piece as usize + (side as usize * 6)]
+    }
+
+    pub(crate) fn get_side_bb(&self, side: Side) -> BitBoard {
+        self.sides[side as usize]
+    }
+
+    pub(crate) fn get_side_bb_mut(&mut self, side: Side) -> &mut BitBoard {
+        &mut self.sides[side as usize]
+    }
+
+    pub(crate) fn occupancy_bb(&self) -> BitBoard {
+        self.sides[0] | self.sides[1]
     }
 
     #[rustfmt::skip]
     pub fn is_piece_at(&self, square: Square, side: Side) -> Option<Piece> {
-        match side {
-            Side::White => {
-                if self.pieces.pawns.white.is_square_set(square) { return Some(Piece::Pawn); }
-                if self.pieces.knights.white.is_square_set(square) { return Some(Piece::Knight); }
-                if self.pieces.bishops.white.is_square_set(square) { return Some(Piece::Bishop); }
-                if self.pieces.rooks.white.is_square_set(square) { return Some(Piece::Rook); }
-                if self.pieces.queens.white.is_square_set(square) { return Some(Piece::Queen); }
-                if self.pieces.kings.white.is_square_set(square) { return Some(Piece::King); }
-                None
-            }
-            Side::Black => {
-                if self.pieces.pawns.black.is_square_set(square) { return Some(Piece::Pawn); }
-                if self.pieces.knights.black.is_square_set(square) { return Some(Piece::Knight); }
-                if self.pieces.bishops.black.is_square_set(square) { return Some(Piece::Bishop); }
-                if self.pieces.rooks.black.is_square_set(square) { return Some(Piece::Rook); }
-                if self.pieces.queens.black.is_square_set(square) { return Some(Piece::Queen); }
-                if self.pieces.kings.black.is_square_set(square) { return Some(Piece::King); }
-                None
-            }
-        }
+        if self.get_piece_bb(side, Piece::Pawn).is_square_set(square) { return Some(Piece::Pawn); }
+        if self.get_piece_bb(side, Piece::Knight).is_square_set(square) { return Some(Piece::Knight); }
+        if self.get_piece_bb(side, Piece::Bishop).is_square_set(square) { return Some(Piece::Bishop); }
+        if self.get_piece_bb(side, Piece::Rook).is_square_set(square) { return Some(Piece::Rook); }
+        if self.get_piece_bb(side, Piece::Queen).is_square_set(square) { return Some(Piece::Queen); }
+        if self.get_piece_bb(side, Piece::King).is_square_set(square) { return Some(Piece::King); }
+        None
     }
 
     pub fn is_piece_at_no_side(&self, square: Square) -> Option<(Piece, Side)> {
@@ -380,7 +310,7 @@ impl Position {
     }
 
     pub fn is_capture(&self, mve: &Move) -> bool {
-        let opp_pieces = &self.sides.get(self.state.to_move.opposite_side());
+        let opp_pieces = self.get_side_bb(self.state.to_move.opposite_side());
         opp_pieces.is_square_set(mve.dest)
     }
 
@@ -557,12 +487,12 @@ impl Position {
         self.move_piece(mve.src, mve.dest, piece, side);
 
         debug_assert!(
-            !self.pieces.kings.white.is_empty(),
+            !self.get_piece_bb(Side::White, Piece::King).is_empty(),
             "position somehow lost white king\n{:?}",
             self
         );
         debug_assert!(
-            !self.pieces.kings.white.is_empty(),
+            !self.get_piece_bb(Side::Black, Piece::King).is_empty(),
             "position somehow lost black king\n{:?}",
             self
         );
@@ -659,8 +589,8 @@ impl Position {
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
         debug_assert!(!self.is_piece_at(square, side).is_some());
 
-        self.sides.get_mut(side).set_square(square);
-        self.pieces.get_mut(piece).get_mut(side).set_square(square);
+        self.get_side_bb_mut(side).set_square(square);
+        self.get_piece_bb_mut(side, piece).set_square(square);
 
         self.zobrist_hash.add_piece(square, piece, side);
     }
@@ -668,11 +598,8 @@ impl Position {
     pub fn remove_piece(&mut self, square: Square, piece: Piece, side: Side) {
         debug_assert!(self.is_piece_at(square, side).is_some());
 
-        self.sides.get_mut(side).clear_square(square);
-        self.pieces
-            .get_mut(piece)
-            .get_mut(side)
-            .clear_square(square);
+        self.get_side_bb_mut(side).clear_square(square);
+        self.get_piece_bb_mut(side, piece).clear_square(square);
 
         self.zobrist_hash.remove_piece(square, piece, side);
     }
@@ -681,10 +608,9 @@ impl Position {
         debug_assert!(self.is_piece_at(src_square, side).is_some());
         debug_assert!(!self.is_piece_at(dest_square, side).is_some());
 
-        self.sides.get_mut(side).move_piece(src_square, dest_square);
-        self.pieces
-            .get_mut(piece)
-            .get_mut(side)
+        self.get_side_bb_mut(side)
+            .move_piece(src_square, dest_square);
+        self.get_piece_bb_mut(side, piece)
             .move_piece(src_square, dest_square);
 
         self.zobrist_hash
@@ -694,7 +620,7 @@ impl Position {
     pub fn piece_locs(&self) -> impl Iterator<Item = (Piece, Side, Square)> + '_ {
         Side::iter().flat_map(move |side| {
             Piece::iter().flat_map(move |piece| {
-                let board_for_piece_side = self.pieces.get(piece).get(side);
+                let board_for_piece_side = self.get_piece_bb(side, piece);
                 board_for_piece_side
                     .squares()
                     .map(move |sq| (piece, side, sq))
@@ -703,51 +629,33 @@ impl Position {
     }
 
     pub(crate) fn validate_position(&self, mve: Move) -> Result<(), String> {
-        if self.pieces.get(Piece::King).get(Side::White).is_empty() {
+        if self.get_piece_bb(Side::White, Piece::King).is_empty() {
             return Err("White king missing".to_string());
         }
-        if self.pieces.get(Piece::King).get(Side::Black).is_empty() {
+        if self.get_piece_bb(Side::Black, Piece::King).is_empty() {
             return Err("Black king missing".to_string());
         }
 
         let pieces_vec: Vec<_> = Piece::iter().collect();
         // Check that no pieces have the same square set.
-        for (idx, piece_outer) in pieces_vec.iter().enumerate() {
-            for piece_inner in &pieces_vec[idx + 1..] {
-                let bb_outer = self.pieces.get(*piece_outer).get(Side::White);
-                let bb_inner = self.pieces.get(*piece_inner).get(Side::White);
+        for side in Side::iter() {
+            for (idx, &piece_outer) in pieces_vec.iter().enumerate() {
+                for &piece_inner in &pieces_vec[idx + 1..] {
+                    let bb_outer = self.get_piece_bb(side, piece_outer);
+                    let bb_inner = self.get_piece_bb(side, piece_inner);
 
-                let intersection = bb_outer & bb_inner;
-                if !intersection.is_empty() {
-                    return Err(format!(
-                        "Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}",
-                        mve,
-                        Side::White,
-                        piece_outer,
-                        piece_inner,
-                        intersection.to_squares().collect::<Vec<_>>(),
-                        intersection
-                    ));
-                }
-            }
-        }
-
-        for (idx, piece_outer) in pieces_vec.iter().enumerate() {
-            for piece_inner in &pieces_vec[idx + 1..] {
-                let bb_outer = self.pieces.get(*piece_outer).get(Side::Black);
-                let bb_inner = self.pieces.get(*piece_inner).get(Side::Black);
-
-                let intersection = bb_outer & bb_inner;
-                if !intersection.is_empty() {
-                    return Err(format!(
-                        "Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}",
-                        mve,
-                        Side::Black,
-                        piece_outer,
-                        piece_inner,
-                        intersection.to_squares().collect::<Vec<_>>(),
-                        intersection
-                    ));
+                    let intersection = bb_outer & bb_inner;
+                    if !intersection.is_empty() {
+                        return Err(format!(
+                            "Invalid state: move={:?} caused {:?} {:?} and {:?} to set the same squares: {:?}\n{:?}",
+                            mve,
+                            Side::White,
+                            piece_outer,
+                            piece_inner,
+                            intersection.to_squares().collect::<Vec<_>>(),
+                            intersection
+                        ));
+                    }
                 }
             }
         }
