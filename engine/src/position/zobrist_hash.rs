@@ -87,7 +87,7 @@ impl ZobristHash {
         self.0
     }
 
-    pub(crate) fn calculate(pieces: &[BitBoard; 12], state: &State) -> ZobristHash {
+    pub fn calculate(pieces: &[BitBoard; 12], state: &State) -> ZobristHash {
         let mut hash = 0;
         for side in Side::iter() {
             for square in Square::iter() {

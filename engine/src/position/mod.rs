@@ -220,9 +220,9 @@ pub struct UnmakeMoveState {
 #[derive(Clone, PartialEq, Eq)]
 pub struct Position {
     pub state: State,
-    pieces: [BitBoard; 12],
-    sides: [BitBoard; 2],
-    pub(crate) zobrist_hash: ZobristHash,
+    pub pieces: [BitBoard; 12],
+    pub sides: [BitBoard; 2],
+    pub zobrist_hash: ZobristHash,
 }
 
 const fn compute_start_piece_bitboards() -> [BitBoard; 12] {
@@ -511,7 +511,7 @@ impl Position {
         {
             self.zobrist_hash.flip_castling_rights_white_queenside();
         }
-        if self.state.castling_rights.white_queen_side
+        if self.state.castling_rights.white_king_side
             != unmake_move_state.castling_rights.white_king_side
         {
             self.zobrist_hash.flip_castling_rights_white_kingside();
@@ -521,7 +521,7 @@ impl Position {
         {
             self.zobrist_hash.flip_castling_rights_black_queenside();
         }
-        if self.state.castling_rights.black_queen_side
+        if self.state.castling_rights.black_king_side
             != unmake_move_state.castling_rights.black_king_side
         {
             self.zobrist_hash.flip_castling_rights_black_kingside();
@@ -541,13 +541,13 @@ impl Position {
         self.state.to_move = moved_side;
         self.zobrist_hash.flip_side_to_move();
 
-        self.move_piece(mve.dest, mve.src, piece_moved, moved_side);
-
         // If the move was a promotion, we need to make sure to put the pawn back and
         // clear the piece that was promoted.
         if let Some(promotion_piece) = mve.promotion {
-            piece_moved = Piece::Pawn;
             self.remove_piece(mve.dest, promotion_piece, moved_side);
+            self.add_piece(mve.src, Piece::Pawn, moved_side);
+        } else {
+            self.move_piece(mve.dest, mve.src, piece_moved, moved_side);
         }
 
         // Handle undoing castling
@@ -564,7 +564,7 @@ impl Position {
 
         if let Some(en_passant_target) = unmake_move_state.en_passant_target {
             self.zobrist_hash.flip_en_passant_file(en_passant_target);
-            if mve.dest == en_passant_target && unmake_move_state.piece_moved == Piece::Pawn {
+            if mve.dest == en_passant_target && piece_moved == Piece::Pawn {
                 let ep_capture_dir = if moved_side == Side::White {
                     Direction::DecRank
                 } else {
@@ -783,6 +783,7 @@ mod tests {
     #[test_case(Position::from_fen("k7/8/8/8/8/8/8/4K2R w K - 0 1").unwrap(), Move::new(E1, G1) ; "castling kingside")]
     #[test_case(Position::from_fen("k7/8/8/8/8/8/8/R3K3 w K - 0 1").unwrap(), Move::new(E1, C1) ; "castling queenside")]
     #[test_case(Position::from_fen("k7/8/8/5Pp1/8/8/8/7K w - g6 0 1").unwrap(), Move::new(F5, G6) ; "en passant white")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/PPN2Q2/2PBBPpP/R3K2R b KQkq - 0 1").unwrap(), Move::with_promotion(G2, H1, Piece::Rook) ; "promotion")]
     fn test_unmake_move(position: Position, mve: Move) -> TestResult {
         let mut move_position = position.clone();
         let undo_move_state = move_position.make_move(mve);
