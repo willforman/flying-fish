@@ -7,7 +7,9 @@ use std::{
 use test_case::test_case;
 
 use engine::Square::*;
-use engine::{MOVE_GEN, Move, POSITION_EVALUATOR, Position, SearchParams, search};
+use engine::{
+    MOVE_GEN, Move, POSITION_EVALUATOR, Position, SearchParams, TranspositionTable, search,
+};
 use testresult::TestResult;
 
 #[test]
@@ -25,6 +27,7 @@ fn test_search_terminates() {
             },
             MOVE_GEN,
             POSITION_EVALUATOR,
+            &mut TranspositionTable::new(),
             Arc::clone(&terminate_cloned),
         )
         .unwrap();
@@ -54,7 +57,7 @@ fn test_search_terminates() {
 #[test_case(Position::from_fen("rnbqkbnr/ppp2ppp/8/3pp3/4P1Q1/2N5/PPPP1PPP/R1B1KBNR b KQkq - 0 1").unwrap(), 1, Move::new(C8, G4) ; "obvious queen capture full board depth 1")]
 #[test_case(Position::from_fen("rnbqkbnr/ppp2ppp/8/3pp3/4P1Q1/2N5/PPPP1PPP/R1B1KBNR b KQkq - 0 1").unwrap(), 3, Move::new(C8, G4) ; "obvious queen capture full board depth 3")]
 #[test_case(Position::from_fen("7k/8/8/8/8/3r4/4r3/1K6 w - - 0 1").unwrap(), 3, Move::new(B1, C1) ; "obvious move to avoid mate")]
-fn test_finds_best_move(position: Position, max_depth: u64, best_move_want: Move) -> TestResult {
+fn test_finds_best_move(position: Position, max_depth: u8, best_move_want: Move) -> TestResult {
     let search_params = SearchParams {
         max_depth: Some(max_depth),
         move_time: Some(Duration::from_secs(10)),
@@ -65,6 +68,7 @@ fn test_finds_best_move(position: Position, max_depth: u64, best_move_want: Move
         &search_params,
         MOVE_GEN,
         POSITION_EVALUATOR,
+        &mut TranspositionTable::new(),
         Arc::new(AtomicBool::new(false)),
     )?;
     assert_eq!(best_move_got, Some(best_move_want));
@@ -73,6 +77,7 @@ fn test_finds_best_move(position: Position, max_depth: u64, best_move_want: Move
 
 #[test_case(Position::from_fen("k7/8/1R6/8/8/8/8/1R1K4 w - - 0 1").unwrap(), Move::new(B6, B7) ; "rook ladder stalemate")]
 fn test_doesnt_find_stalemate(position: Position, stalemate_move_dont_want: Move) -> TestResult {
+    let tt = TranspositionTable::new();
     let search_params = SearchParams {
         max_depth: Some(1),
         ..SearchParams::default()
@@ -82,6 +87,7 @@ fn test_doesnt_find_stalemate(position: Position, stalemate_move_dont_want: Move
         &search_params,
         MOVE_GEN,
         POSITION_EVALUATOR,
+        &mut TranspositionTable::new(),
         Arc::new(AtomicBool::new(false)),
     )?;
     assert_ne!(best_move_got, Some(stalemate_move_dont_want));
@@ -100,6 +106,7 @@ fn test_avoids_horizon_effect(position: Position, horizon_effect_move: Move) -> 
         &search_params,
         MOVE_GEN,
         POSITION_EVALUATOR,
+        &mut TranspositionTable::new(),
         Arc::new(AtomicBool::new(false)),
     )?;
 

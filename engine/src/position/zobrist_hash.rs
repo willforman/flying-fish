@@ -70,7 +70,7 @@ impl ZobristRandomHashes {
 const ZOBRIST_RANDOM_HASHES: ZobristRandomHashes = ZobristRandomHashes::init();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct ZobristHash(u64);
+pub struct ZobristHash(u64);
 
 impl Display for ZobristHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -79,6 +79,14 @@ impl Display for ZobristHash {
 }
 
 impl ZobristHash {
+    pub fn empty() -> Self {
+        Self(0)
+    }
+
+    pub fn value(self) -> u64 {
+        self.0
+    }
+
     pub(crate) fn calculate(pieces: &[BitBoard; 12], state: &State) -> ZobristHash {
         let mut hash = 0;
         for side in Side::iter() {

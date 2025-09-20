@@ -6,11 +6,11 @@ use strum_macros::{Display, EnumIter};
 
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Direction, Square};
-use crate::position;
-use crate::position::zobrist_hash::ZobristHash;
 
 mod fen;
 mod zobrist_hash;
+
+pub use zobrist_hash::ZobristHash;
 
 #[derive(thiserror::Error, Debug)]
 pub enum PositionError {

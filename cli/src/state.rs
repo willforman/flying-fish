@@ -13,7 +13,7 @@ use tracing::{debug, error, info, warn};
 
 use engine::{
     AUTHOR, EvaluatePosition, GenerateMoves, MOVE_GEN, Move, NAME, POSITION_EVALUATOR, Position,
-    SearchError, SearchParams, perft, perft_full, search,
+    SearchError, SearchParams, TranspositionTable, perft, perft_full, search,
 };
 
 use crate::LOGS_DIRECTORY;
@@ -324,6 +324,7 @@ fn spawn_search(
             &params,
             move_gen,
             POSITION_EVALUATOR,
+            &mut TranspositionTable::new(),
             Arc::clone(&terminate),
         )?;
         uci!(

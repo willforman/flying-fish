@@ -118,9 +118,9 @@ pub(crate) enum GoParameter {
     Time { time: Duration, side: Side },
     Inc { time: Duration, side: Side },
     MovesToGo { moves: u16 },
-    Depth { moves: u64 },
+    Depth { moves: u8 },
     Nodes { nodes: u64 },
-    Mate { moves: u64 },
+    Mate { moves: u8 },
     MoveTime { time: Duration },
     Infinite,
     Ponder,
@@ -552,8 +552,8 @@ fn parse_go_movestogo(input: &mut &str) -> WinnowResult<GoParameter> {
 }
 
 fn parse_go_depth(input: &mut &str) -> WinnowResult<GoParameter> {
-    preceded("depth ", digit1.try_map(|moves: &str| u64::from_str(moves)))
-        .map(|moves: u64| GoParameter::Depth { moves })
+    preceded("depth ", digit1.try_map(|moves: &str| u8::from_str(moves)))
+        .map(|moves: u8| GoParameter::Depth { moves })
         .parse_next(input)
 }
 
@@ -564,8 +564,8 @@ fn parse_go_nodes(input: &mut &str) -> WinnowResult<GoParameter> {
 }
 
 fn parse_go_mate(input: &mut &str) -> WinnowResult<GoParameter> {
-    preceded("mate ", digit1.try_map(|moves: &str| u64::from_str(moves)))
-        .map(|moves: u64| GoParameter::Mate { moves })
+    preceded("mate ", digit1.try_map(|moves: &str| u8::from_str(moves)))
+        .map(|moves: u8| GoParameter::Mate { moves })
         .parse_next(input)
 }
 

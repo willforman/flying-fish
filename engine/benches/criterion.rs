@@ -2,7 +2,9 @@ use std::sync::{Arc, atomic::AtomicBool};
 use std::time::{Duration, Instant};
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use engine::{MOVE_GEN, POSITION_EVALUATOR, Position, SearchParams, perft, search};
+use engine::{
+    MOVE_GEN, POSITION_EVALUATOR, Position, SearchParams, TranspositionTable, perft, search,
+};
 
 const PERFT_BENCHMARK_FENS_AND_DEPTHS: &[(&str, usize, &str)] = &[
     (
@@ -88,7 +90,7 @@ pub fn benchmark_search(c: &mut Criterion) {
         let pos = Position::from_fen(fen).unwrap();
         let bench_name = format!("search {}", position_name);
         let search_params = SearchParams {
-            max_depth: Some(*depth as u64),
+            max_depth: Some(*depth as u8),
             ..SearchParams::default()
         };
 
@@ -103,6 +105,7 @@ pub fn benchmark_search(c: &mut Criterion) {
                         &search_params,
                         MOVE_GEN,
                         POSITION_EVALUATOR,
+                        &mut TranspositionTable::new(),
                         Arc::new(AtomicBool::new(false)),
                     )
                     .unwrap();

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::Write;
+use std::ops::Index;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -15,7 +16,8 @@ use tracing::{debug, debug_span, enabled, error, info, warn};
 use crate::evaluation::{Eval, EvaluatePosition};
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
-use crate::{Piece, TRACING_TARGET_SEARCH};
+use crate::transposition_table::{TranspositionTable, TranspositionTableScore};
+use crate::{Piece, TRACING_TARGET_SEARCH, transposition_table};
 use crate::{Side, Square};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -27,9 +29,9 @@ pub struct SearchParams {
     pub white_inc: Option<Duration>,
     pub black_inc: Option<Duration>,
     pub moves_to_go: Option<u16>,
-    pub max_depth: Option<u64>,
+    pub max_depth: Option<u8>,
     pub max_nodes: Option<u64>,
-    pub mate: Option<u64>,
+    pub mate: Option<u8>,
     pub move_time: Option<Duration>,
     pub infinite: bool,
 }
@@ -218,7 +220,7 @@ impl Display for SearchInfo {
 #[derive(thiserror::Error, Debug)]
 pub enum SearchError {
     #[error("Parameters depth and mate are mutually exclusive, both passed: {0}, {1}")]
-    DepthAndMatePassed(u64, u64),
+    DepthAndMatePassed(u8, u8),
 
     #[error("Couldn't open search file logs: {0}")]
     OpenSearchLogsFile(PathBuf),
@@ -229,12 +231,12 @@ pub fn search(
     params: &SearchParams,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
+    transposition_table: &mut TranspositionTable,
     terminate: Arc<AtomicBool>,
 ) -> Result<(Option<Move>, SearchResultInfo), SearchError> {
     debug_span!("search", position = position.to_fen(), params = ?params);
     let mut params = params.clone();
     let mut best_move: Option<Move> = None;
-    let mut best_val: Option<Move> = None;
 
     let mut positions_processed: u64 = 0;
     let start = Instant::now();
@@ -287,8 +289,8 @@ pub fn search(
             "Iterative deepening iteration: {} of {}",
             iterative_deepening_max_depth, max_depth
         );
-        let iterative_deepening_max_depth: u64 = iterative_deepening_max_depth.try_into().unwrap();
-        let mut max_depth_reached: u64 = 1;
+        let iterative_deepening_max_depth: u8 = iterative_deepening_max_depth.try_into().unwrap();
+        let mut max_depth_reached: u8 = 1;
 
         // Find value of each move up to current depth
         let mut move_vals = HashMap::with_capacity(moves.len());
@@ -307,6 +309,7 @@ pub fn search(
                 Eval::Mate(1), // Maximum `Eval` value
                 move_gen,
                 position_eval,
+                transposition_table,
                 Arc::clone(&terminate),
             );
             if let Some(move_eval) = maybe_move_eval {
@@ -419,9 +422,9 @@ fn calc_time_to_use(
 fn search_helper(
     position: &mut Position,
     params: &SearchParams,
-    curr_depth: u64,
-    max_depth: u64,
-    max_depth_reached: &mut u64,
+    curr_depth: u8,
+    max_depth: u8,
+    max_depth_reached: &mut u8,
     positions_processed: &mut u64,
     start_time: &Instant,
     latest_eval: &mut Eval,
@@ -429,6 +432,7 @@ fn search_helper(
     beta: Eval,
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
+    transposition_table: &mut TranspositionTable,
     terminate: Arc<AtomicBool>,
 ) -> Option<Eval> {
     // If this search has been terminated, return early
@@ -485,10 +489,23 @@ fn search_helper(
         );
     }
 
+    let maybe_tt_best_move = if let Some(tt_entry) = transposition_table.get(position) {
+        if tt_entry.depth >= (max_depth - curr_depth) {
+            if let TranspositionTableScore::Exact(tt_exact_score) = tt_entry.score {
+                return Some(tt_exact_score);
+            }
+        }
+        Some(tt_entry.best_move)
+    } else {
+        None
+    };
+
     let mut moves = move_gen.gen_moves(position);
-    order_moves(&mut moves, position);
+    order_moves(&mut moves, position, maybe_tt_best_move);
 
     let mut best_eval = Eval::Mate(0);
+    let mut best_move = Move::new(Square::A1, Square::A1);
+    let original_alpha = alpha;
     for mve in moves {
         let unmake_move_state = position.make_move(mve);
         #[cfg(debug_assertions)]
@@ -513,6 +530,7 @@ fn search_helper(
             alpha.flip(),
             move_gen,
             position_eval,
+            transposition_table,
             Arc::clone(&terminate),
         )?;
 
@@ -522,6 +540,7 @@ fn search_helper(
 
         if got_eval >= best_eval {
             best_eval = got_eval;
+            best_move = mve;
             if got_eval >= alpha {
                 alpha = got_eval;
             }
@@ -532,6 +551,14 @@ fn search_helper(
             break;
         }
     }
+    let tt_score = if best_eval >= beta {
+        TranspositionTableScore::LowerBound(best_eval)
+    } else if best_eval <= original_alpha {
+        TranspositionTableScore::UpperBound(best_eval)
+    } else {
+        TranspositionTableScore::Exact(best_eval)
+    };
+    transposition_table.store(position, tt_score, best_move, (max_depth - curr_depth));
 
     Some(best_eval)
 }
@@ -541,9 +568,9 @@ fn search_helper(
 fn quiescence_search(
     position: &mut Position,
     params: &SearchParams,
-    curr_depth: u64,
-    max_depth: u64,
-    max_depth_reached: &mut u64,
+    curr_depth: u8,
+    max_depth: u8,
+    max_depth_reached: &mut u8,
     positions_processed: &mut u64,
     start_time: &Instant,
     latest_eval: &mut Eval,
@@ -599,7 +626,7 @@ fn quiescence_search(
         .filter(|mve| position.is_capture(mve))
         .collect();
 
-    order_moves(&mut capture_moves, position);
+    order_moves(&mut capture_moves, position, None);
 
     for mve in capture_moves {
         let unmake_move_state = position.make_move(mve);
@@ -644,8 +671,21 @@ fn quiescence_search(
     Some(best_eval)
 }
 
-fn order_moves(moves: &mut ArrayVec<Move, 80>, position: &Position) {
+fn order_moves(
+    moves: &mut ArrayVec<Move, 80>,
+    position: &Position,
+    maybe_tt_best_move: Option<Move>,
+) {
     moves.sort_by_key(|mve| -(get_mvv_lva_value(mve, position) as i64));
+    if let Some(tt_best_move) = maybe_tt_best_move {
+        let tt_best_move_idx = moves.iter().position(|&m| m == tt_best_move);
+        // .expect("Should have found tt_best_move in moves list");
+        if tt_best_move_idx.is_none() {
+            return;
+        }
+        moves.remove(tt_best_move_idx.unwrap());
+        moves.insert(0, tt_best_move);
+    }
 }
 
 fn get_mvv_lva_value(mve: &Move, position: &Position) -> usize {
@@ -663,9 +703,9 @@ fn get_mvv_lva_value(mve: &Move, position: &Position) -> usize {
 }
 
 fn write_search_info(
-    iterative_deepening_max_depth: u64,
+    iterative_deepening_max_depth: u8,
     nodes_processed: u64,
-    max_depth_reached: u64,
+    max_depth_reached: u8,
     start_time: &Instant,
     latest_eval: &Eval,
     best_move: Option<Move>,

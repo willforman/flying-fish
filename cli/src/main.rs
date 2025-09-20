@@ -1,6 +1,6 @@
 use std::{
     env,
-    fs::File,
+    fs::{self, File},
     io::{self, BufRead},
     path::PathBuf,
     str::FromStr,
@@ -9,7 +9,9 @@ use std::{
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use engine::{MOVE_GEN, POSITION_EVALUATOR, Position, SearchParams, perft, search};
+use engine::{
+    MOVE_GEN, POSITION_EVALUATOR, Position, SearchParams, TranspositionTable, perft, search,
+};
 use mimalloc::MiMalloc;
 use tracing::{Level, debug, level_filters::LevelFilter, warn};
 use tracing_subscriber::{Registry, layer::SubscriberExt, prelude::*, util::SubscriberInitExt};
@@ -31,11 +33,11 @@ enum Commands {
     /// Search a position for the best move.
     Search {
         fen: String,
-        depth: u64,
+        depth: u8,
     },
     Perft {
         fen: String,
-        depth: u64,
+        depth: u8,
     },
 }
 
@@ -51,7 +53,7 @@ fn main() -> Result<()> {
     }
 }
 
-fn cli_search(fen: &str, depth: u64) -> Result<()> {
+fn cli_search(fen: &str, depth: u8) -> Result<()> {
     let position = Position::from_fen(fen)?;
     let search_params = SearchParams {
         max_depth: Some(depth),
@@ -62,6 +64,7 @@ fn cli_search(fen: &str, depth: u64) -> Result<()> {
         &search_params,
         MOVE_GEN,
         POSITION_EVALUATOR,
+        &mut TranspositionTable::new(),
         Arc::new(AtomicBool::new(false)),
     )?;
     println!(
@@ -74,7 +77,7 @@ fn cli_search(fen: &str, depth: u64) -> Result<()> {
     Ok(())
 }
 
-fn cli_perft(fen: &str, depth: u64) -> Result<()> {
+fn cli_perft(fen: &str, depth: u8) -> Result<()> {
     let position =
         Position::from_fen(fen).with_context(|| format!("Couldn't parse given fen: `{}`", fen))?;
     let (move_counts, tot_moves) = perft(&position, depth as usize, MOVE_GEN);
@@ -103,7 +106,12 @@ fn enable_logging() -> Result<()> {
     let log_path = if let Ok(log_path_str) = env::var("FLYING_FISH_LOG_PATH") {
         PathBuf::from_str(&log_path_str)?
     } else {
-        get_default_log_path()?
+        let log_path = get_default_log_path()?;
+        let log_path_dir = log_path.parent().unwrap();
+        if !log_path_dir.exists() {
+            fs::create_dir(log_path_dir)?;
+        }
+        log_path
     };
 
     let log_file =
