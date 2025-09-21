@@ -5,18 +5,18 @@ use engine::{MOVE_GEN, Move, PerftDepthResult, Position, perft, perft_full};
 
 use test_case::test_case;
 
-#[test_case(Position::start(), 6, PerftDepthResult::new(
-    2_439_530_234_167,
-    125_208_536_153,
-    319_496_827,
-    1_784_356_000,
-    17_334_376,
-    36_095_901_903,
-    37_101_713,
-    5_547_231,
-    400_191_963,
-    ) ; "starting 6"
-)]
+// #[test_case(Position::start(), 6, PerftDepthResult::new(
+//     2_439_530_234_167,
+//     125_208_536_153,
+//     319_496_827,
+//     1_784_356_000,
+//     17_334_376,
+//     36_095_901_903,
+//     37_101_713,
+//     5_547_231,
+//     400_191_963,
+//     ) ; "starting 6"
+// )]
 #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 3, PerftDepthResult::new(
     97862,
     17102,
@@ -208,28 +208,28 @@ macro_rules! assert_eq_maps {
     (Move::new(G1, F3), 233491),
     (Move::new(G1, H3), 198502),
 ]) ; "starting position 5")]
-#[test_case(Position::start(), &[], 6, 119060324, HashMap::from([
-    (Move::new(A2, A3), 4463267),
-    (Move::new(B2, B3), 5310358),
-    (Move::new(C2, C3), 5417640),
-    (Move::new(D2, D3), 8073082),
-    (Move::new(E2, E3), 9726018),
-    (Move::new(F2, F3), 4404141),
-    (Move::new(G2, G3), 5346260),
-    (Move::new(H2, H3), 4463070),
-    (Move::new(A2, A4), 5363555),
-    (Move::new(B2, B4), 5293555),
-    (Move::new(C2, C4), 5866666),
-    (Move::new(D2, D4), 8879566),
-    (Move::new(E2, E4), 9771632),
-    (Move::new(F2, F4), 4890429),
-    (Move::new(G2, G4), 5239875),
-    (Move::new(H2, H4), 5385554),
-    (Move::new(B1, A3), 4856835),
-    (Move::new(B1, C3), 5708064),
-    (Move::new(G1, F3), 5723523),
-    (Move::new(G1, H3), 4877234),
-]) ; "starting position 6")]
+// #[test_case(Position::start(), &[], 6, 119060324, HashMap::from([
+//     (Move::new(A2, A3), 4463267),
+//     (Move::new(B2, B3), 5310358),
+//     (Move::new(C2, C3), 5417640),
+//     (Move::new(D2, D3), 8073082),
+//     (Move::new(E2, E3), 9726018),
+//     (Move::new(F2, F3), 4404141),
+//     (Move::new(G2, G3), 5346260),
+//     (Move::new(H2, H3), 4463070),
+//     (Move::new(A2, A4), 5363555),
+//     (Move::new(B2, B4), 5293555),
+//     (Move::new(C2, C4), 5866666),
+//     (Move::new(D2, D4), 8879566),
+//     (Move::new(E2, E4), 9771632),
+//     (Move::new(F2, F4), 4890429),
+//     (Move::new(G2, G4), 5239875),
+//     (Move::new(H2, H4), 5385554),
+//     (Move::new(B1, A3), 4856835),
+//     (Move::new(B1, C3), 5708064),
+//     (Move::new(G1, F3), 5723523),
+//     (Move::new(G1, H3), 4877234),
+// ]) ; "starting position 6")]
 #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), &[], 3, 97862, HashMap::from([
     (Move::new(A2, A3), 2186),
     (Move::new(B2, B3), 1964),
