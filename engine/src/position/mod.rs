@@ -587,7 +587,11 @@ impl Position {
     }
 
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
-        debug_assert!(!self.is_piece_at(square, side).is_some());
+        debug_assert!(
+            !self.is_piece_at(square, side).is_some(),
+            "Piece already at {:?}",
+            square
+        );
 
         self.get_side_bb_mut(side).set_square(square);
         self.get_piece_bb_mut(side, piece).set_square(square);
@@ -596,7 +600,11 @@ impl Position {
     }
 
     pub fn remove_piece(&mut self, square: Square, piece: Piece, side: Side) {
-        debug_assert!(self.is_piece_at(square, side).is_some());
+        debug_assert!(
+            self.is_piece_at(square, side).is_some(),
+            "No piece to remove at {:?}",
+            square
+        );
 
         self.get_side_bb_mut(side).clear_square(square);
         self.get_piece_bb_mut(side, piece).clear_square(square);
@@ -605,8 +613,16 @@ impl Position {
     }
 
     fn move_piece(&mut self, src_square: Square, dest_square: Square, piece: Piece, side: Side) {
-        debug_assert!(self.is_piece_at(src_square, side).is_some());
-        debug_assert!(!self.is_piece_at(dest_square, side).is_some());
+        debug_assert!(
+            self.is_piece_at(src_square, side).is_some(),
+            "No piece to remove at {:?}",
+            src_square
+        );
+        debug_assert!(
+            !self.is_piece_at(dest_square, side).is_some(),
+            "Piece already at {:?}",
+            dest_square
+        );
 
         self.get_side_bb_mut(side)
             .move_piece(src_square, dest_square);

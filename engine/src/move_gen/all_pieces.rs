@@ -329,7 +329,7 @@ pub(super) fn gen_moves(
                         let (rook_ray_without_ep_pawn, _) =
                             get_pin_rays(&pos_without_ep, side, sliding_pieces);
                         if !rook_ray_without_ep_pawn.is_square_set(piece_square) {
-                            possible_atks |= BitBoard::from_square(ep_target);
+                            possible_atks.set_square(ep_target);
                         }
                     }
 
@@ -346,7 +346,7 @@ pub(super) fn gen_moves(
             }
 
             if let Some(en_passant_target) = position.state.en_passant_target {
-                if piece_type != Piece::Pawn && num_checkers == 1 && moves_bb.is_square_set(en_passant_target) {
+                if num_checkers == 1 && !(piece_type == Piece::Pawn || piece_type == Piece::King) && moves_bb.is_square_set(en_passant_target) {
                     moves_bb.clear_square(en_passant_target);
                 }
             }
@@ -717,11 +717,16 @@ mod tests {
         Move::new(G5, G6), Move::new(G5, G4), Move::new(G5, H4),
         Move::new(G5, F5), Move::new(G5, H5), Move::new(G5, F6),
     ]) ; "capture en passant target check bug")]
+    #[test_case(Position::from_fen("8/1K5r/3p4/1Pp5/1R3p1k/8/4P1P1/8 w - c6 0 3").unwrap(), &[], HashSet::from_iter([
+        Move::new(B7, A6), Move::new(B7, B6), Move::new(B7, C6),
+        Move::new(B7, C8), Move::new(B7, B8), Move::new(B7, A8),
+    ]) ; "en passant discovered check attacker")]
     fn test_gen_moves(mut position: Position, start_moves: &[Move], want: HashSet<Move>) {
         for mve in start_moves {
             position.make_move(*mve);
         }
 
+        println!("{}", position.to_fen());
         println!("{:?}", position);
         let got = gen_moves(&position, LEAPING_PIECES, SLIDING_PIECES_MOVE_GEN);
 
