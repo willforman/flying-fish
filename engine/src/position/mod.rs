@@ -1,6 +1,5 @@
 use std::fmt;
 
-use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
@@ -504,7 +503,7 @@ impl Position {
         let mve = unmake_move_state.mve;
         let opp_side = self.state.to_move;
         let moved_side = opp_side.opposite_side();
-        let mut piece_moved = unmake_move_state.piece_moved;
+        let piece_moved = unmake_move_state.piece_moved;
 
         if self.state.castling_rights.white_queen_side
             != unmake_move_state.castling_rights.white_queen_side

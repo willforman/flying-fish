@@ -1,23 +1,18 @@
-use core::{f64, panic};
+use core::panic;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::fs::File;
-use std::io::Write;
-use std::ops::Index;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use arrayvec::ArrayVec;
-use strum::IntoEnumIterator;
-use tracing::{debug, debug_span, enabled, error, info, warn};
+use tracing::{debug, debug_span, error, info};
 
 use crate::evaluation::{Eval, EvaluatePosition};
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
 use crate::transposition_table::{TranspositionTable, TranspositionTableScore};
-use crate::{Piece, TRACING_TARGET_SEARCH, transposition_table};
 use crate::{Side, Square};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -98,123 +93,6 @@ impl Display for SearchParams {
 pub struct SearchResultInfo {
     pub positions_processed: u64,
     pub time_elapsed: Duration,
-}
-
-enum SearchInfo {
-    Depth {
-        plies: u32,
-    },
-    SelDepth {
-        plies: u32,
-    },
-    Time {
-        msec: u64,
-    },
-    Nodes {
-        nodes: u64,
-    },
-    Pv {
-        moves: Vec<Move>,
-    },
-    MultiPv {
-        num: u8,
-    },
-    Score {
-        centipawns: f32,
-        mate_moves: Option<i32>,
-        lower_bound: Option<bool>,
-        upper_bound: Option<bool>,
-    },
-    CurrMove {
-        mve: Move,
-    },
-    CurrMoveNumber {
-        move_num: u32,
-    },
-    HashFull {
-        per_mill_full: u16,
-    },
-    NodesPerSecond {
-        nodes_per_sec: f32,
-    },
-    TableHits {
-        hits: u64,
-    },
-    ShredderHits {
-        hits: u64,
-    },
-    CPULoad {
-        cpu_usage_per_mill: u16,
-    },
-    String {
-        str: String,
-    },
-    Refutation {
-        moves: Vec<Move>,
-    },
-    CurrLine {
-        moves: Vec<Move>,
-        cpu_num: Option<u8>,
-    },
-}
-
-fn moves_to_string(moves: &[Move]) -> String {
-    moves
-        .iter()
-        .map(|mve| mve.to_string())
-        .collect::<Vec<String>>()
-        .join(" ")
-}
-
-impl Display for SearchInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let info_str = match self {
-            SearchInfo::Depth { plies } => format!("depth {}", plies),
-            SearchInfo::SelDepth { plies } => format!("seldepth {}", plies),
-            SearchInfo::Time { msec } => format!("time {}", msec),
-            SearchInfo::Nodes { nodes } => format!("nodes {}", nodes),
-            SearchInfo::Pv { moves } => format!("pv {}", moves_to_string(moves)),
-            SearchInfo::MultiPv { num } => format!("multipv {}", num),
-            SearchInfo::Score {
-                centipawns,
-                mate_moves,
-                lower_bound,
-                upper_bound,
-            } => {
-                let mut score_str = format!("score cp {}", centipawns);
-
-                if let Some(mate_moves) = mate_moves {
-                    score_str.push_str(format!(" mate {}", mate_moves).as_str());
-                };
-
-                if lower_bound.is_some() {
-                    score_str.push_str(" lowerbound");
-                }
-                if upper_bound.is_some() {
-                    score_str.push_str(" upperbound");
-                }
-
-                score_str
-            }
-            SearchInfo::CurrMove { mve } => format!("currmove {}", mve),
-            SearchInfo::CurrMoveNumber { move_num } => format!("currmovenumber {}", move_num),
-            SearchInfo::HashFull { per_mill_full } => format!("hashfull {}", per_mill_full),
-            SearchInfo::NodesPerSecond { nodes_per_sec } => format!("nps {}", nodes_per_sec),
-            SearchInfo::TableHits { hits } => format!("tbhits {}", hits),
-            SearchInfo::ShredderHits { hits } => format!("sbhits {}", hits),
-            SearchInfo::CPULoad { cpu_usage_per_mill } => format!("cpuload {}", cpu_usage_per_mill),
-            SearchInfo::String { str } => format!("string {}", str),
-            SearchInfo::Refutation { moves } => format!("refutation {}", moves_to_string(moves)),
-            SearchInfo::CurrLine { moves, cpu_num } => {
-                if let Some(cpu_num) = cpu_num {
-                    format!("currline {} {}", cpu_num, moves_to_string(moves))
-                } else {
-                    format!("currline {}", moves_to_string(moves))
-                }
-            }
-        };
-        write!(f, "{}", info_str)
-    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -558,7 +436,7 @@ fn search_helper(
     } else {
         TranspositionTableScore::Exact(best_eval)
     };
-    transposition_table.store(position, tt_score, best_move, (max_depth - curr_depth));
+    transposition_table.store(position, tt_score, best_move, max_depth - curr_depth);
 
     Some(best_eval)
 }

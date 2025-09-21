@@ -3,8 +3,6 @@ use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Sub, SubAssign,
 };
 
-use arrayvec::ArrayVec;
-use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, FromRepr};
 
 #[allow(dead_code)]
@@ -301,10 +299,6 @@ impl BitBoard {
     pub(crate) const fn const_bit_not(self) -> BitBoard {
         BitBoard(!self.0)
     }
-
-    pub(crate) const fn const_shr(self, rhs: usize) -> BitBoard {
-        BitBoard(self.0 >> rhs)
-    }
 }
 
 impl BitOr for BitBoard {
@@ -394,6 +388,8 @@ impl fmt::Debug for BitBoard {
 mod tests {
     use super::Square::*;
     use super::*;
+
+    use strum::IntoEnumIterator;
     use test_case::test_case;
 
     #[test]

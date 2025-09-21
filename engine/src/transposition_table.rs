@@ -33,12 +33,12 @@ impl TranspositionTableEntry {
 }
 
 const TRANSPOSITION_TABLE_ENTRIES: usize = 1 << 12;
-const SIZE: usize = std::mem::size_of::<TranspositionTableEntry>();
-const SSIZE: usize = std::mem::size_of::<TranspositionTableScore>();
-const EVAL_SIZE: usize = std::mem::size_of::<Eval>();
-const ZSIZE: usize = std::mem::size_of::<ZobristHash>();
-const MOVE: usize = std::mem::size_of::<Move>();
-const EVAL_SIZE2: usize = std::mem::size_of::<f64>();
+// const SIZE: usize = std::mem::size_of::<TranspositionTableEntry>();
+// const SSIZE: usize = std::mem::size_of::<TranspositionTableScore>();
+// const EVAL_SIZE: usize = std::mem::size_of::<Eval>();
+// const ZSIZE: usize = std::mem::size_of::<ZobristHash>();
+// const MOVE: usize = std::mem::size_of::<Move>();
+// const EVAL_SIZE2: usize = std::mem::size_of::<f64>();
 
 #[derive(Debug, Clone)]
 pub struct TranspositionTable {

@@ -1,9 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt::Display;
-use std::ops::Neg;
 
-use strum::IntoEnumIterator;
 
 use crate::GenerateMoves;
 use crate::bitboard::Square;

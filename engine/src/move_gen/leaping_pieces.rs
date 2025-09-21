@@ -1,8 +1,6 @@
-use std::borrow::BorrowMut;
-use std::string::ToString;
 
 use crate::bitboard::{BitBoard, Direction, Square};
-use crate::position::{Piece, Side};
+use crate::position::Side;
 
 struct SquareToMoveDatabase([BitBoard; 64]);
 

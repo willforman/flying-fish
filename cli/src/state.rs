@@ -1,24 +1,19 @@
-use anyhow::{Context, Result};
-use chrono::{DateTime, Local};
+use anyhow::Result;
 use statig::prelude::*;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{Write, stdout};
 use std::panic;
 use std::process;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::{sync::atomic::AtomicBool, thread};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 use engine::{
     AUTHOR, EvaluatePosition, GenerateMoves, MOVE_GEN, Move, NAME, POSITION_EVALUATOR, Position,
     SearchError, SearchParams, TranspositionTable, perft, perft_full, search,
 };
 
-use crate::LOGS_DIRECTORY;
 use crate::messages::{UCICommand, UCIResponse};
-use crate::response_writer::{self, ResponseWriter};
 use crate::uci;
 
 #[derive(Debug)]
@@ -31,7 +26,6 @@ where
     // to be able store this as statig state local storage because that requires the
     // item to be a reference.
     maybe_terminate: Option<Arc<AtomicBool>>,
-    start_time: DateTime<Local>,
 }
 
 impl<G> UCIState<G>
@@ -42,7 +36,6 @@ where
         Self {
             move_gen,
             maybe_terminate: None,
-            start_time: Local::now(),
         }
     }
 
@@ -67,7 +60,7 @@ where
     G: GenerateMoves + Copy + Send + Sync + 'static,
 {
     #[superstate]
-    fn top_level(&mut self, event: &UCICommand) -> Response<State> {
+    fn top_level(&mut self, event: &UCICommand) -> Outcome<State> {
         if *event == UCICommand::Quit {
             process::exit(0);
         }
@@ -77,7 +70,7 @@ where
         Super
     }
     #[state(superstate = "top_level")]
-    fn initial(&mut self, event: &UCICommand) -> Response<State> {
+    fn initial(&mut self, event: &UCICommand) -> Outcome<State> {
         match event {
             UCICommand::UCI => {
                 uci!(
@@ -100,23 +93,16 @@ where
         }
     }
     #[superstate(superstate = "top_level")]
-    fn debug(&mut self, event: &UCICommand) -> Response<State> {
+    fn debug(&mut self, event: &UCICommand) -> Outcome<State> {
         match event {
-            UCICommand::Debug { on: true } => {
-                todo!();
-
-                Handled
-            }
-            UCICommand::Debug { on: false } => {
-                todo!();
-                Handled
-            }
+            UCICommand::Debug { on: true } => Handled,
+            UCICommand::Debug { on: false } => Handled,
             _ => Super,
         }
     }
 
     #[superstate(superstate = "debug")]
-    fn is_ready(&mut self, event: &UCICommand) -> Response<State> {
+    fn is_ready(&mut self, event: &UCICommand) -> Outcome<State> {
         match event {
             UCICommand::IsReady => {
                 uci!("{}", UCIResponse::ReadyOk);
@@ -127,7 +113,7 @@ where
     }
 
     #[state(superstate = "is_ready")]
-    fn uci_enabled(&mut self, position: &mut Position, event: &UCICommand) -> Response<State> {
+    fn uci_enabled(&mut self, position: &mut Position, event: &UCICommand) -> Outcome<State> {
         match event {
             UCICommand::UCINewGame => Transition(State::uci_enabled(Position::start())),
             UCICommand::Position { fen, moves } => {
@@ -238,40 +224,6 @@ fn write_perft_results(
     uci!("Time (ms): {}", time_elapsed.as_millis());
     uci!("Nodes searched: {}", total_count);
     uci!("Nodes/second: {:.0}", nodes_per_second);
-}
-
-fn open_in_out_logs_file(start_time: &DateTime<Local>) -> Result<File> {
-    let logs_directory = LOGS_DIRECTORY
-        .get()
-        .expect("LOGS_DIRECTORY should be set")
-        .clone();
-
-    let mut debug_logs_path = logs_directory.clone();
-    debug_logs_path.push("in_out");
-
-    let curr_time_str = start_time.format("%I_%M_%m_%d");
-    debug_logs_path.push(format!("in_out-{}.txt", curr_time_str));
-
-    let file =
-        File::create(&debug_logs_path).context(format!("Couldn't open: {:?}", &debug_logs_path))?;
-    Ok(file)
-}
-
-fn open_search_logs_file(start_time: &DateTime<Local>) -> Result<File> {
-    let logs_directory = LOGS_DIRECTORY
-        .get()
-        .expect("LOGS_DIRECTORY should be set")
-        .clone();
-
-    let mut search_logs_path = logs_directory.clone();
-    search_logs_path.push("search");
-
-    let curr_time_str = start_time.format("%I_%M_%m_%d");
-    search_logs_path.push(format!("search-{}.txt", curr_time_str));
-
-    let file = File::create(&search_logs_path)
-        .context(format!("Couldn't open: {:?}", &search_logs_path))?;
-    Ok(file)
 }
 
 const PERFT_BENCHMARK_FENS_AND_DEPTHS: &[(&str, usize)] = &[

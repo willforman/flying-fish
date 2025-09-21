@@ -1,7 +1,6 @@
-use strum::IntoEnumIterator;
 
 use super::masks::{MASKS_LIST, MaskType, RANK_ATKS};
-use crate::bitboard::{BitBoard, Direction, Square};
+use crate::bitboard::{BitBoard, Square};
 use crate::position::Piece;
 
 #[derive(Clone, Copy)]

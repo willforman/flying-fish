@@ -1,5 +1,6 @@
 use engine::Move;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) enum UCIResponse {
     IDName { name: String },
@@ -7,72 +8,29 @@ pub(crate) enum UCIResponse {
     UCIOk,
     ReadyOk,
     BestMove { mve: Move, ponder: Option<Move> },
-    Info { info: Info },
     Option { option: UCIOption },
 }
 
-#[derive(Debug)]
-pub enum Info {
-    Depth {
-        str: String,
-    },
-    Seldepth {
-        str: String,
-    },
-    Time {
-        str: String,
-    },
-    Nodes {
-        str: String,
-    },
-    PV {
-        moves: Vec<Move>,
-    },
-    MultiPV {
-        num: i32,
-    },
-    Score {
-        str: String,
-    },
-    CurrMove {
-        mve: Move,
-    },
-    CurrMoveNumber {
-        move_num: u32,
-    },
-    HashFull {
-        num_per_mill: u32,
-    },
-    NPS {
-        nodes_per_second: f32,
-    },
-    TBHits {
-        positions_found: u32,
-    },
-    SBHits {
-        positions_found: u32,
-    },
-    CPULoad {
-        cpu_usage: f32,
-    },
-    String {
-        str: String,
-    },
-    Refutation {
-        start_move: Move,
-        line: Vec<Move>,
-    },
-    CurrLine {
-        cpu_num: Option<u8>,
-        line: Vec<Move>,
-    },
+impl std::fmt::Display for UCIResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let res_str = match self {
+            UCIResponse::IDName { name } => &format!("id name {}", name),
+            UCIResponse::IDAuthor { author } => &format!("id author {}", author),
+            UCIResponse::UCIOk => "uciok",
+            UCIResponse::ReadyOk => "readyok",
+            UCIResponse::BestMove { mve, ponder: _ } => {
+                &format!("bestmove {}", mve.to_string().to_lowercase())
+            }
+            UCIResponse::Option { option } => &format!("option {}", option),
+        };
+        write!(f, "{}", res_str)
+    }
 }
 
-enum Score {
-    Cp { score: f32 },
-    Mate { num_moves: u8 },
-    LowerBound,
-    UpperBound,
+impl Into<String> for UCIResponse {
+    fn into(self) -> String {
+        self.to_string()
+    }
 }
 
 #[derive(Debug)]
@@ -82,33 +40,38 @@ pub struct UCIOption {
     default: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum UCIOptionType {
     Check,
     Spin { range_start: i32, range_end: i32 },
     Combo { options: Vec<String> },
     Button,
-    String { str: String },
+    String,
 }
 
-impl std::fmt::Display for UCIResponse {
+impl std::fmt::Display for UCIOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let res_str = match self {
-            UCIResponse::IDName { name } => format!("id name {}", name),
-            UCIResponse::IDAuthor { author } => format!("id author {}", author),
-            UCIResponse::UCIOk => "uciok".to_string(),
-            UCIResponse::ReadyOk => "readyok".to_string(),
-            UCIResponse::BestMove { mve, ponder: None } => {
-                format!("bestmove {}", mve.to_string().to_lowercase())
+        let type_upper = format!("{:?}", self.type_);
+        write!(f, "option {} type {}", self.name, type_upper.to_lowercase())?;
+        if let Some(default) = &self.default {
+            write!(f, " default {}", default)?;
+        }
+        match &self.type_ {
+            UCIOptionType::Spin {
+                range_start,
+                range_end,
+            } => {
+                write!(f, "min {} max {}", range_start, range_end)?;
             }
-            _ => format!("{:?} not implemented", self),
+            UCIOptionType::Combo { options } => {
+                let options_str_vec: Vec<String> =
+                    options.iter().map(|o| format!("option {}", o)).collect();
+                let options_str = options_str_vec.join(" ");
+                write!(f, "{}", options_str)?;
+            }
+            _ => {}
         };
-        write!(f, "{}", res_str)
-    }
-}
-
-impl Into<String> for UCIResponse {
-    fn into(self) -> String {
-        self.to_string()
+        Ok(())
     }
 }

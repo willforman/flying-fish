@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 
 use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
@@ -9,15 +8,6 @@ use crate::move_gen::hyperbola_quintessence::SlidingPiecesMoveGen;
 use crate::move_gen::masks::{split_bishop_ray, split_rook_ray};
 use crate::position::{Move, Piece, Position, Side};
 use crate::move_gen::leaping_pieces::LeapingPiecesMoveGen;
-
-#[derive(thiserror::Error, Debug)]
-pub enum MoveGenError {
-    #[error("no piece at {0}")]
-    NoPiece(String),
-
-    #[error("internal state error: set in sides {0} but not in pieces")]
-    InvalidSidesPieces(String),
-}
 
 fn gen_king_moves(
     position: &Position,
@@ -404,11 +394,12 @@ pub(super) fn gen_moves(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::collections::HashSet;
+
     use test_case::test_case;
-    use testresult::TestResult;
 
     use crate::move_gen::hyperbola_quintessence::SLIDING_PIECES_MOVE_GEN;
-    use crate::move_gen::MOVE_GEN;
     use crate::move_gen::leaping_pieces::LEAPING_PIECES;
 
     macro_rules! assert_eq_collections {

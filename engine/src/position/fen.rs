@@ -4,8 +4,6 @@ use crate::position::zobrist_hash::ZobristHash;
 use crate::position::{CastlingRights, Piece, Position, Side, State};
 use std::str::FromStr;
 
-use strum::IntoEnumIterator;
-
 #[derive(thiserror::Error, Debug)]
 pub enum FenParseError {
     #[error("num fields: want 6 got {0}")]
