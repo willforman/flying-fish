@@ -32,7 +32,7 @@ impl TranspositionTableEntry {
     }
 }
 
-const TRANSPOSITION_TABLE_ENTRIES: usize = 1 << 12;
+const TRANSPOSITION_TABLE_ENTRIES: usize = 1 << 13;
 // const SIZE: usize = std::mem::size_of::<TranspositionTableEntry>();
 // const SSIZE: usize = std::mem::size_of::<TranspositionTableScore>();
 // const EVAL_SIZE: usize = std::mem::size_of::<Eval>();
