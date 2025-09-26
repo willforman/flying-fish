@@ -2,19 +2,22 @@ use crate::bitboard::Square;
 use crate::evaluation::Eval;
 use crate::position::{Move, Position, ZobristHash};
 
-#[derive(Debug, Clone, Copy)]
-pub enum TranspositionTableScore {
-    Exact(Eval),
-    UpperBound(Eval),
-    LowerBound(Eval),
+use strum_macros::FromRepr;
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, FromRepr, PartialEq, Eq)]
+pub enum EvalType {
+    Exact,
+    UpperBound,
+    LowerBound,
 }
 
 #[derive(Debug, Clone)]
 pub struct TranspositionTableEntry {
     hash: ZobristHash,
-    pub score: TranspositionTableScore,
+    pub eval: Eval,
     pub best_move: Move,
-    pub depth: u8,
+    pub depth_and_eval_type: u8,
 }
 
 impl TranspositionTableEntry {
@@ -22,23 +25,37 @@ impl TranspositionTableEntry {
         Self {
             hash: ZobristHash::empty(),
             best_move: Move::new(Square::A1, Square::A1),
-            score: TranspositionTableScore::Exact(Eval::DRAW),
-            depth: 0,
+            eval: Eval::DRAW,
+            depth_and_eval_type: 0,
         }
     }
 
     fn is_empty(&self) -> bool {
         self.best_move.src == Square::A1 && self.best_move.dest == Square::A1
     }
+
+    const DEPTH_MASK: u8 = 0b00111111;
+    const EVAL_TYPE_MASK: u8 = 0b11000000;
+    fn build_depth_and_eval_type(depth: u8, eval_type: EvalType) -> u8 {
+        debug_assert!(
+            depth & Self::EVAL_TYPE_MASK == 0,
+            "Depth value is too big: {}",
+            depth
+        );
+        (depth & Self::DEPTH_MASK) | ((eval_type as u8) << 6)
+    }
+
+    pub fn depth(&self) -> u8 {
+        self.depth_and_eval_type & Self::DEPTH_MASK
+    }
+
+    pub fn eval_type(&self) -> EvalType {
+        let eval_type_u8 = self.depth_and_eval_type >> 6;
+        EvalType::from_repr(eval_type_u8).expect("Unexpected eval type value")
+    }
 }
 
-const TRANSPOSITION_TABLE_ENTRIES: usize = 1 << 13;
-// const SIZE: usize = std::mem::size_of::<TranspositionTableEntry>();
-// const SSIZE: usize = std::mem::size_of::<TranspositionTableScore>();
-// const EVAL_SIZE: usize = std::mem::size_of::<Eval>();
-// const ZSIZE: usize = std::mem::size_of::<ZobristHash>();
-// const MOVE: usize = std::mem::size_of::<Move>();
-// const EVAL_SIZE2: usize = std::mem::size_of::<f64>();
+const TRANSPOSITION_TABLE_ENTRIES: usize = 1 << 14;
 
 #[derive(Debug, Clone)]
 pub struct TranspositionTable {
@@ -65,27 +82,57 @@ impl TranspositionTable {
     pub fn store(
         &mut self,
         position: &Position,
-        score: TranspositionTableScore,
+        eval: Eval,
+        eval_type: EvalType,
         best_move: Move,
         depth: u8,
     ) {
         let idx = self.index(position);
         let entry = &self.entries[idx];
         if !entry.is_empty() {
-            if entry.depth > depth {
+            if entry.depth() > depth {
                 return;
             }
         }
 
         self.entries[idx] = TranspositionTableEntry {
             hash: position.zobrist_hash,
-            score,
-            depth,
+            eval,
             best_move,
+            depth_and_eval_type: TranspositionTableEntry::build_depth_and_eval_type(
+                depth, eval_type,
+            ),
         }
     }
 
     fn index(&self, position: &Position) -> usize {
         (position.zobrist_hash.value() as usize) & (TRANSPOSITION_TABLE_ENTRIES - 1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Square::*;
+    use test_case::test_case;
+
+    #[test_case(10, EvalType::Exact)]
+    #[test_case(63, EvalType::LowerBound)]
+    #[test_case(0, EvalType::UpperBound)]
+    fn test_depth_and_eval_type(depth: u8, eval_type: EvalType) {
+        let depth_and_eval_type =
+            TranspositionTableEntry::build_depth_and_eval_type(depth, eval_type);
+        let tt_entry = TranspositionTableEntry {
+            hash: ZobristHash::empty(),
+            eval: Eval::DRAW,
+            best_move: Move::new(A1, A1),
+            depth_and_eval_type,
+        };
+
+        let depth_got = tt_entry.depth();
+        let eval_type_got = tt_entry.eval_type();
+
+        assert_eq!(depth_got, depth);
+        assert_eq!(eval_type_got, eval_type);
     }
 }

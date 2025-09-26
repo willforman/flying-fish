@@ -12,7 +12,7 @@ use tracing::{debug, debug_span, error, info};
 use crate::evaluation::{Eval, EvaluatePosition};
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
-use crate::transposition_table::{TranspositionTable, TranspositionTableScore};
+use crate::transposition_table::{EvalType, TranspositionTable};
 use crate::{Side, Square};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -368,9 +368,9 @@ fn search_helper(
     }
 
     let maybe_tt_best_move = if let Some(tt_entry) = transposition_table.get(position) {
-        if tt_entry.depth >= (max_depth - curr_depth) {
-            if let TranspositionTableScore::Exact(tt_exact_score) = tt_entry.score {
-                return Some(tt_exact_score);
+        if tt_entry.depth() >= (max_depth - curr_depth) {
+            if tt_entry.eval_type() == EvalType::Exact {
+                return Some(tt_entry.eval);
             }
         }
         Some(tt_entry.best_move)
@@ -429,14 +429,20 @@ fn search_helper(
             break;
         }
     }
-    let tt_score = if best_eval >= beta {
-        TranspositionTableScore::LowerBound(best_eval)
+    let tt_eval_type = if best_eval >= beta {
+        EvalType::LowerBound
     } else if best_eval <= original_alpha {
-        TranspositionTableScore::UpperBound(best_eval)
+        EvalType::UpperBound
     } else {
-        TranspositionTableScore::Exact(best_eval)
+        EvalType::Exact
     };
-    transposition_table.store(position, tt_score, best_move, max_depth - curr_depth);
+    transposition_table.store(
+        position,
+        best_eval,
+        tt_eval_type,
+        best_move,
+        max_depth - curr_depth,
+    );
 
     Some(best_eval)
 }
