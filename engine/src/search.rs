@@ -118,7 +118,7 @@ pub fn search(
 
     let mut positions_processed: u64 = 0;
     let start = Instant::now();
-    let mut latest_eval = Eval::Score(0.);
+    let mut latest_eval = Eval::DRAW;
 
     let max_depth: usize = match (params.max_depth, params.mate) {
         (Some(max_depth), None) => max_depth.try_into().unwrap(),
@@ -183,8 +183,8 @@ pub fn search(
                 &mut positions_processed,
                 &start,
                 &mut latest_eval,
-                Eval::Mate(0), // Minimum `Eval` value
-                Eval::Mate(1), // Maximum `Eval` value
+                Eval::MIN,
+                Eval::MAX,
                 move_gen,
                 position_eval,
                 transposition_table,
@@ -381,7 +381,7 @@ fn search_helper(
     let mut moves = move_gen.gen_moves(position);
     order_moves(&mut moves, position, maybe_tt_best_move);
 
-    let mut best_eval = Eval::Mate(0);
+    let mut best_eval = Eval::mate_in(0);
     let mut best_move = Move::new(Square::A1, Square::A1);
     let original_alpha = alpha;
     for mve in moves {

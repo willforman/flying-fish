@@ -22,7 +22,7 @@ impl TranspositionTableEntry {
         Self {
             hash: ZobristHash::empty(),
             best_move: Move::new(Square::A1, Square::A1),
-            score: TranspositionTableScore::Exact(Eval::Draw),
+            score: TranspositionTableScore::Exact(Eval::DRAW),
             depth: 0,
         }
     }
