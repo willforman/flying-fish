@@ -55,17 +55,24 @@ impl TranspositionTableEntry {
     }
 }
 
-const TRANSPOSITION_TABLE_ENTRIES: usize = 1 << 14;
+const TRANSPOSITION_TABLE_ENTRIES: usize = 1 << 22;
 
 #[derive(Debug, Clone)]
 pub struct TranspositionTable {
-    entries: [TranspositionTableEntry; TRANSPOSITION_TABLE_ENTRIES],
+    entries: Box<[TranspositionTableEntry]>,
 }
 
 impl TranspositionTable {
     pub fn new() -> Self {
         Self {
-            entries: std::array::from_fn(|_| TranspositionTableEntry::empty()),
+            entries: vec![TranspositionTableEntry::empty(); TRANSPOSITION_TABLE_ENTRIES]
+                .into_boxed_slice(),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        for e in self.entries.iter_mut() {
+            *e = TranspositionTableEntry::empty();
         }
     }
 

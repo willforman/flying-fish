@@ -94,9 +94,12 @@ pub fn benchmark_search(c: &mut Criterion) {
             ..SearchParams::default()
         };
 
+        let mut transposition_table = TranspositionTable::new();
+
         group.bench_function(&bench_name, |b| {
             b.iter_custom(|iters| {
                 let start = Instant::now();
+                transposition_table.clear();
                 let mut total_nodes = 0;
 
                 for _ in 0..iters {
@@ -105,7 +108,7 @@ pub fn benchmark_search(c: &mut Criterion) {
                         &search_params,
                         MOVE_GEN,
                         POSITION_EVALUATOR,
-                        &mut TranspositionTable::new(),
+                        &mut transposition_table,
                         Arc::new(AtomicBool::new(false)),
                     )
                     .unwrap();

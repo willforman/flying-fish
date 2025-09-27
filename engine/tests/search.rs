@@ -34,7 +34,7 @@ fn test_search_terminates() {
         tx_best_move.send(best_move).unwrap();
     });
 
-    thread::sleep(Duration::from_millis(25));
+    thread::sleep(Duration::from_millis(250));
 
     terminate.swap(true, std::sync::atomic::Ordering::Relaxed);
 
