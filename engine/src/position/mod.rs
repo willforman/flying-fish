@@ -214,6 +214,7 @@ pub struct UnmakeMoveState {
     castling_rights: CastlingRights,
     en_passant_target: Option<Square>,
     half_move_clock: u8,
+    zobrist_hash: ZobristHash,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -329,6 +330,7 @@ impl Position {
         if self.state.to_move == Side::Black {
             self.state.full_move_counter += 1;
         }
+        let unmake_zobrist_hash = self.zobrist_hash;
         self.zobrist_hash.flip_side_to_move();
 
         if let Some(en_passant_target) = self.state.en_passant_target {
@@ -358,6 +360,7 @@ impl Position {
                     en_passant_target: Some(mve.dest),
                     half_move_clock: 0,
                     castling_rights: self.state.castling_rights.clone(),
+                    zobrist_hash: unmake_zobrist_hash,
                 };
             }
         }
@@ -371,6 +374,7 @@ impl Position {
             en_passant_target: self.state.en_passant_target,
             half_move_clock: self.state.half_move_clock,
             castling_rights: self.state.castling_rights.clone(),
+            zobrist_hash: unmake_zobrist_hash,
         };
 
         self.state.to_move = opp_side;
@@ -505,32 +509,8 @@ impl Position {
         let moved_side = opp_side.opposite_side();
         let piece_moved = unmake_move_state.piece_moved;
 
-        if self.state.castling_rights.white_queen_side
-            != unmake_move_state.castling_rights.white_queen_side
-        {
-            self.zobrist_hash.flip_castling_rights_white_queenside();
-        }
-        if self.state.castling_rights.white_king_side
-            != unmake_move_state.castling_rights.white_king_side
-        {
-            self.zobrist_hash.flip_castling_rights_white_kingside();
-        }
-        if self.state.castling_rights.black_queen_side
-            != unmake_move_state.castling_rights.black_queen_side
-        {
-            self.zobrist_hash.flip_castling_rights_black_queenside();
-        }
-        if self.state.castling_rights.black_king_side
-            != unmake_move_state.castling_rights.black_king_side
-        {
-            self.zobrist_hash.flip_castling_rights_black_kingside();
-        }
         self.state.castling_rights = unmake_move_state.castling_rights;
 
-        if let Some(prev_en_passant_target) = self.state.en_passant_target {
-            self.zobrist_hash
-                .flip_en_passant_file(prev_en_passant_target);
-        }
         self.state.en_passant_target = unmake_move_state.en_passant_target;
 
         self.state.half_move_clock = unmake_move_state.half_move_clock;
@@ -538,7 +518,6 @@ impl Position {
             self.state.full_move_counter -= 1;
         }
         self.state.to_move = moved_side;
-        self.zobrist_hash.flip_side_to_move();
 
         // If the move was a promotion, we need to make sure to put the pawn back and
         // clear the piece that was promoted.
@@ -562,7 +541,6 @@ impl Position {
         }
 
         if let Some(en_passant_target) = unmake_move_state.en_passant_target {
-            self.zobrist_hash.flip_en_passant_file(en_passant_target);
             if mve.dest == en_passant_target && piece_moved == Piece::Pawn {
                 let ep_capture_dir = if moved_side == Side::White {
                     Direction::DecRank
@@ -576,6 +554,7 @@ impl Position {
 
                 self.add_piece(ep_capture_sq, Piece::Pawn, opp_side);
 
+                self.zobrist_hash = unmake_move_state.zobrist_hash;
                 return;
             }
         }
@@ -583,6 +562,7 @@ impl Position {
         if let Some(captured_piece) = unmake_move_state.captured_piece {
             self.add_piece(mve.dest, captured_piece, opp_side);
         }
+        self.zobrist_hash = unmake_move_state.zobrist_hash;
     }
 
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
@@ -820,6 +800,7 @@ mod tests {
 
     #[test_case(Position::start(), vec![Move::new(E2, E4), Move::new(E7, E5)] ; "basic")]
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), vec![Move::new(F3, H3), Move::new(C7, C5), Move::new(D5, C6), Move::new(B6, C4), Move::new(E1, D1)] ; "en passant and castling")]
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), vec![Move::new(F3, H3), Move::new(C7, C5), Move::new(D5, C6)] ; "en passant and castling pre")]
     fn test_zobrist_hash_updating(mut position: Position, moves: Vec<Move>) -> TestResult {
         let mut unmake_move_state_stack = vec![];
         let mut hash_stack = vec![];
