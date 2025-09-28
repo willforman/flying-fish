@@ -22,6 +22,7 @@ where
     G: GenerateMoves + Copy + Send + Sync,
 {
     move_gen: G,
+    transposition_table: Arc<Mutex<TranspositionTable>>,
     // We need a way to terminate when running Go, but unfortunately don't seem
     // to be able store this as statig state local storage because that requires the
     // item to be a reference.
@@ -35,6 +36,7 @@ where
     pub(crate) fn new(move_gen: G) -> Self {
         Self {
             move_gen,
+            transposition_table: Arc::new(Mutex::new(TranspositionTable::new())),
             maybe_terminate: None,
         }
     }
@@ -137,7 +139,13 @@ where
                 }
                 let terminate = Arc::new(AtomicBool::new(false));
 
-                spawn_search(position.clone(), params.clone(), self.move_gen, terminate);
+                spawn_search(
+                    position.clone(),
+                    params.clone(),
+                    self.move_gen,
+                    Arc::clone(&self.transposition_table),
+                    terminate,
+                );
 
                 Handled
             }
@@ -242,6 +250,7 @@ fn spawn_search(
     search_position: Position,
     params: SearchParams,
     move_gen: impl GenerateMoves + Copy + Send + Sync + 'static,
+    transposition_table: Arc<Mutex<TranspositionTable>>,
     terminate: Arc<AtomicBool>,
 ) {
     let panic_info = Arc::new(Mutex::new(None));
@@ -271,12 +280,15 @@ fn spawn_search(
             *panic_info_clone.lock().unwrap() = Some((message, location));
         }));
 
+        let transposition_table_arc = Arc::clone(&transposition_table);
+        let mut transposition_table = transposition_table_arc.lock().unwrap();
+
         let (best_move, _) = search(
             &search_position,
             &params,
             move_gen,
             POSITION_EVALUATOR,
-            &mut TranspositionTable::new(),
+            &mut transposition_table,
             Arc::clone(&terminate),
         )?;
         uci!(
