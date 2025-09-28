@@ -8,8 +8,6 @@ use crate::{
     state::UCIState,
 };
 
-/// Macro to emit UCI output.
-/// Routes through `tracing` with target "uci", so only your UCI layer picks it up.
 #[macro_export]
 macro_rules! uci {
     ($($arg:tt)*) => {

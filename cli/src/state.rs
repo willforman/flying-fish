@@ -67,7 +67,7 @@ where
             process::exit(0);
         }
 
-        warn!("Unexpected command for current state: {:?}", event);
+        warn!(target: "uci", "Unexpected command for current state: {}", event.to_string());
 
         Super
     }
@@ -133,7 +133,7 @@ where
             UCICommand::Go { params } => {
                 if let Some(terminate) = &self.maybe_terminate {
                     if !terminate.load(std::sync::atomic::Ordering::Relaxed) {
-                        warn!("Can't start new search until previous search completes");
+                        warn!(target: "uci", "Can't start new search until previous search completes");
                         return Handled;
                     }
                 }
@@ -308,15 +308,15 @@ fn spawn_search(
                 // Thread finished normally
             }
             Ok(Err(search_error)) => {
-                error!("Search thread error: {}", search_error);
+                error!(target: "uci", "Search thread error: {}", search_error);
                 // Send invalid move so that client realizes we forfeited.
                 uci!("bestmove 0000");
             }
             Err(_) => {
                 if let Some((message, location)) = panic_info.lock().unwrap().take() {
-                    error!("Search thread panicked at {}: {}", location, message);
+                    error!(target: "uci", "Search thread panicked at {}: {}", location, message);
                 } else {
-                    error!("Search thread panicked with unknown payload");
+                    error!(target: "uci", "Search thread panicked with unknown payload");
                 }
 
                 uci!("bestmove 0000");
