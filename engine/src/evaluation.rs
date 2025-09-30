@@ -151,7 +151,7 @@ impl EvaluatePosition for PositionEvaluator {
         if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
             return Eval::DRAW;
         }
-        if move_gen.gen_moves(position).is_empty() && !move_gen.gen_checkers(position).is_empty() {
+        if move_gen.gen_moves(position).is_empty() {
             if !move_gen.gen_checkers(position).is_empty() {
                 return Eval::mate_in(0);
             } else {
