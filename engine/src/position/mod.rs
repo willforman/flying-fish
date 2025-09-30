@@ -1,5 +1,6 @@
 use std::fmt;
 
+use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
 
@@ -217,12 +218,13 @@ pub struct UnmakeMoveState {
     zobrist_hash: ZobristHash,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct Position {
     pub state: State,
     pub pieces: [BitBoard; 12],
     pub sides: [BitBoard; 2],
     pub zobrist_hash: ZobristHash,
+    pub history: ArrayVec<ZobristHash, 250>,
 }
 
 const fn compute_start_piece_bitboards() -> [BitBoard; 12] {
@@ -265,6 +267,7 @@ impl Position {
             pieces: START_PIECE_BITBOARDS,
             sides: START_SIDE_BITBOARDS,
             zobrist_hash: ZobristHash::calculate(&START_PIECE_BITBOARDS, &State::start()),
+            history: ArrayVec::new(),
         }
     }
 
@@ -327,11 +330,13 @@ impl Position {
             .is_piece_at(mve.src, side)
             .expect("No piece to move found");
 
+        let unmake_zobrist_hash = self.zobrist_hash;
+        self.history.push(self.zobrist_hash);
+        self.zobrist_hash.flip_side_to_move();
+
         if self.state.to_move == Side::Black {
             self.state.full_move_counter += 1;
         }
-        let unmake_zobrist_hash = self.zobrist_hash;
-        self.zobrist_hash.flip_side_to_move();
 
         if let Some(en_passant_target) = self.state.en_passant_target {
             // Clear previous en passant target.
@@ -540,29 +545,30 @@ impl Position {
             self.move_piece(rook_dest, rook_src, Piece::Rook, moved_side);
         }
 
-        if let Some(en_passant_target) = unmake_move_state.en_passant_target {
-            if mve.dest == en_passant_target && piece_moved == Piece::Pawn {
-                let ep_capture_dir = if moved_side == Side::White {
-                    Direction::DecRank
-                } else {
-                    Direction::IncRank
-                };
+        if let Some(en_passant_target) = unmake_move_state.en_passant_target
+            && mve.dest == en_passant_target
+            && piece_moved == Piece::Pawn
+        {
+            let ep_capture_dir = if moved_side == Side::White {
+                Direction::DecRank
+            } else {
+                Direction::IncRank
+            };
 
-                let mut ep_capture_bb = BitBoard::from_square(en_passant_target);
-                ep_capture_bb.shift(ep_capture_dir);
-                let ep_capture_sq = ep_capture_bb.to_square();
+            let mut ep_capture_bb = BitBoard::from_square(en_passant_target);
+            ep_capture_bb.shift(ep_capture_dir);
+            let ep_capture_sq = ep_capture_bb.to_square();
 
-                self.add_piece(ep_capture_sq, Piece::Pawn, opp_side);
-
-                self.zobrist_hash = unmake_move_state.zobrist_hash;
-                return;
+            self.add_piece(ep_capture_sq, Piece::Pawn, opp_side);
+        } else {
+            if let Some(captured_piece) = unmake_move_state.captured_piece {
+                self.add_piece(mve.dest, captured_piece, opp_side);
             }
         }
 
-        if let Some(captured_piece) = unmake_move_state.captured_piece {
-            self.add_piece(mve.dest, captured_piece, opp_side);
-        }
         self.zobrist_hash = unmake_move_state.zobrist_hash;
+        let history_pop = self.history.pop();
+        debug_assert_eq!(history_pop, Some(self.zobrist_hash));
     }
 
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
@@ -623,6 +629,15 @@ impl Position {
         })
     }
 
+    pub fn is_threefold_repetition(&self) -> bool {
+        let occurences = self
+            .history
+            .iter()
+            .filter(|&&h| h == self.zobrist_hash)
+            .count();
+        occurences >= 3
+    }
+
     pub(crate) fn validate_position(&self, mve: Move) -> Result<(), String> {
         if self.get_piece_bb(Side::White, Piece::King).is_empty() {
             return Err("White king missing".to_string());
@@ -657,6 +672,14 @@ impl Position {
         Ok(())
     }
 }
+
+impl PartialEq for Position {
+    fn eq(&self, other: &Self) -> bool {
+        self.pieces == other.pieces && self.state == other.state
+    }
+}
+
+impl Eq for Position {}
 
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -736,12 +759,6 @@ mod tests {
         );
         assert!(position.is_piece_at(mve.dest, side).is_some());
     }
-
-    // #[test_case(Position::start(), Move::new(D7, D5))]
-    // fn test_make_move_err(mut position: Position, mve: Move) {
-    //     let res = position.make_move(mve);
-    //     assert!(res.is_err());
-    // }
 
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1").unwrap(), 
         Move::new(A2, A4),A3 ; "kiwipete")]
@@ -835,5 +852,20 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), vec![
+        Move::new(F3, F4), Move::new(E7, F8), Move::new(F4, F3), Move::new(F8, E7), 
+        Move::new(F3, F4), Move::new(E7, F8), Move::new(F4, F3), Move::new(F8, E7), 
+        Move::new(F3, F4), Move::new(E7, F8), Move::new(F4, F3), Move::new(F8, E7), 
+    ], true)]
+    fn test_threefold_repetition(mut position: Position, moves: Vec<Move>, res_want: bool) {
+        for mve in moves {
+            position.make_move(mve);
+        }
+
+        let res_got = position.is_threefold_repetition();
+
+        assert_eq!(res_got, res_want);
     }
 }

@@ -1,3 +1,5 @@
+use arrayvec::ArrayVec;
+
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Square};
 use crate::position::zobrist_hash::ZobristHash;
@@ -73,6 +75,7 @@ impl Position {
             pieces,
             state,
             zobrist_hash,
+            history: ArrayVec::new(),
         })
     }
 

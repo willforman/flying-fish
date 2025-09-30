@@ -146,9 +146,9 @@ fn get_piece_square_bonus(piece: Piece, square: Square, is_early_or_mid_game: bo
 }
 
 impl EvaluatePosition for PositionEvaluator {
+    /// Return evaluation relative to the side to move
     fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> Eval {
-        // Return evaluation relative to the side to move
-        if position.state.half_move_clock == 50 {
+        if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
             return Eval::DRAW;
         }
         if move_gen.gen_moves(position).is_empty() && !move_gen.gen_checkers(position).is_empty() {
