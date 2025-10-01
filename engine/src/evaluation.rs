@@ -206,8 +206,9 @@ mod tests {
     use testresult::TestResult;
 
     #[test_case(Eval(10), Eval(-10))]
-    // #[test_case(Eval::mate_in(1), Eval::mate_in(2))]
-    // #[test_case(Eval::mate_in(4), Eval::mate_in(5))]
+    #[test_case(Eval::mate_in(0), Eval::mate_in(1))]
+    #[test_case(Eval::mate_in(1), Eval::mate_in(2))]
+    #[test_case(Eval::mate_in(4), Eval::mate_in(5))]
     #[test_case(Eval::DRAW, Eval::DRAW)]
     fn test_eval_flip(eval_input: Eval, eval_want: Eval) {
         let eval_got = eval_input.flip();
