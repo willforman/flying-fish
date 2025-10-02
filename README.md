@@ -32,7 +32,7 @@ then start by running the binary with no arguments.
 - [X] Quiescence search
 - [X] Most-Valuable-Victim Least-Valuable-Attacker
 - [X] Zobrist Hashing
-- [ ] Transposition Tables
+- [X] Transposition Tables
 - [ ] Other move ordering heuristics
 - [ ] Parallel search (multithreading)
 
