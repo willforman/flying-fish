@@ -233,16 +233,20 @@ impl EvaluatePosition for PositionEvaluator {
                 square
             };
 
-            // Get tapered piece square bonus.
-            let (mg_bonus, eg_bonus) = get_piece_square_bonus(piece, square);
-            let bonus = (mg_bonus * phase_weight + eg_bonus * (PHASE_WEIGHT_MAX - 24)) / 24;
+            let (mg_val, eg_val) = get_piece_value(piece);
+            let piece_val =
+                (mg_val * phase_weight + eg_val * (PHASE_WEIGHT_MAX - phase_weight)) / 24;
 
-            let val = piece_value(piece) + bonus;
+            let (mg_bonus, eg_bonus) = get_piece_square_bonus(piece, square);
+            let bonus =
+                (mg_bonus * phase_weight + eg_bonus * (PHASE_WEIGHT_MAX - phase_weight)) / 24;
+
+            let tot_val = piece_val + bonus;
 
             if side == Side::White {
-                acc + val
+                acc + tot_val
             } else {
-                acc - val
+                acc - tot_val
             }
         });
         let eval_score = if position.state.to_move == Side::Black {
@@ -254,14 +258,15 @@ impl EvaluatePosition for PositionEvaluator {
     }
 }
 
-fn piece_value(piece: Piece) -> i32 {
+/// Get piece value, both middlegame and endgame.
+fn get_piece_value(piece: Piece) -> (i32, i32) {
     match piece {
-        Piece::Pawn => 100,
-        Piece::Knight => 320,
-        Piece::Bishop => 330,
-        Piece::Rook => 500,
-        Piece::Queen => 900,
-        Piece::King => 2000, // Don't use i32::MAX in case of overflows
+        Piece::Pawn => (82, 94),
+        Piece::Knight => (337, 281),
+        Piece::Bishop => (365, 297),
+        Piece::Rook => (477, 512),
+        Piece::Queen => (1025, 936),
+        Piece::King => (2000, 2000), // Don't use i32::MAX in case of overflows
     }
 }
 
