@@ -118,7 +118,7 @@ pub fn search(
 
     let mut positions_processed: u64 = 0;
     let start = Instant::now();
-    let mut latest_eval = Eval::DRAW;
+    let mut pv_eval = Eval::DRAW;
 
     let max_depth: usize = match (params.max_depth, params.mate) {
         (Some(max_depth), None) => max_depth.try_into().unwrap(),
@@ -182,7 +182,7 @@ pub fn search(
                 &mut max_depth_reached,
                 &mut positions_processed,
                 &start,
-                &mut latest_eval,
+                pv_eval,
                 Eval::MIN,
                 Eval::MAX,
                 move_gen,
@@ -200,7 +200,7 @@ pub fn search(
                     positions_processed,
                     iterative_deepening_max_depth,
                     &start,
-                    &latest_eval,
+                    pv_eval,
                     None,
                 );
                 break 'outer;
@@ -217,18 +217,18 @@ pub fn search(
         // Find best move
         best_move = Some(moves[0]);
 
-        latest_eval = move_vals[&best_move.unwrap()];
+        pv_eval = move_vals[&best_move.unwrap()];
 
         write_search_info(
             iterative_deepening_max_depth,
             positions_processed,
             max_depth_reached,
             &start,
-            &latest_eval,
+            pv_eval,
             best_move,
         );
 
-        debug!("best move: {}, eval: {}", best_move.unwrap(), latest_eval);
+        debug!("best move: {}, eval: {}", best_move.unwrap(), pv_eval);
 
         if tracing::enabled!(tracing::Level::DEBUG) {
             for mve in &moves {
@@ -305,7 +305,7 @@ fn search_helper(
     max_depth_reached: &mut u8,
     positions_processed: &mut u64,
     start_time: &Instant,
-    latest_eval: &mut Eval,
+    pv_eval: Eval,
     mut alpha: Eval,
     beta: Eval,
     move_gen: impl GenerateMoves + std::marker::Copy,
@@ -342,7 +342,7 @@ fn search_helper(
             *positions_processed,
             curr_depth,
             start_time,
-            latest_eval,
+            pv_eval,
             None,
         );
     }
@@ -358,7 +358,7 @@ fn search_helper(
             max_depth_reached,
             positions_processed,
             start_time,
-            latest_eval,
+            pv_eval,
             alpha,
             beta,
             move_gen,
@@ -403,7 +403,7 @@ fn search_helper(
             max_depth_reached,
             positions_processed,
             start_time,
-            latest_eval,
+            pv_eval,
             beta.flip(),
             alpha.flip(),
             move_gen,
@@ -422,7 +422,6 @@ fn search_helper(
             if got_eval >= alpha {
                 alpha = got_eval;
             }
-            *latest_eval = got_eval;
         }
 
         if alpha >= beta {
@@ -457,7 +456,7 @@ fn quiescence_search(
     max_depth_reached: &mut u8,
     positions_processed: &mut u64,
     start_time: &Instant,
-    latest_eval: &mut Eval,
+    pv_eval: Eval,
     mut alpha: Eval,
     beta: Eval,
     move_gen: impl GenerateMoves + std::marker::Copy,
@@ -485,7 +484,7 @@ fn quiescence_search(
             *positions_processed,
             *max_depth_reached,
             start_time,
-            latest_eval,
+            pv_eval,
             None,
         );
     }
@@ -531,7 +530,7 @@ fn quiescence_search(
             max_depth_reached,
             positions_processed,
             start_time,
-            latest_eval,
+            pv_eval,
             beta.flip(),
             alpha.flip(),
             move_gen,
@@ -591,7 +590,7 @@ fn write_search_info(
     nodes_processed: u64,
     max_depth_reached: u8,
     start_time: &Instant,
-    latest_eval: &Eval,
+    pv_eval: Eval,
     best_move: Option<Move>,
 ) {
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
@@ -601,7 +600,7 @@ fn write_search_info(
         iterative_deepening_max_depth,
         max_depth_reached,
         1,
-        latest_eval,
+        pv_eval,
         nodes_processed,
         nps,
         0,
