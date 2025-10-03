@@ -597,7 +597,7 @@ fn write_search_info(
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
     info!(
         target: "uci",
-        "info depth {} seldepth {} multipv {} score cp {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}",
+        "info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}",
         iterative_deepening_max_depth,
         max_depth_reached,
         1,
