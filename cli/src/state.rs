@@ -281,7 +281,12 @@ fn spawn_search(
         }));
 
         let transposition_table_arc = Arc::clone(&transposition_table);
-        let mut transposition_table = transposition_table_arc.lock().unwrap();
+        let mut transposition_table = transposition_table_arc.lock().unwrap_or_else(|poisoned| {
+            warn!("Transposition table was poisened, clearing it");
+            let mut inner = poisoned.into_inner();
+            *inner = TranspositionTable::new();
+            inner
+        });
 
         let (best_move, _) = search(
             &search_position,
