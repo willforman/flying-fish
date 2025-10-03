@@ -203,7 +203,7 @@ pub(super) fn gen_moves(
     position: &Position,
     leaping_pieces: LeapingPiecesMoveGen,
     sliding_pieces: SlidingPiecesMoveGen,
-) -> ArrayVec<Move, 80> {
+) -> ArrayVec<Move, 218> {
     debug_assert!(position.state.half_move_clock <= 50);
     let mut moves = ArrayVec::new();
 

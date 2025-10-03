@@ -504,7 +504,7 @@ fn quiescence_search(
     }
 
     let mut best_eval = standing_pat;
-    let mut capture_moves: ArrayVec<Move, 80> = move_gen
+    let mut capture_moves: ArrayVec<Move, 218> = move_gen
         .gen_moves(position)
         .into_iter()
         .filter(|mve| position.is_capture(mve))
@@ -556,7 +556,7 @@ fn quiescence_search(
 }
 
 fn order_moves(
-    moves: &mut ArrayVec<Move, 80>,
+    moves: &mut ArrayVec<Move, 218>,
     position: &Position,
     maybe_tt_best_move: Option<Move>,
 ) {
@@ -629,8 +629,8 @@ mod tests {
     )]
     fn test_mvv_lva(
         position: Position,
-        mut moves_input: ArrayVec<Move, 80>,
-        moves_want: ArrayVec<Move, 80>,
+        mut moves_input: ArrayVec<Move, 218>,
+        moves_want: ArrayVec<Move, 218>,
     ) {
         moves_input.sort_by_key(|mve| -(get_mvv_lva_value(mve, &position) as i64));
 

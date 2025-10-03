@@ -17,7 +17,7 @@ pub use self::traits::GenerateMoves;
 pub struct MoveGen;
 
 impl GenerateMoves for MoveGen {
-    fn gen_moves(&self, position: &Position) -> ArrayVec<Move, 80> {
+    fn gen_moves(&self, position: &Position) -> ArrayVec<Move, 218> {
         all_pieces::gen_moves(position, LEAPING_PIECES, SLIDING_PIECES_MOVE_GEN)
     }
 
