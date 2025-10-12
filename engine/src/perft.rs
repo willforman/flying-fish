@@ -288,7 +288,7 @@ mod tests {
     }
 
     impl GenerateMoves for MoveGenStub<'_> {
-        fn gen_moves(&self, _position: &Position) -> ArrayVec<Move, 80> {
+        fn gen_moves(&self, _position: &Position) -> ArrayVec<Move, 218> {
             ArrayVec::from_iter(self.moves.iter().cloned())
         }
 

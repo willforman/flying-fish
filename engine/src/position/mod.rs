@@ -635,7 +635,7 @@ impl Position {
             .iter()
             .filter(|&&h| h == self.zobrist_hash)
             .count();
-        occurences >= 3
+        occurences >= 2
     }
 
     pub(crate) fn validate_position(&self, mve: Move) -> Result<(), String> {
@@ -857,7 +857,10 @@ mod tests {
     #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), vec![
         Move::new(F3, F4), Move::new(E7, F8), Move::new(F4, F3), Move::new(F8, E7), 
         Move::new(F3, F4), Move::new(E7, F8), Move::new(F4, F3), Move::new(F8, E7), 
-        Move::new(F3, F4), Move::new(E7, F8), Move::new(F4, F3), Move::new(F8, E7), 
+    ], true)]
+    #[test_case(Position::from_fen("7k/8/K7/8/8/8/8/Q7 b - - 0 1").unwrap(), vec![
+        Move::new(H8, G8), Move::new(A1, A2), Move::new(G8, H8), Move::new(A2, A1), 
+        Move::new(H8, G8), Move::new(A1, A2), Move::new(G8, H8), Move::new(A2, A1), 
     ], true)]
     fn test_threefold_repetition(mut position: Position, moves: Vec<Move>, res_want: bool) {
         for mve in moves {
