@@ -55,18 +55,21 @@ impl TranspositionTableEntry {
     }
 }
 
-const TRANSPOSITION_TABLE_ENTRIES: usize = 1 << 22;
-
 #[derive(Debug, Clone)]
 pub struct TranspositionTable {
     entries: Box<[TranspositionTableEntry]>,
 }
 
 impl TranspositionTable {
+    /// Creates a transposition table with size ~64mb
     pub fn new() -> Self {
+        Self::with_num_entries_power_of_two(22)
+    }
+
+    pub fn with_num_entries_power_of_two(power_of_two: usize) -> Self {
+        let num_entries = 1 << power_of_two;
         Self {
-            entries: vec![TranspositionTableEntry::empty(); TRANSPOSITION_TABLE_ENTRIES]
-                .into_boxed_slice(),
+            entries: vec![TranspositionTableEntry::empty(); num_entries].into_boxed_slice(),
         }
     }
 
@@ -113,7 +116,7 @@ impl TranspositionTable {
     }
 
     fn index(&self, position: &Position) -> usize {
-        (position.zobrist_hash.value() as usize) & (TRANSPOSITION_TABLE_ENTRIES - 1)
+        (position.zobrist_hash.value() as usize) & (self.entries.len() - 1)
     }
 }
 
