@@ -1,4 +1,3 @@
-use core::panic;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -12,7 +11,9 @@ use tracing::{debug, debug_span, error, info};
 use crate::evaluation::{Eval, EvaluatePosition};
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
-use crate::transposition_table::{EvalType, TranspositionTable};
+use crate::transposition_table::{
+    EvalType, TranspositionTable, clear_transpostion_table_hitrate, get_transposition_table_hitrate,
+};
 use crate::{Side, Square};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -256,6 +257,7 @@ pub fn search(
         positions_processed,
         time_elapsed: start.elapsed(),
     };
+    clear_transpostion_table_hitrate();
 
     Ok((best_move, search_info))
 }
@@ -370,6 +372,10 @@ fn search_helper(
     let maybe_tt_best_move = if let Some(tt_entry) = transposition_table.get(position) {
         if tt_entry.depth() >= (max_depth - curr_depth) {
             if tt_entry.eval_type() == EvalType::Exact {
+                debug!(
+                    "Using transposition table item: eval {} move {:?}",
+                    tt_entry.eval, tt_entry.best_move
+                );
                 return Some(tt_entry.eval);
             }
         }
@@ -381,7 +387,7 @@ fn search_helper(
     let mut moves = move_gen.gen_moves(position);
     order_moves(&mut moves, position, maybe_tt_best_move);
 
-    let mut best_eval = Eval::mate_in(0);
+    let mut best_eval = Eval::MIN;
     let mut best_move = Move::new(Square::A1, Square::A1);
     let original_alpha = alpha;
     for mve in moves {
@@ -596,7 +602,7 @@ fn write_search_info(
     let nps = nodes_processed as f32 / start_time.elapsed().as_secs_f32();
     info!(
         target: "uci",
-        "info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} time {} pv {}",
+        "info depth {} seldepth {} multipv {} score {} nodes {} nps {:.0} hashfull {} tbhits {} tthitrate {:.2} time {} pv {}",
         iterative_deepening_max_depth,
         max_depth_reached,
         1,
@@ -605,8 +611,9 @@ fn write_search_info(
         nps,
         0,
         0,
+        get_transposition_table_hitrate(),
         start_time.elapsed().as_millis(),
-        best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase())
+        best_move.map_or("".to_string(), |mve| mve.to_string().to_ascii_lowercase()),
     );
 }
 

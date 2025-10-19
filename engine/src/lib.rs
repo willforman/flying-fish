@@ -1,6 +1,7 @@
 mod algebraic_notation;
 mod bitboard;
 mod evaluation;
+mod metrics;
 mod move_gen;
 mod perft;
 mod position;

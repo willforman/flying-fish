@@ -4,6 +4,12 @@ version = "0.2.0"
 edition = "2024"
 authors = ["Will Forman wf8581@gmail.com"]
 
+[features]
+# Controls whether metrics are captured.
+metrics = []
+
+default = []
+
 [profile.release]
 debug = 1
 

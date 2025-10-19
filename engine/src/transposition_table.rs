@@ -1,5 +1,8 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use crate::bitboard::Square;
 use crate::evaluation::Eval;
+use crate::incr;
 use crate::position::{Move, Position, ZobristHash};
 
 use strum_macros::FromRepr;
@@ -60,6 +63,22 @@ pub struct TranspositionTable {
     entries: Box<[TranspositionTableEntry]>,
 }
 
+static TT_LOOKUPS: AtomicU64 = AtomicU64::new(0);
+static TT_HITS: AtomicU64 = AtomicU64::new(0);
+
+pub(crate) fn get_transposition_table_hitrate() -> f64 {
+    let lookups = TT_LOOKUPS.load(Ordering::Relaxed);
+    if lookups == 0 {
+        return 0.;
+    }
+    TT_HITS.load(Ordering::Relaxed) as f64 / lookups as f64
+}
+
+pub(crate) fn clear_transpostion_table_hitrate() {
+    TT_LOOKUPS.store(0, Ordering::Release);
+    TT_HITS.store(0, Ordering::Release);
+}
+
 impl TranspositionTable {
     /// Creates a transposition table with size ~64mb
     pub fn new() -> Self {
@@ -80,9 +99,11 @@ impl TranspositionTable {
     }
 
     pub fn get(&self, position: &Position) -> Option<&TranspositionTableEntry> {
+        incr!(TT_LOOKUPS);
         let entry = &self.entries[self.index(position)];
         if !entry.is_empty() {
             if entry.hash == position.zobrist_hash {
+                incr!(TT_HITS);
                 return Some(entry);
             }
         }
