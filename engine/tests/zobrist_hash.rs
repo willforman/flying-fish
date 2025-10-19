@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use engine::{GenerateMoves, MOVE_GEN, Position, ZobristHash};
 use test_case::test_case;
 
@@ -5,7 +7,7 @@ use test_case::test_case;
 #[test_case(Position::from_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0").unwrap(), 3)]
 #[test_case(Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1").unwrap(), 5)]
 fn test_zobrist_hash_perft(mut position: Position, max_depth: usize) {
-    zobrist_hash_perft_helper(&mut position, 0, max_depth, MOVE_GEN);
+    zobrist_hash_perft_helper(&mut position, 0, max_depth, MOVE_GEN, &mut HashMap::new());
 }
 
 #[test_case(Position::start(), 5)]
@@ -13,7 +15,7 @@ fn test_zobrist_hash_perft(mut position: Position, max_depth: usize) {
 #[test_case(Position::from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1").unwrap(), 6)]
 #[ignore]
 fn test_zobrist_hash_perft_long(mut position: Position, max_depth: usize) {
-    zobrist_hash_perft_helper(&mut position, 0, max_depth, MOVE_GEN);
+    zobrist_hash_perft_helper(&mut position, 0, max_depth, MOVE_GEN, &mut HashMap::new());
 }
 
 fn zobrist_hash_perft_helper(
@@ -21,6 +23,7 @@ fn zobrist_hash_perft_helper(
     curr_depth: usize,
     max_depth: usize,
     move_gen: impl GenerateMoves + Copy,
+    zobrist_to_fen: &mut HashMap<ZobristHash, String>,
 ) {
     if curr_depth == max_depth {
         return;
@@ -31,7 +34,13 @@ fn zobrist_hash_perft_helper(
         let before_hash = position.zobrist_hash;
         let unmake_move_state = position.make_move(mve);
 
-        zobrist_hash_perft_helper(position, curr_depth + 1, max_depth, move_gen);
+        zobrist_hash_perft_helper(
+            position,
+            curr_depth + 1,
+            max_depth,
+            move_gen,
+            zobrist_to_fen,
+        );
 
         // Ensure incremental hash is the same as hash generated from scratch.
         let full_gen_hash = ZobristHash::calculate(&position.pieces, &position.state);
@@ -50,5 +59,20 @@ fn zobrist_hash_perft_helper(
             mve,
             position.to_fen()
         );
+
+        let fen_without_clocks = strip_fen_clocks(&position.to_fen());
+        if let Some(prev_fen) = zobrist_to_fen.get(&position.zobrist_hash) {
+            assert_eq!(
+                &fen_without_clocks, prev_fen,
+                "Zobrist hash collision for zobrist = {}",
+                position.zobrist_hash,
+            );
+        }
+
+        zobrist_to_fen.insert(position.zobrist_hash, fen_without_clocks);
     }
+}
+
+fn strip_fen_clocks(fen: &str) -> String {
+    fen.split_whitespace().take(4).collect::<Vec<_>>().join(" ")
 }

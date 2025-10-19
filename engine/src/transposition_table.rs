@@ -17,7 +17,7 @@ pub enum EvalType {
 
 #[derive(Debug, Clone)]
 pub struct TranspositionTableEntry {
-    hash: ZobristHash,
+    pub hash: ZobristHash,
     pub eval: Eval,
     pub best_move: Move,
     pub depth_and_eval_type: u8,

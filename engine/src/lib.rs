@@ -20,4 +20,4 @@ pub use move_gen::{GenerateMoves, MOVE_GEN, MoveGen};
 pub use perft::{PerftDepthResult, PerftResult, perft, perft_full};
 pub use position::{Move, Piece, Position, PositionError, Side, ZobristHash};
 pub use search::{SearchError, SearchParams, SearchResultInfo, search};
-pub use transposition_table::TranspositionTable;
+pub use transposition_table::{EvalType, TranspositionTable};

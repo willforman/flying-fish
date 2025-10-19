@@ -94,7 +94,7 @@ impl ZobristHash {
                 for piece in Piece::iter() {
                     let bb_idx = piece as usize + (side as usize * 6);
                     if pieces[bb_idx].is_square_set(square) {
-                        hash ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (square as usize)];
+                        hash ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * 64 + (square as usize)];
                     }
                 }
             }
@@ -118,7 +118,7 @@ impl ZobristHash {
         }
 
         if let Some(en_passant_target) = state.en_passant_target {
-            let en_passant_file = en_passant_target as usize / 8;
+            let en_passant_file = en_passant_target as usize % 8;
             hash ^= ZOBRIST_RANDOM_HASHES.en_passant_file[en_passant_file];
         }
 
@@ -128,13 +128,13 @@ impl ZobristHash {
     pub(crate) fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
         let bb_idx = piece as usize + (side as usize * 6);
 
-        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (square as usize)];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * 64 + (square as usize)];
     }
 
     pub(crate) fn remove_piece(&mut self, square: Square, piece: Piece, side: Side) {
         let bb_idx = piece as usize + (side as usize * 6);
 
-        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (square as usize)];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * 64 + (square as usize)];
     }
 
     pub(crate) fn move_piece(
@@ -146,8 +146,8 @@ impl ZobristHash {
     ) {
         let bb_idx = piece as usize + (side as usize * 6);
 
-        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (src_square as usize)];
-        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * (dest_square as usize)];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * 64 + (src_square as usize)];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.pieces[bb_idx * 64 + (dest_square as usize)];
     }
 
     pub(crate) fn flip_side_to_move(&mut self) {
@@ -171,6 +171,6 @@ impl ZobristHash {
     }
 
     pub(crate) fn flip_en_passant_file(&mut self, en_passant_square: Square) {
-        self.0 ^= ZOBRIST_RANDOM_HASHES.en_passant_file[en_passant_square as usize / 8];
+        self.0 ^= ZOBRIST_RANDOM_HASHES.en_passant_file[en_passant_square as usize % 8];
     }
 }
