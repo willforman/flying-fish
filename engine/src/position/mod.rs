@@ -635,6 +635,7 @@ impl Position {
         occurences >= 2
     }
 
+    #[allow(dead_code)]
     pub(crate) fn validate_position(&self, mve: Move) -> Result<(), String> {
         if self.get_piece_bb(Side::White, Piece::King).is_empty() {
             return Err("White king missing".to_string());

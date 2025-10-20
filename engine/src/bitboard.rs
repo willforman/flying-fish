@@ -189,7 +189,7 @@ impl BitBoard {
         self.0
     }
 
-    pub(crate) fn squares(self) -> impl Iterator<Item = Square> {
+    pub fn squares(self) -> impl Iterator<Item = Square> {
         let mut bb = self.0;
         std::iter::from_fn(move || {
             if bb == 0 {

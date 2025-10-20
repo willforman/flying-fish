@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::f32::consts::E;
 use std::fmt::Display;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -10,7 +9,7 @@ use arrayvec::ArrayVec;
 use tracing::{debug, debug_span, error, info};
 
 use crate::evaluation::{Eval, EvaluatePosition};
-use crate::move_gen::{self, GenerateMoves};
+use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
 use crate::transposition_table::{
     EvalType, TranspositionTable, clear_transpostion_table_hitrate, get_transposition_table_hitrate,
