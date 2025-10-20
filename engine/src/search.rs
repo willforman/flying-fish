@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::f32::consts::E;
 use std::fmt::Display;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -9,7 +10,7 @@ use arrayvec::ArrayVec;
 use tracing::{debug, debug_span, error, info};
 
 use crate::evaluation::{Eval, EvaluatePosition};
-use crate::move_gen::GenerateMoves;
+use crate::move_gen::{self, GenerateMoves};
 use crate::position::{Move, Position};
 use crate::transposition_table::{
     EvalType, TranspositionTable, clear_transpostion_table_hitrate, get_transposition_table_hitrate,
@@ -372,10 +373,6 @@ fn search_helper(
     let maybe_tt_best_move = if let Some(tt_entry) = transposition_table.get(position) {
         if tt_entry.depth() >= (max_depth - curr_depth) {
             if tt_entry.eval_type() == EvalType::Exact {
-                debug!(
-                    "Using transposition table item: eval {} move {:?}",
-                    tt_entry.eval, tt_entry.best_move
-                );
                 return Some(tt_entry.eval);
             }
         }
@@ -385,6 +382,13 @@ fn search_helper(
     };
 
     let mut moves = move_gen.gen_moves(position);
+    if moves.is_empty() {
+        if !move_gen.gen_checkers(position).is_empty() {
+            return Some(Eval::MIN);
+        } else {
+            return Some(Eval::DRAW);
+        }
+    }
     order_moves(&mut moves, position, maybe_tt_best_move);
 
     let mut best_eval = Eval::MIN;

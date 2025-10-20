@@ -11,8 +11,11 @@ pub struct Eval(i32);
 impl Display for Eval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(mate) = self.is_mate() {
-            let sign = if mate % 2 == 0 { '+' } else { '-' };
-            write!(f, "{}m{}", sign, mate)
+            if mate % 2 != 0 {
+                write!(f, "mate {}", mate)
+            } else {
+                write!(f, "mate -{}", mate)
+            }
         } else {
             write!(f, "cp {}", self.0)
         }
@@ -212,7 +215,7 @@ fn get_piece_square_bonus(piece: Piece, square: Square) -> (i32, i32) {
 impl EvaluatePosition for PositionEvaluator {
     /// Return evaluation relative to the side to move
     fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> Eval {
-        if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
+        if position.is_draw() {
             return Eval::DRAW;
         }
         if move_gen.gen_moves(position).is_empty() {

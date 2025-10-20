@@ -207,7 +207,7 @@ pub(super) fn gen_moves(
     debug_assert!(position.state.half_move_clock <= 50);
     let mut moves = ArrayVec::new();
 
-    if position.state.half_move_clock == 50 {
+    if position.is_draw() {
         return moves;
     }
     let side = position.state.to_move;
