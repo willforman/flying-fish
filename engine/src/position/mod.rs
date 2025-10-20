@@ -619,14 +619,7 @@ impl Position {
     }
 
     pub fn piece_locs(&self) -> impl Iterator<Item = (Piece, Side, Square)> + '_ {
-        Side::iter().flat_map(move |side| {
-            Piece::iter().flat_map(move |piece| {
-                let board_for_piece_side = self.get_piece_bb(side, piece);
-                board_for_piece_side
-                    .squares()
-                    .map(move |sq| (piece, side, sq))
-            })
-        })
+        PieceLocsIter::new(self)
     }
 
     pub fn is_threefold_repetition(&self) -> bool {
@@ -719,6 +712,78 @@ impl fmt::Debug for Position {
             self.zobrist_hash,
         )?;
         Ok(())
+    }
+}
+
+pub struct PieceLocsIter<'a> {
+    position: &'a Position,
+    side_idx: u8,
+    piece_idx: u8,
+    bitboard: u64,
+}
+
+impl<'a> PieceLocsIter<'a> {
+    fn new(position: &'a Position) -> Self {
+        let mut iter = Self {
+            position,
+            side_idx: 0,
+            piece_idx: 0,
+            bitboard: 0,
+        };
+        iter.load_next_bitboard();
+        iter
+    }
+
+    #[inline]
+    fn load_next_bitboard(&mut self) {
+        let side = if self.side_idx == 0 { Side::White } else { Side::Black };
+        let piece = match self.piece_idx {
+            0 => Piece::Pawn,
+            1 => Piece::Knight,
+            2 => Piece::Bishop,
+            3 => Piece::Rook,
+            4 => Piece::Queen,
+            _ => Piece::King,
+        };
+        self.bitboard = self.position.get_piece_bb(side, piece).to_val();
+    }
+}
+
+impl<'a> Iterator for PieceLocsIter<'a> {
+    type Item = (Piece, Side, Square);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.bitboard != 0 {
+                let lsb_idx = self.bitboard.trailing_zeros() as u8;
+                self.bitboard &= self.bitboard - 1; // Clear the LSB
+
+                let side = if self.side_idx == 0 { Side::White } else { Side::Black };
+                let piece = match self.piece_idx {
+                    0 => Piece::Pawn,
+                    1 => Piece::Knight,
+                    2 => Piece::Bishop,
+                    3 => Piece::Rook,
+                    4 => Piece::Queen,
+                    _ => Piece::King,
+                };
+
+                return Some((piece, side, Square::from_u8(lsb_idx)));
+            }
+
+            // Move to next piece/side combination
+            self.piece_idx += 1;
+            if self.piece_idx >= 6 {
+                self.piece_idx = 0;
+                self.side_idx += 1;
+                if self.side_idx >= 2 {
+                    return None; // All done
+                }
+            }
+
+            self.load_next_bitboard();
+        }
     }
 }
 
