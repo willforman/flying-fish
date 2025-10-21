@@ -512,8 +512,16 @@ fn quiescence_search(
     }
 
     let mut best_eval = standing_pat;
-    let mut capture_moves: ArrayVec<Move, 218> = move_gen
-        .gen_moves(position)
+    let moves: ArrayVec<Move, 218> = move_gen.gen_moves(position);
+    if moves.is_empty() {
+        if !move_gen.gen_checkers(position).is_empty() {
+            return Some(Eval::MIN);
+        } else {
+            return Some(Eval::DRAW);
+        }
+    }
+
+    let mut capture_moves = moves
         .into_iter()
         .filter(|mve| position.is_capture(mve))
         .collect();
