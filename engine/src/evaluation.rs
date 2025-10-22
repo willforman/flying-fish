@@ -11,11 +11,7 @@ pub struct Eval(i32);
 impl Display for Eval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(mate) = self.is_mate() {
-            if mate % 2 != 0 {
-                write!(f, "mate {}", mate)
-            } else {
-                write!(f, "mate -{}", mate)
-            }
+            write!(f, "mate {}", mate)
         } else {
             write!(f, "cp {}", self.0)
         }
@@ -29,36 +25,41 @@ impl Eval {
 
     const MATE_BASE: i32 = 30_000;
 
-    pub const fn mate_in(ply: u8) -> Self {
-        if ply % 2 == 0 {
-            Self(-Self::MATE_BASE + (ply as i32 / 2))
+    pub const fn mate_in(moves: i8) -> Self {
+        if moves > 0 {
+            Self(Self::MATE_BASE - (moves as i32))
         } else {
-            Self(Self::MATE_BASE - (ply as i32 / 2))
+            Self(-Self::MATE_BASE - (moves as i32))
         }
     }
 
-    pub fn is_mate(&self) -> Option<u8> {
+    /// Returns how many moves (not plys) the evaluation represents, or none if it's not mate.
+    pub fn is_mate(&self) -> Option<i8> {
         let from_mate = if self.0 >= 0 {
-            (Self::MATE_BASE - self.0) * 2 + 1
+            Self::MATE_BASE - self.0
         } else {
-            (Self::MATE_BASE + self.0) * 2
+            -(Self::MATE_BASE + self.0)
         };
-        if from_mate <= 250 {
-            return Some(
-                from_mate
-                    .try_into()
-                    .expect("Bug with Eval mate calculation"),
-            );
+        if from_mate.abs() <= 250 {
+            return Some(from_mate.try_into().unwrap_or_else(|_| {
+                panic!(
+                    "Bug with Eval mate calculation: couldn't convert to i32: {}",
+                    from_mate
+                )
+            }));
         }
         None
     }
 
     pub fn flip(&self) -> Eval {
-        if let Some(mate) = self.is_mate() {
-            Eval::mate_in(mate + 1)
-        } else {
-            Eval(-self.0)
+        if let Some(mate_moves) = self.is_mate() {
+            if mate_moves <= 0 {
+                return Eval::mate_in(-(mate_moves) + 1);
+            } else {
+                return Eval::mate_in(-mate_moves);
+            }
         }
+        Eval(-self.0)
     }
 }
 
@@ -308,8 +309,10 @@ mod tests {
 
     #[test_case(Eval(10), Eval(-10))]
     #[test_case(Eval::mate_in(0), Eval::mate_in(1))]
-    #[test_case(Eval::mate_in(1), Eval::mate_in(2))]
-    #[test_case(Eval::mate_in(4), Eval::mate_in(5))]
+    #[test_case(Eval::mate_in(1), Eval::mate_in(-1))]
+    #[test_case(Eval::mate_in(-1), Eval::mate_in(2))]
+    #[test_case(Eval::mate_in(4), Eval::mate_in(-4))]
+    #[test_case(Eval::mate_in(-7), Eval::mate_in(8))]
     #[test_case(Eval::DRAW, Eval::DRAW)]
     fn test_eval_flip(eval_input: Eval, eval_want: Eval) {
         let eval_got = eval_input.flip();
@@ -321,20 +324,22 @@ mod tests {
     fn test_eval_ord() {
         let evals_order_want = vec![
             Eval::mate_in(0),
-            Eval::mate_in(2),
+            Eval::mate_in(-1),
+            Eval::mate_in(-2),
             Eval(-20),
             Eval(-1),
             Eval::DRAW,
             Eval(1),
             Eval(20),
-            Eval::mate_in(3),
+            Eval::mate_in(2),
             Eval::mate_in(1),
         ];
         let mut evals = vec![
             Eval::mate_in(0),
             Eval::mate_in(1),
+            Eval::mate_in(-1),
             Eval::mate_in(2),
-            Eval::mate_in(3),
+            Eval::mate_in(-2),
             Eval(-20),
             Eval(-1),
             Eval::DRAW,
@@ -359,13 +364,18 @@ mod tests {
         Ok(())
     }
 
-    #[test_case(Eval::mate_in(0), Some(0))]
-    #[test_case(Eval::mate_in(2), Some(2))]
-    #[test_case(Eval::mate_in(1), Some(1))]
-    #[test_case(Eval::mate_in(7), Some(7))]
+    #[test_case(Eval::mate_in(0), Some(0) ; "0")]
+    #[test_case(Eval::mate_in(1), Some(1) ; "1")]
+    #[test_case(Eval::mate_in(-1), Some(-1) ; "neg 1")]
+    #[test_case(Eval::mate_in(2), Some(2) ; "2")]
+    #[test_case(Eval::mate_in(-2), Some(-2) ; "neg 2")]
+    #[test_case(Eval::mate_in(-7), Some(-7) ; "neg 7")]
+    #[test_case(Eval::mate_in(10), Some(10) ; "10")]
+    #[test_case(Eval::mate_in(101), Some(101) ; "101")]
+    #[test_case(Eval::mate_in(101), Some(101) ; "neg 101")]
     #[test_case(Eval::DRAW, None)]
     #[test_case(Eval(10), None)]
-    fn test_is_mate(eval: Eval, is_mate_want: Option<u8>) {
+    fn test_is_mate(eval: Eval, is_mate_want: Option<i8>) {
         let is_mate_got = eval.is_mate();
 
         assert_eq!(is_mate_got, is_mate_want);
