@@ -398,7 +398,6 @@ fn search_helper(
         if !move_gen.gen_checkers(position).is_empty() {
             return Some(Eval::MIN);
         }
-        // Stalemate
         return Some(Eval::DRAW);
     }
     order_moves(&mut moves, position, maybe_tt_best_move);
