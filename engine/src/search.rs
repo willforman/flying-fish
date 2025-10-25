@@ -406,7 +406,7 @@ fn search_helper(
     let mut best_eval = Eval::MIN;
     let mut best_move = Move::new(Square::A1, Square::A1);
     let original_alpha = alpha;
-    for mve in moves {
+    for (idx, mve) in moves.into_iter().enumerate() {
         let unmake_move_state = position.make_move(mve);
         #[cfg(debug_assertions)]
         {
@@ -415,27 +415,68 @@ fn search_helper(
             }
         }
 
-        // Reason for `?`: if the child node is signaling search is terminated,
-        // better terminate self.
-        let got_eval = search_helper(
-            position,
-            params,
-            curr_depth + 1,
-            max_depth,
-            max_depth_reached,
-            positions_processed,
-            start_time,
-            pv_eval,
-            beta.flip(),
-            alpha.flip(),
-            move_gen,
-            position_eval,
-            transposition_table,
-            Arc::clone(&terminate),
-        )?;
+        let got_eval = if idx == 0 {
+            // Reason for `?`: if the child node is signaling search is terminated,
+            // better terminate self.
+            search_helper(
+                position,
+                params,
+                curr_depth + 1,
+                max_depth,
+                max_depth_reached,
+                positions_processed,
+                start_time,
+                pv_eval,
+                beta.flip(),
+                alpha.flip(),
+                move_gen,
+                position_eval,
+                transposition_table,
+                Arc::clone(&terminate),
+            )?
+            .flip()
+        } else {
+            let got_eval = search_helper(
+                position,
+                params,
+                curr_depth + 1,
+                max_depth,
+                max_depth_reached,
+                positions_processed,
+                start_time,
+                pv_eval,
+                alpha.flip() - 1,
+                alpha.flip(),
+                move_gen,
+                position_eval,
+                transposition_table,
+                Arc::clone(&terminate),
+            )?
+            .flip();
+            if got_eval > alpha && (beta.value() - alpha.value()) > 1 {
+                search_helper(
+                    position,
+                    params,
+                    curr_depth + 1,
+                    max_depth,
+                    max_depth_reached,
+                    positions_processed,
+                    start_time,
+                    pv_eval,
+                    beta.flip(),
+                    alpha.flip(),
+                    move_gen,
+                    position_eval,
+                    transposition_table,
+                    Arc::clone(&terminate),
+                )?
+                .flip()
+            } else {
+                got_eval
+            }
+        };
 
         // Flip value because it was relative to the other side
-        let got_eval = got_eval.flip();
         position.unmake_move(unmake_move_state);
 
         if got_eval >= best_eval {
