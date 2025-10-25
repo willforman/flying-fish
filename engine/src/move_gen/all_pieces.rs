@@ -204,12 +204,8 @@ pub(super) fn gen_moves(
     leaping_pieces: LeapingPiecesMoveGen,
     sliding_pieces: SlidingPiecesMoveGen,
 ) -> ArrayVec<Move, 218> {
-    debug_assert!(position.state.half_move_clock <= 50);
     let mut moves = ArrayVec::new();
 
-    if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
-        return moves;
-    }
     let side = position.state.to_move;
     let opp_side = side.opposite_side();
 

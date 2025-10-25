@@ -224,9 +224,6 @@ fn get_piece_square_bonus(piece: Piece, square: Square) -> (i32, i32) {
 impl EvaluatePosition for PositionEvaluator {
     /// Return evaluation relative to the side to move
     fn evaluate(&self, position: &Position, move_gen: impl GenerateMoves) -> Eval {
-        if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
-            return Eval::DRAW;
-        }
         if move_gen.gen_moves(position).is_empty() {
             if !move_gen.gen_checkers(position).is_empty() {
                 return Eval::mate_in(0);
