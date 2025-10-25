@@ -525,14 +525,14 @@ fn quiescence_search(
         }
     }
 
-    let mut capture_moves = moves
+    let mut noisy_moves = moves
         .into_iter()
-        .filter(|mve| position.is_capture(mve))
+        .filter(|mve| position.is_capture(mve) || mve.promotion == Some(crate::Piece::Queen))
         .collect();
 
-    order_moves(&mut capture_moves, position, None);
+    order_moves(&mut noisy_moves, position, None);
 
-    for mve in capture_moves {
+    for mve in noisy_moves {
         let unmake_move_state = position.make_move(mve);
         #[cfg(debug_assertions)]
         {
