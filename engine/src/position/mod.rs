@@ -932,8 +932,26 @@ mod tests {
         Move::new(H8, G8), Move::new(A1, A2), Move::new(G8, H8), Move::new(A2, A1), 
         Move::new(H8, G8), Move::new(A1, A2), Move::new(G8, H8), Move::new(A2, A1), 
     ], true)]
+    #[test_case(Position::from_fen("rnb1kbnr/2q2ppp/pp1p4/2p1p3/8/1P1PP1P1/PBPNNPBP/R2QK2R b KQkq - 0 1").unwrap(), vec![
+        Move::new(B8, C6), Move::new(E1, G1), Move::new(C8, B7), Move::new(E2, C3),
+        Move::new(G8, F6), Move::new(A1, C1), Move::new(E8, C8), Move::new(D2, E4),
+        Move::new(C6, B4), Move::new(A2, A3), Move::new(B4, D5), Move::new(C3, D5),
+        Move::new(B7, D5), Move::new(C2, C4), Move::new(D5, E4), Move::new(D3, E4),
+        Move::new(F8, E7), Move::new(D1, F3), Move::new(H8, E8), Move::new(C1, D1),
+        Move::new(C8, B8), Move::new(F1, E1), Move::new(B6, B5), Move::new(H2, H3),
+        Move::new(H7, H6), Move::new(B2, C3), Move::new(E8, F8), Move::new(F3, F5),
+        Move::new(F8, E8), Move::new(F5, F3), Move::new(E8, F8), Move::new(F3, E2),
+        Move::new(C7, B6), Move::new(E2, D3), Move::new(B5, C4), Move::new(B3, C4),
+        Move::new(B6, C6), Move::new(D1, B1), Move::new(B8, A7), Move::new(C3, A5),
+        Move::new(D8, B8), Move::new(B1, D1), Move::new(B8, B2), Move::new(D3, C3),
+        Move::new(B2, B8), Move::new(C3, C2), Move::new(B8, E8), Move::new(A5, C3),
+        Move::new(A7, B8), Move::new(A3, A4), Move::new(E7, D8), Move::new(C2, B3),
+        Move::new(B8, C8), Move::new(B3, C2), Move::new(C8, B8), Move::new(C2, B3),
+        Move::new(B8, C8), Move::new(B3, C2), Move::new(C8, B8),
+    ], true)]
     fn test_threefold_repetition(mut position: Position, moves: Vec<Move>, res_want: bool) {
         for mve in moves {
+            println!("{:?}", mve);
             position.make_move(mve);
         }
 
