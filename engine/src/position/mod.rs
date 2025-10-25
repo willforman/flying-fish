@@ -631,6 +631,13 @@ impl Position {
         occurences >= 2
     }
 
+    pub fn is_repetition_possible(&self) -> bool {
+        self
+            .history
+            .iter()
+            .any(|&h| h == self.zobrist_hash)
+    }
+
     #[allow(dead_code)]
     pub(crate) fn validate_position(&self, mve: Move) -> Result<(), String> {
         if self.get_piece_bb(Side::White, Piece::King).is_empty() {

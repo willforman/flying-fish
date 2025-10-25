@@ -379,7 +379,7 @@ fn search_helper(
     }
 
     let maybe_tt_best_move = if let Some(tt_entry) = transposition_table.get(position) {
-        if tt_entry.depth() >= (max_depth - curr_depth) {
+        if !position.is_repetition_possible() && tt_entry.depth() >= (max_depth - curr_depth) {
             let eval_type = tt_entry.eval_type();
             if eval_type == EvalType::Exact
                 || (eval_type == EvalType::LowerBound && tt_entry.eval >= beta)
