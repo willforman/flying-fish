@@ -62,10 +62,6 @@ impl Eval {
         }
         Eval(-self.0)
     }
-
-    pub(crate) fn value(&self) -> i32 {
-        self.0
-    }
 }
 
 impl Sub<i32> for Eval {

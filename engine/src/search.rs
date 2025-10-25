@@ -453,7 +453,7 @@ fn search_helper(
                 Arc::clone(&terminate),
             )?
             .flip();
-            if got_eval > alpha && (beta.value() - alpha.value()) > 1 {
+            if alpha < got_eval && got_eval < beta {
                 search_helper(
                     position,
                     params,
