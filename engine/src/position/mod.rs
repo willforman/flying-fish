@@ -638,6 +638,38 @@ impl Position {
             .any(|&h| h == self.zobrist_hash)
     }
 
+    fn has_bishop_pair(&self, side: Side) -> bool {
+        let bishops = self.get_piece_bb(side, Piece::Bishop);
+
+        if bishops.num_squares_set() < 2 {
+            return false;
+        }
+
+        const LIGHT_SQUARES: BitBoard = BitBoard::from_val(0x55AA55AA55AA55AA);
+        const DARK_SQUARES: BitBoard = BitBoard::from_val(0xAA55AA55AA55AA55);
+
+        let has_light_bishop = !(bishops & LIGHT_SQUARES).is_empty();
+        let has_dark_bishop = !(bishops & DARK_SQUARES).is_empty();
+
+        has_light_bishop && has_dark_bishop
+    }
+
+    /// Source: https://rustic-chess.org/board_functionality/detecting_cant_force_mate.html
+    pub fn is_sufficient_mating_material(&self) -> bool {
+        !self.get_piece_bb(Side::White, Piece::Queen).is_empty()
+            || !self.get_piece_bb(Side::Black, Piece::Queen).is_empty()
+            || !self.get_piece_bb(Side::White, Piece::Rook).is_empty()
+            || !self.get_piece_bb(Side::Black, Piece::Rook).is_empty()
+            || !self.get_piece_bb(Side::White, Piece::Pawn).is_empty()
+            || !self.get_piece_bb(Side::Black, Piece::Pawn).is_empty()
+            || self.has_bishop_pair(Side::White)
+            || self.has_bishop_pair(Side::Black)
+            || (!self.get_piece_bb(Side::White, Piece::Bishop).is_empty() && !self.get_piece_bb(Side::White, Piece::Knight).is_empty())
+            || (!self.get_piece_bb(Side::Black, Piece::Bishop).is_empty() && !self.get_piece_bb(Side::Black, Piece::Knight).is_empty())
+            || self.get_piece_bb(Side::White, Piece::Knight).num_squares_set() >= 3
+            || self.get_piece_bb(Side::Black, Piece::Knight).num_squares_set() >= 3
+    }
+
     #[allow(dead_code)]
     pub(crate) fn validate_position(&self, mve: Move) -> Result<(), String> {
         if self.get_piece_bb(Side::White, Piece::King).is_empty() {

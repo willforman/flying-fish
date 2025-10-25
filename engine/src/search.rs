@@ -374,7 +374,10 @@ fn search_helper(
         );
     }
 
-    if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
+    if position.state.half_move_clock == 50
+        || position.is_threefold_repetition()
+        || !position.is_sufficient_mating_material()
+    {
         return Some(Eval::DRAW);
     }
 
