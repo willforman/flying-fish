@@ -94,6 +94,7 @@ impl Display for SearchParams {
 pub struct SearchResultInfo {
     pub positions_processed: u64,
     pub time_elapsed: Duration,
+    pub move_evals: HashMap<Move, Eval>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -158,6 +159,8 @@ pub fn search(
         })
         .collect();
 
+    let mut final_move_vals = HashMap::new();
+
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
         let iteration_start_time = Instant::now();
         debug_span!(
@@ -207,6 +210,7 @@ pub fn search(
                 break 'outer;
             }
         }
+        final_move_vals = move_vals.clone();
 
         // Sort moves by descending value, for this depth
         moves.sort_by(|move1, move2| {
@@ -256,6 +260,7 @@ pub fn search(
     let search_info = SearchResultInfo {
         positions_processed,
         time_elapsed: start.elapsed(),
+        move_evals: final_move_vals,
     };
     clear_transpostion_table_hitrate();
 
@@ -369,6 +374,10 @@ fn search_helper(
         );
     }
 
+    if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
+        return Some(Eval::DRAW);
+    }
+
     let maybe_tt_best_move = if let Some(tt_entry) = transposition_table.get(position) {
         if tt_entry.depth() >= (max_depth - curr_depth) {
             let eval_type = tt_entry.eval_type();
@@ -388,9 +397,9 @@ fn search_helper(
     if moves.is_empty() {
         if !move_gen.gen_checkers(position).is_empty() {
             return Some(Eval::MIN);
-        } else {
-            return Some(Eval::DRAW);
         }
+        // Stalemate
+        return Some(Eval::DRAW);
     }
     order_moves(&mut moves, position, maybe_tt_best_move);
 
@@ -518,11 +527,14 @@ fn quiescence_search(
     let mut best_eval = standing_pat;
     let moves: ArrayVec<Move, 218> = move_gen.gen_moves(position);
     if moves.is_empty() {
-        if !move_gen.gen_checkers(position).is_empty() {
-            return Some(Eval::MIN);
-        } else {
+        if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
             return Some(Eval::DRAW);
         }
+        if !move_gen.gen_checkers(position).is_empty() {
+            return Some(Eval::MIN);
+        }
+        // Stalemate
+        return Some(Eval::DRAW);
     }
 
     let mut noisy_moves = moves
@@ -635,7 +647,7 @@ fn write_search_info(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Square::*;
+    use crate::{MOVE_GEN, POSITION_EVALUATOR, Square::*};
     use test_case::test_case;
 
     #[test_case(Position::from_fen("7k/8/8/8/5q1b/3q1pP1/2r3b1/K3N3 w - - 0 1").unwrap(),
@@ -656,5 +668,52 @@ mod tests {
         moves_input.sort_by_key(|mve| -(get_mvv_lva_value(mve, &position) as i64));
 
         assert_eq!(moves_input, moves_want);
+    }
+
+    #[test_case(Position::from_fen("rnb1kbnr/2q2ppp/pp1p4/2p1p3/8/1P1PP1P1/PBPNNPBP/R2QK2R b KQkq - 0 1").unwrap(), vec![
+        Move::new(B8, C6), Move::new(E1, G1), Move::new(C8, B7), Move::new(E2, C3),
+        Move::new(G8, F6), Move::new(A1, C1), Move::new(E8, C8), Move::new(D2, E4),
+        Move::new(C6, B4), Move::new(A2, A3), Move::new(B4, D5), Move::new(C3, D5),
+        Move::new(B7, D5), Move::new(C2, C4), Move::new(D5, E4), Move::new(D3, E4),
+        Move::new(F8, E7), Move::new(D1, F3), Move::new(H8, E8), Move::new(C1, D1),
+        Move::new(C8, B8), Move::new(F1, E1), Move::new(B6, B5), Move::new(H2, H3),
+        Move::new(H7, H6), Move::new(B2, C3), Move::new(E8, F8), Move::new(F3, F5),
+        Move::new(F8, E8), Move::new(F5, F3), Move::new(E8, F8), Move::new(F3, E2),
+        Move::new(C7, B6), Move::new(E2, D3), Move::new(B5, C4), Move::new(B3, C4),
+        Move::new(B6, C6), Move::new(D1, B1), Move::new(B8, A7), Move::new(C3, A5),
+        Move::new(D8, B8), Move::new(B1, D1), Move::new(B8, B2), Move::new(D3, C3),
+        Move::new(B2, B8), Move::new(C3, C2), Move::new(B8, E8), Move::new(A5, C3),
+        Move::new(A7, B8), Move::new(A3, A4), Move::new(E7, D8), Move::new(C2, B3),
+        Move::new(B8, C8), Move::new(B3, C2), Move::new(C8, B8), Move::new(C2, B3),
+        Move::new(B8, C8), Move::new(B3, C2),
+    ], 2, Move::new(C8, B8), Eval::DRAW)]
+    fn test_expected_search_result(
+        mut position: Position,
+        start_moves: Vec<Move>,
+        max_depth: u8,
+        mve: Move,
+        eval_want: Eval,
+    ) {
+        for start_mve in start_moves {
+            position.make_move(start_mve);
+        }
+
+        let (_, search_res) = search(
+            &position,
+            &SearchParams {
+                max_depth: Some(max_depth),
+                search_moves: Some(vec![mve]),
+                ..Default::default()
+            },
+            MOVE_GEN,
+            POSITION_EVALUATOR,
+            &mut TranspositionTable::new(),
+            Arc::new(AtomicBool::new(false)),
+        )
+        .unwrap();
+
+        let eval_got = search_res.move_evals[&mve];
+
+        assert_eq!(eval_got, eval_want);
     }
 }
