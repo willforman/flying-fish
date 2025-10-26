@@ -3,6 +3,7 @@ use std::fmt;
 use arrayvec::ArrayVec;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter};
+use tracing::debug;
 
 use crate::bitboard::Square::*;
 use crate::bitboard::{BitBoard, Direction, Square};
@@ -328,7 +329,7 @@ impl Position {
 
         let piece = self
             .is_piece_at(mve.src, side)
-            .expect("No piece to move found");
+            .unwrap_or_else(|| panic!("No piece to move found: {} {}\n{}\n{:?}", side, mve, self.to_fen(), self));
 
         let unmake_zobrist_hash = self.zobrist_hash;
         self.history.push(self.zobrist_hash);
@@ -571,6 +572,40 @@ impl Position {
         debug_assert_eq!(history_pop, Some(self.zobrist_hash));
     }
 
+
+    pub fn make_null_move(&mut self) -> Option<Square> {
+        self.history.push(self.zobrist_hash);
+
+        let prev_en_passant_target = self.state.en_passant_target;
+        if let Some(en_passant_target) = prev_en_passant_target {
+            self.zobrist_hash.flip_en_passant_file(en_passant_target);
+        }
+        self.state.en_passant_target = None;
+
+        self.zobrist_hash.flip_side_to_move();
+        self.state.to_move = self.state.to_move.opposite_side();
+
+        self.state.half_move_clock += 1;
+
+        return prev_en_passant_target;
+    }
+
+    pub fn unmake_null_move(&mut self, prev_en_passant_target: Option<Square>) {
+        self.state.to_move = self.state.to_move.opposite_side();
+        self.state.half_move_clock -= 1;
+        self.zobrist_hash.flip_side_to_move();
+
+        if let Some(en_passant_target) = prev_en_passant_target {
+            self.state.en_passant_target = prev_en_passant_target;
+            self.zobrist_hash.flip_en_passant_file(en_passant_target);
+        } else {
+            self.state.en_passant_target = None;
+        }
+
+        let history_pop = self.history.pop();
+        debug_assert_eq!(history_pop, Some(self.zobrist_hash));
+    }
+
     fn add_piece(&mut self, square: Square, piece: Piece, side: Side) {
         debug_assert!(
             !self.is_piece_at(square, side).is_some(),
@@ -668,6 +703,11 @@ impl Position {
             || (!self.get_piece_bb(Side::Black, Piece::Bishop).is_empty() && !self.get_piece_bb(Side::Black, Piece::Knight).is_empty())
             || self.get_piece_bb(Side::White, Piece::Knight).num_squares_set() >= 3
             || self.get_piece_bb(Side::Black, Piece::Knight).num_squares_set() >= 3
+    }
+
+    pub fn has_non_pawn_material(&self) -> bool {
+        let occ_no_kings = self.occupancy_bb() & !(self.get_piece_bb(Side::White, Piece::King) | self.get_piece_bb(Side::Black, Piece::King));
+        occ_no_kings != (self.get_piece_bb(Side::White, Piece::Pawn) | self.get_piece_bb(Side::Black, Piece::Pawn))
     }
 
     #[allow(dead_code)]
@@ -991,6 +1031,14 @@ mod tests {
         }
 
         let res_got = position.is_threefold_repetition();
+
+        assert_eq!(res_got, res_want);
+    }
+
+    #[test_case(Position::from_fen("k7/8/8/3pppp1/1PPPP3/8/8/K7 w - - 0 1").unwrap(), false)]
+    #[test_case(Position::from_fen("k6n/8/8/3pppp1/1PPPP3/8/8/K7 w - - 0 1").unwrap(), true)]
+    fn test_has_non_pawn_material(position: Position, res_want: bool) {
+        let res_got = position.has_non_pawn_material();
 
         assert_eq!(res_got, res_want);
     }

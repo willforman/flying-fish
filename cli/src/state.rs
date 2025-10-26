@@ -1,5 +1,6 @@
 use anyhow::Result;
 use statig::prelude::*;
+use std::backtrace::Backtrace;
 use std::collections::HashMap;
 use std::panic;
 use std::process;
@@ -277,7 +278,9 @@ fn spawn_search(
                 "unknown panic message".to_string()
             };
 
-            *panic_info_clone.lock().unwrap() = Some((message, location));
+            let backtrace = Backtrace::force_capture();
+
+            *panic_info_clone.lock().unwrap() = Some((message, location, backtrace));
         }));
 
         let transposition_table_arc = Arc::clone(&transposition_table);
@@ -318,8 +321,8 @@ fn spawn_search(
                 uci!("bestmove 0000");
             }
             Err(_) => {
-                if let Some((message, location)) = panic_info.lock().unwrap().take() {
-                    error!(target: "uci", "Search thread panicked at {}: {}", location, message);
+                if let Some((message, location, backtrace)) = panic_info.lock().unwrap().take() {
+                    error!(target: "uci", "Search thread panicked at {}: {}\nBacktrace:\n{}", location, message, backtrace);
                 } else {
                     error!(target: "uci", "Search thread panicked with unknown payload");
                 }

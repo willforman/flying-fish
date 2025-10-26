@@ -396,6 +396,50 @@ fn search_helper(
         None
     };
 
+    let is_pv_node = alpha != beta - 1;
+
+    let checkers = move_gen.gen_checkers(position);
+    let eval = position_eval.evaluate(position, move_gen);
+
+    // Null Move Pruning
+    if !is_pv_node
+        && checkers.is_empty()
+        && eval >= beta
+        && curr_depth >= NULL_MOVE_PRUNING_DEPTH
+        && position.has_non_pawn_material()
+    {
+        const R: u8 = 2;
+
+        let nmp_depth = curr_depth + R;
+
+        if nmp_depth <= max_depth {
+            let unmake_en_passant_target = position.make_null_move();
+
+            let nmp_eval = search_helper(
+                position,
+                params,
+                nmp_depth,
+                max_depth,
+                max_depth_reached,
+                positions_processed,
+                start_time,
+                pv_eval,
+                beta.flip(),
+                beta.flip() + 1,
+                move_gen,
+                position_eval,
+                transposition_table,
+                Arc::clone(&terminate),
+            )?
+            .flip();
+            position.unmake_null_move(unmake_en_passant_target);
+
+            if nmp_eval >= beta {
+                return Some(nmp_eval);
+            }
+        }
+    }
+
     let mut moves = move_gen.gen_moves(position);
     if moves.is_empty() {
         if !move_gen.gen_checkers(position).is_empty() {
@@ -510,6 +554,8 @@ fn search_helper(
 
     Some(best_eval)
 }
+
+const NULL_MOVE_PRUNING_DEPTH: u8 = 3;
 
 /// Source: https://www.chessprogramming.org/Quiescence_Search
 #[allow(clippy::too_many_arguments)]

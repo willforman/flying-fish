@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use std::ops::Sub;
+use std::ops::{Add, Sub};
 
 use crate::GenerateMoves;
 use crate::bitboard::Square;
@@ -61,6 +61,13 @@ impl Eval {
             }
         }
         Eval(-self.0)
+    }
+}
+
+impl Add<i32> for Eval {
+    type Output = Eval;
+    fn add(self, rhs: i32) -> Self::Output {
+        Eval(self.0 - rhs)
     }
 }
 
