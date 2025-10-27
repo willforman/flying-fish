@@ -597,25 +597,30 @@ fn quiescence_search(
         );
     }
 
-    let standing_pat = position_eval.evaluate(position, move_gen);
-
-    if curr_depth >= max_depth * 3 {
-        return Some(standing_pat);
-    }
-
-    if standing_pat >= beta {
-        return Some(standing_pat);
-    }
-    if standing_pat > alpha {
-        alpha = standing_pat;
-    }
-
     if position.is_draw() {
         return Some(Eval::DRAW);
     }
 
-    let mut best_eval = standing_pat;
-    let moves: ArrayVec<Move, 218> = move_gen.gen_moves(position);
+    let checkers = move_gen.gen_checkers(position);
+    let mut best_eval = if checkers.is_empty() {
+        let standing_pat = position_eval.evaluate(position, move_gen);
+
+        if curr_depth >= max_depth * 3 {
+            return Some(standing_pat);
+        }
+
+        if standing_pat >= beta {
+            return Some(standing_pat);
+        }
+        if standing_pat > alpha {
+            alpha = standing_pat;
+        }
+        standing_pat
+    } else {
+        Eval::MIN
+    };
+
+    let mut moves: ArrayVec<Move, 218> = move_gen.gen_moves(position);
     if moves.is_empty() {
         if !move_gen.gen_checkers(position).is_empty() {
             return Some(Eval::MIN);
@@ -624,18 +629,21 @@ fn quiescence_search(
         return Some(Eval::DRAW);
     }
 
-    let mut noisy_moves = moves
-        .into_iter()
-        .filter(|mve| {
-            position.is_capture(mve)
-                || mve.promotion == Some(Piece::Queen)
-                || mve.promotion == Some(Piece::Knight)
-        })
-        .collect();
+    // Filter out quiet moves, but only if in check.
+    if checkers.is_empty() {
+        moves = moves
+            .into_iter()
+            .filter(|mve| {
+                position.is_capture(mve)
+                    || mve.promotion == Some(Piece::Queen)
+                    || mve.promotion == Some(Piece::Knight)
+            })
+            .collect();
+    }
 
-    order_moves(&mut noisy_moves, position, None);
+    order_moves(&mut moves, position, None);
 
-    for mve in noisy_moves {
+    for mve in moves {
         let unmake_move_state = position.make_move(mve);
         #[cfg(debug_assertions)]
         {
