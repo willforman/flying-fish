@@ -2,6 +2,7 @@ use std::{
     env,
     fs::{self, File},
     io::{self, BufRead},
+    os::unix::fs as unix_fs,
     path::PathBuf,
     str::FromStr,
     sync::{Arc, atomic::AtomicBool},
@@ -16,7 +17,7 @@ use mimalloc::MiMalloc;
 use tracing::{Level, debug, level_filters::LevelFilter, warn};
 use tracing_subscriber::{Registry, layer::SubscriberExt, prelude::*, util::SubscriberInitExt};
 
-use cli::{LOGS_DIRECTORY, UCI};
+use cli::UCI;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -106,11 +107,31 @@ fn enable_logging() -> Result<()> {
     let log_path = if let Ok(log_path_str) = env::var("FLYING_FISH_LOG_PATH") {
         PathBuf::from_str(&log_path_str)?
     } else {
-        let log_path = get_default_log_path()?;
-        let log_path_dir = log_path.parent().unwrap();
-        if !log_path_dir.exists() {
-            fs::create_dir(log_path_dir)?;
-        }
+        let now = chrono::Local::now();
+        let now_str = now.format("%H.%M.%S_%Y.%m.%d").to_string();
+
+        let log_path = get_default_log_path(&now_str)?;
+        let log_path_dir = log_path.parent().unwrap().to_path_buf();
+        fs::create_dir_all(&log_path_dir).with_context(|| {
+            format!(
+                "Couldn't create directory: {}",
+                log_path_dir.to_string_lossy()
+            )
+        })?;
+
+        // Create symlink to current log at `last` in the logs directory.
+        let symlink_path = log_path_dir.join("last.log");
+        let tmp_symlink_path = log_path_dir.join(format!(".{}-last.tmp", now_str));
+
+        unix_fs::symlink(&log_path, &tmp_symlink_path).with_context(|| {
+            format!(
+                "Couldn't create temporary symlink: {}",
+                tmp_symlink_path.to_string_lossy()
+            )
+        })?;
+        let _ = fs::remove_file(&symlink_path);
+        fs::rename(&tmp_symlink_path, &symlink_path)?;
+
         log_path
     };
 
@@ -153,13 +174,10 @@ fn enable_logging() -> Result<()> {
     Ok(())
 }
 
-fn get_default_log_path() -> Result<PathBuf> {
-    let mut logs_dir = dirs::home_dir().context("Home directory not set")?;
-    logs_dir.push(PathBuf::from(".local/state/chess"));
+fn get_default_log_path(date_str: &str) -> Result<PathBuf> {
+    let mut log_path = dirs::home_dir().context("Home directory not set")?;
+    log_path.push(PathBuf::from(".local/state/flying-fish"));
 
-    let _ = LOGS_DIRECTORY.get_or_init(|| logs_dir.clone());
-
-    let mut log_path = logs_dir;
-    log_path.push("chess.log");
+    log_path.push(format!("{}.log", date_str));
     Ok(log_path)
 }
