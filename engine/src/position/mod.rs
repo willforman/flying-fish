@@ -657,6 +657,10 @@ impl Position {
         PieceLocsIter::new(self)
     }
 
+    pub fn is_draw(&self) -> bool {
+        self.state.half_move_clock >= 50 || self.is_threefold_repetition() || !self.is_sufficient_mating_material()
+    }
+
     pub fn is_threefold_repetition(&self) -> bool {
         let occurences = self
             .history

@@ -374,10 +374,7 @@ fn search_helper(
         );
     }
 
-    if position.state.half_move_clock == 50
-        || position.is_threefold_repetition()
-        || !position.is_sufficient_mating_material()
-    {
+    if position.is_draw() {
         return Some(Eval::DRAW);
     }
 
@@ -613,12 +610,13 @@ fn quiescence_search(
         alpha = standing_pat;
     }
 
+    if position.is_draw() {
+        return Some(Eval::DRAW);
+    }
+
     let mut best_eval = standing_pat;
     let moves: ArrayVec<Move, 218> = move_gen.gen_moves(position);
     if moves.is_empty() {
-        if position.state.half_move_clock == 50 || position.is_threefold_repetition() {
-            return Some(Eval::DRAW);
-        }
         if !move_gen.gen_checkers(position).is_empty() {
             return Some(Eval::MIN);
         }
