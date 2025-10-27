@@ -14,7 +14,7 @@ use crate::position::{Move, Position};
 use crate::transposition_table::{
     EvalType, TranspositionTable, clear_transpostion_table_hitrate, get_transposition_table_hitrate,
 };
-use crate::{Side, Square};
+use crate::{Piece, Side, Square};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SearchParams {
@@ -628,7 +628,11 @@ fn quiescence_search(
 
     let mut noisy_moves = moves
         .into_iter()
-        .filter(|mve| position.is_capture(mve) || mve.promotion == Some(crate::Piece::Queen))
+        .filter(|mve| {
+            position.is_capture(mve)
+                || mve.promotion == Some(Piece::Queen)
+                || mve.promotion == Some(Piece::Knight)
+        })
         .collect();
 
     order_moves(&mut noisy_moves, position, None);
@@ -684,13 +688,11 @@ fn order_moves(
 ) {
     moves.sort_by_key(|mve| -(get_mvv_lva_value(mve, position) as i64));
     if let Some(tt_best_move) = maybe_tt_best_move {
-        let tt_best_move_idx = moves.iter().position(|&m| m == tt_best_move);
-        // .expect("Should have found tt_best_move in moves list");
-        if tt_best_move_idx.is_none() {
-            return;
-        }
-        moves.remove(tt_best_move_idx.unwrap());
-        moves.insert(0, tt_best_move);
+        let tt_best_move_idx = moves
+            .iter()
+            .position(|&m| m == tt_best_move)
+            .expect("Should have found tt_best_move in moves list");
+        moves.swap(0, tt_best_move_idx);
     }
 }
 
