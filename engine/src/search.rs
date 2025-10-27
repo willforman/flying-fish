@@ -273,10 +273,10 @@ fn get_time_to_use(
 ) -> (Option<Duration>, Option<Duration>) {
     let (soft, mut hard) = match (side_to_move, params.white_time, params.black_time) {
         (Side::White, Some(white_time), _) => {
-            let (soft, hard) = calc_time_to_use(white_time, params.black_inc, params.moves_to_go);
+            let (soft, hard) = calc_time_to_use(white_time, params.white_inc, params.moves_to_go);
             (Some(soft), Some(hard))
         }
-        (Side::Black, Some(black_time), _) => {
+        (Side::Black, _, Some(black_time)) => {
             let (soft, hard) = calc_time_to_use(black_time, params.black_inc, params.moves_to_go);
             (Some(soft), Some(hard))
         }
