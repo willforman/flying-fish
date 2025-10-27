@@ -447,7 +447,7 @@ fn search_helper(
     order_moves(&mut moves, position, maybe_tt_best_move);
 
     let mut best_eval = Eval::MIN;
-    let mut best_move = Move::new(Square::A1, Square::A1);
+    let mut best_move = moves[0];
     let original_alpha = alpha;
     for (idx, mve) in moves.into_iter().enumerate() {
         let unmake_move_state = position.make_move(mve);
