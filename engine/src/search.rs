@@ -525,10 +525,10 @@ fn search_helper(
         // Flip value because it was relative to the other side
         position.unmake_move(unmake_move_state);
 
-        if got_eval >= best_eval {
+        if got_eval > best_eval {
             best_eval = got_eval;
             best_move = mve;
-            if got_eval >= alpha {
+            if got_eval > alpha {
                 alpha = got_eval;
             }
         }
