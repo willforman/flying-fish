@@ -4,6 +4,7 @@ use std::{
     io::{self, BufRead},
     os::unix::fs as unix_fs,
     path::PathBuf,
+    process,
     str::FromStr,
     sync::{Arc, atomic::AtomicBool},
 };
@@ -108,9 +109,10 @@ fn enable_logging() -> Result<()> {
         PathBuf::from_str(&log_path_str)?
     } else {
         let now = chrono::Local::now();
+        let pid = process::id();
         let now_str = now.format("%H.%M.%S_%Y.%m.%d").to_string();
 
-        let log_path = get_default_log_path(&now_str)?;
+        let log_path = get_default_log_path(&now_str, pid)?;
         let log_path_dir = log_path.parent().unwrap().to_path_buf();
         fs::create_dir_all(&log_path_dir).with_context(|| {
             format!(
@@ -174,10 +176,10 @@ fn enable_logging() -> Result<()> {
     Ok(())
 }
 
-fn get_default_log_path(date_str: &str) -> Result<PathBuf> {
+fn get_default_log_path(date_str: &str, pid: u32) -> Result<PathBuf> {
     let mut log_path = dirs::home_dir().context("Home directory not set")?;
     log_path.push(PathBuf::from(".local/state/flying-fish"));
 
-    log_path.push(format!("{}.log", date_str));
+    log_path.push(format!("{}_{}.log", date_str, pid));
     Ok(log_path)
 }
