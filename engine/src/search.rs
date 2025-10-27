@@ -668,7 +668,8 @@ fn quiescence_search(
         }
         if move_eval > best_eval {
             best_eval = move_eval;
-        } else if move_eval > alpha {
+        }
+        if move_eval > alpha {
             alpha = move_eval;
         }
     }
