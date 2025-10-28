@@ -11,7 +11,7 @@ use tracing::{debug, debug_span, error, info};
 use crate::evaluation::{Eval, EvaluatePosition};
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
-use crate::search::move_ordering::order_moves;
+use crate::search::move_ordering::{ButterflyHistoryState, order_moves};
 use crate::transposition_table::{
     EvalType, TranspositionTable, clear_transpostion_table_hitrate, get_transposition_table_hitrate,
 };
@@ -163,6 +163,7 @@ pub fn search(
         .collect();
 
     let mut final_move_vals = HashMap::new();
+    let mut butterfly_history_state = ButterflyHistoryState::new();
 
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
         let iteration_start_time = Instant::now();
@@ -195,6 +196,7 @@ pub fn search(
                 move_gen,
                 position_eval,
                 transposition_table,
+                &mut butterfly_history_state,
                 Arc::clone(&terminate),
             );
             if let Some(move_eval) = maybe_move_eval {
@@ -321,6 +323,7 @@ fn search_helper(
     move_gen: impl GenerateMoves + std::marker::Copy,
     position_eval: impl EvaluatePosition + std::marker::Copy,
     transposition_table: &mut TranspositionTable,
+    butterfly_history_state: &mut ButterflyHistoryState,
     terminate: Arc<AtomicBool>,
 ) -> Option<Eval> {
     // If this search has been terminated, return early
@@ -429,6 +432,7 @@ fn search_helper(
                 move_gen,
                 position_eval,
                 transposition_table,
+                butterfly_history_state,
                 Arc::clone(&terminate),
             )?
             .flip();
@@ -447,12 +451,20 @@ fn search_helper(
         }
         return Some(Eval::DRAW);
     }
-    order_moves(&mut moves, position, maybe_tt_best_move);
+
+    order_moves(
+        &mut moves,
+        position,
+        maybe_tt_best_move,
+        Some(butterfly_history_state),
+    );
 
     let mut best_eval = Eval::MIN;
     let mut best_move = moves[0];
     let original_alpha = alpha;
     for (idx, mve) in moves.into_iter().enumerate() {
+        butterfly_history_state.record_considered(mve);
+
         let unmake_move_state = position.make_move(mve);
         #[cfg(debug_assertions)]
         {
@@ -478,6 +490,7 @@ fn search_helper(
                 move_gen,
                 position_eval,
                 transposition_table,
+                butterfly_history_state,
                 Arc::clone(&terminate),
             )?
             .flip()
@@ -496,6 +509,7 @@ fn search_helper(
                 move_gen,
                 position_eval,
                 transposition_table,
+                butterfly_history_state,
                 Arc::clone(&terminate),
             )?
             .flip();
@@ -514,6 +528,7 @@ fn search_helper(
                     move_gen,
                     position_eval,
                     transposition_table,
+                    butterfly_history_state,
                     Arc::clone(&terminate),
                 )?
                 .flip()
@@ -534,6 +549,7 @@ fn search_helper(
         }
 
         if alpha >= beta {
+            butterfly_history_state.record_cutoff(mve, curr_depth);
             break;
         }
     }
@@ -644,7 +660,7 @@ fn quiescence_search(
             .collect();
     }
 
-    order_moves(&mut moves, position, None);
+    order_moves(&mut moves, position, None, None);
 
     for mve in moves {
         let unmake_move_state = position.make_move(mve);

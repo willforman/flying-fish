@@ -8,11 +8,12 @@ pub(super) fn order_moves(
     moves: &mut ArrayVec<Move, 218>,
     position: &Position,
     maybe_tt_best_move: Option<Move>,
+    maybe_butterfly_history_state: Option<&ButterflyHistoryState>,
 ) {
-    moves.sort_by_key(|&mve| -(get_move_sort_key(mve, position, maybe_tt_best_move) as i64))
+    moves.sort_by_key(|&mve| -(get_move_sort_key(mve, position, maybe_tt_best_move, maybe_butterfly_history_state) as i64))
 }
 
-fn get_move_sort_key(mve: Move, position: &Position, maybe_tt_best_move: Option<Move>) -> i64 {
+fn get_move_sort_key(mve: Move, position: &Position, maybe_tt_best_move: Option<Move>, maybe_butterfly_history_state: Option<&ButterflyHistoryState>) -> i64 {
     if let Some(tt_best_move) = maybe_tt_best_move {
         if mve == tt_best_move {
             return i64::MAX;
@@ -23,7 +24,11 @@ fn get_move_sort_key(mve: Move, position: &Position, maybe_tt_best_move: Option<
         return get_mvv_lva_value(mve, position);
     }
 
-    return 0;
+    if let Some(butterfly_history_state) = maybe_butterfly_history_state {
+        return butterfly_history_state.score(mve).into();
+    } else {
+        return 0;
+    }
 }
 
 pub(super) fn get_mvv_lva_value(mve: Move, position: &Position) -> i64 {
@@ -34,6 +39,37 @@ pub(super) fn get_mvv_lva_value(mve: Move, position: &Position) -> i64 {
         .is_piece_at(mve.dest, position.state.to_move.opposite_side())
         .expect("No piece at victim square");
     (victim.index() * 10 + (5 - attacker.index())).try_into().unwrap()
+}
+
+pub(crate) struct ButterflyHistoryState {
+    history: [i32; 64 * 64],
+    butterfly: [i32; 64 * 64],
+}
+
+impl ButterflyHistoryState {
+    pub(crate) fn new() -> Self {
+        Self {
+            history: [0; 64 * 64],
+            butterfly: [1; 64 * 64], // start at 1 to avoid divide-by-zero
+        }
+    }
+
+    fn index(mve: Move) -> usize {
+        (mve.src as usize) * 64 + mve.dest as usize
+    }
+
+    pub(crate) fn record_considered(&mut self, mve: Move) {
+        self.butterfly[ButterflyHistoryState::index(mve)] += 1;
+    }
+
+    pub(crate) fn record_cutoff(&mut self, mve: Move, depth: u8) {
+        self.history[ButterflyHistoryState::index(mve)] += (depth * depth) as i32;
+    }
+
+    pub(crate) fn score(&self, mve: Move) -> i32 {
+        let idx = ButterflyHistoryState::index(mve);
+        self.history[idx] / self.butterfly[idx]
+    }
 }
 
 #[cfg(test)]
@@ -59,7 +95,7 @@ mod tests {
         mut moves_input: ArrayVec<Move, 218>,
         moves_want: ArrayVec<Move, 218>,
     ) {
-        order_moves(&mut moves_input, &position, maybe_tt_best_move);
+        order_moves(&mut moves_input, &position, maybe_tt_best_move, Some(&ButterflyHistoryState::new()));
 
         assert_eq!(moves_input, moves_want);
     }
