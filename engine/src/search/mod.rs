@@ -11,10 +11,13 @@ use tracing::{debug, debug_span, error, info};
 use crate::evaluation::{Eval, EvaluatePosition};
 use crate::move_gen::GenerateMoves;
 use crate::position::{Move, Position};
+use crate::search::move_ordering::order_moves;
 use crate::transposition_table::{
     EvalType, TranspositionTable, clear_transpostion_table_hitrate, get_transposition_table_hitrate,
 };
 use crate::{Piece, Side, Square};
+
+mod move_ordering;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SearchParams {
@@ -633,7 +636,7 @@ fn quiescence_search(
     if checkers.is_empty() {
         moves = moves
             .into_iter()
-            .filter(|mve| {
+            .filter(|&mve| {
                 position.is_capture(mve)
                     || mve.promotion == Some(Piece::Queen)
                     || mve.promotion == Some(Piece::Knight)
@@ -687,35 +690,6 @@ fn quiescence_search(
     Some(best_eval)
 }
 
-fn order_moves(
-    moves: &mut ArrayVec<Move, 218>,
-    position: &Position,
-    maybe_tt_best_move: Option<Move>,
-) {
-    moves.sort_by_key(|mve| -(get_mvv_lva_value(mve, position) as i64));
-    if let Some(tt_best_move) = maybe_tt_best_move {
-        let tt_best_move_idx = moves
-            .iter()
-            .position(|&m| m == tt_best_move)
-            .expect("Should have found tt_best_move in moves list");
-        moves.swap(0, tt_best_move_idx);
-    }
-}
-
-fn get_mvv_lva_value(mve: &Move, position: &Position) -> usize {
-    if position.is_capture(mve) {
-        let attacker = position
-            .is_piece_at(mve.src, position.state.to_move)
-            .unwrap();
-        let victim = position
-            .is_piece_at(mve.dest, position.state.to_move.opposite_side())
-            .unwrap();
-        victim.index() * 10 + (5 - attacker.index())
-    } else {
-        0
-    }
-}
-
 fn write_search_info(
     iterative_deepening_max_depth: u8,
     nodes_processed: u64,
@@ -747,26 +721,6 @@ mod tests {
     use super::*;
     use crate::{MOVE_GEN, POSITION_EVALUATOR, Square::*};
     use test_case::test_case;
-
-    #[test_case(Position::from_fen("7k/8/8/8/5q1b/3q1pP1/2r3b1/K3N3 w - - 0 1").unwrap(),
-        [
-            Move::new(E1, C2), Move::new(E1, D3), Move::new(E1, F3), Move::new(E1, G2),
-            Move::new(G3, F4), Move::new(G3, G4), Move::new(G3, H4)
-        ].into_iter().collect(),
-        [
-            Move::new(G3, F4), Move::new(E1, D3), Move::new(E1, C2), Move::new(G3, H4),
-            Move::new(E1, G2), Move::new(E1, F3), Move::new(G3, G4),
-        ].into_iter().collect() ; "simple"
-    )]
-    fn test_mvv_lva(
-        position: Position,
-        mut moves_input: ArrayVec<Move, 218>,
-        moves_want: ArrayVec<Move, 218>,
-    ) {
-        moves_input.sort_by_key(|mve| -(get_mvv_lva_value(mve, &position) as i64));
-
-        assert_eq!(moves_input, moves_want);
-    }
 
     #[test_case(Position::from_fen("rnb1kbnr/2q2ppp/pp1p4/2p1p3/8/1P1PP1P1/PBPNNPBP/R2QK2R b KQkq - 0 1").unwrap(), vec![
         Move::new(B8, C6), Move::new(E1, G1), Move::new(C8, B7), Move::new(E2, C3),
