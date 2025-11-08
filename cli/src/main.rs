@@ -122,17 +122,17 @@ fn enable_logging() -> Result<()> {
         })?;
 
         // Create symlink to current log at `last` in the logs directory.
-        let symlink_path = log_path_dir.join("last.log");
-        let tmp_symlink_path = log_path_dir.join(format!(".{}-last.tmp", now_str));
-
-        unix_fs::symlink(&log_path, &tmp_symlink_path).with_context(|| {
-            format!(
-                "Couldn't create temporary symlink: {}",
-                tmp_symlink_path.to_string_lossy()
-            )
-        })?;
-        let _ = fs::remove_file(&symlink_path);
-        fs::rename(&tmp_symlink_path, &symlink_path)?;
+        // let symlink_path = log_path_dir.join("last.log");
+        // let tmp_symlink_path = log_path_dir.join(format!(".{}-last.tmp", now_str));
+        //
+        // unix_fs::symlink(&log_path, &tmp_symlink_path).with_context(|| {
+        //     format!(
+        //         "Couldn't create temporary symlink: {}",
+        //         tmp_symlink_path.to_string_lossy()
+        //     )
+        // })?;
+        // let _ = fs::remove_file(&symlink_path);
+        // fs::rename(&tmp_symlink_path, &symlink_path)?;
 
         log_path
     };
