@@ -41,20 +41,10 @@ where
             maybe_terminate: None,
         }
     }
-
-    fn before_dispatch(
-        &mut self,
-        _state: StateOrSuperstate<'_, State, Superstate>,
-        event: &UCICommand,
-        _context: &mut (),
-    ) {
-        debug!("> {}", event);
-    }
 }
 
 #[state_machine(
     initial = "State::initial()",
-    before_dispatch = "Self::before_dispatch",
     state(derive(PartialEq, Eq, Debug)),
     superstate(derive(Debug))
 )]
