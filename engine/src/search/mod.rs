@@ -171,10 +171,7 @@ pub fn search(
             "search_iterative_deepening_iteration",
             depth = iterative_deepening_max_depth
         );
-        debug!(
-            "Iterative deepening iteration: {} of {}",
-            iterative_deepening_max_depth, max_depth
-        );
+        debug!("Iteration: {}/{}", iterative_deepening_max_depth, max_depth);
         let iterative_deepening_max_depth: u8 = iterative_deepening_max_depth.try_into().unwrap();
         let mut max_depth_reached: u8 = 1;
 
@@ -238,13 +235,13 @@ pub fn search(
             best_move,
         );
 
-        debug!("best move: {}, eval: {}", best_move.unwrap(), pv_eval);
-
         if tracing::enabled!(tracing::Level::DEBUG) {
-            for mve in &moves {
-                debug!("{}: {}", mve, move_vals[mve]);
-            }
-            debug!("==================================");
+            let moves_str = moves
+                .iter()
+                .map(|mve| format!("{}: {}", mve, move_vals[mve]))
+                .collect::<Vec<_>>()
+                .join(" | ");
+            debug!("MOVES: {}", moves_str);
         }
 
         // Skip if we've elapsed the max amount of time or that we think the next iteration will
