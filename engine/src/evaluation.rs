@@ -7,7 +7,7 @@ use crate::position::{Piece, Position, Side};
 
 /// An evaluation of a position. Is always from the side to move's perspective.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Eval(i32);
+pub struct Eval(pub(crate) i32);
 
 impl Display for Eval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
