@@ -7,7 +7,7 @@ use crate::position::{Piece, Position, Side};
 
 /// An evaluation of a position. Is always from the side to move's perspective.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Eval(i32);
+pub struct Eval(pub(crate) i32);
 
 impl Display for Eval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -32,6 +32,10 @@ impl Eval {
         } else {
             Self(-Self::MATE_BASE - (moves as i32))
         }
+    }
+
+    pub(crate) fn value(&self) -> i32 {
+        self.0
     }
 
     /// Returns how many moves (not plys) the evaluation represents, or none if it's not mate.

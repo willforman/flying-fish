@@ -165,6 +165,8 @@ pub fn search(
     let mut final_move_vals = HashMap::new();
     let mut butterfly_history_state = ButterflyHistoryState::new();
 
+    let mut move_vals = HashMap::with_capacity(moves.len());
+
     'outer: for iterative_deepening_max_depth in 1..=max_depth {
         let iteration_start_time = Instant::now();
         debug_span!(
@@ -175,41 +177,68 @@ pub fn search(
         let iterative_deepening_max_depth: u8 = iterative_deepening_max_depth.try_into().unwrap();
         let mut max_depth_reached: u8 = 1;
 
-        // Find value of each move up to current depth
-        let mut move_vals = HashMap::with_capacity(moves.len());
         for mve in moves.clone() {
             let mut move_position = move_positions[&mve].clone();
-            let maybe_move_eval = search_helper(
-                &mut move_position,
-                &params,
-                1,
-                iterative_deepening_max_depth,
-                &mut max_depth_reached,
-                &mut positions_processed,
-                &start,
-                pv_eval,
-                Eval::MIN,
-                Eval::MAX,
-                move_gen,
-                position_eval,
-                transposition_table,
-                &mut butterfly_history_state,
-                Arc::clone(&terminate),
-            );
-            if let Some(move_eval) = maybe_move_eval {
-                // Since this is after making a move, flip the value to get the value
-                // relative to the side of `position`
-                move_vals.insert(mve, move_eval.flip());
+
+            const ASPIRATION_WINDOWS_DELTA: i32 = 50;
+            let (mut alpha, mut beta) = if let Some(prev_move_val) = move_vals.get(&mve)
+                && iterative_deepening_max_depth >= 4
+            {
+                (
+                    *prev_move_val - ASPIRATION_WINDOWS_DELTA,
+                    *prev_move_val + ASPIRATION_WINDOWS_DELTA,
+                )
             } else {
-                write_search_info(
+                (Eval::MIN, Eval::MAX)
+            };
+
+            loop {
+                let maybe_move_eval = search_helper(
+                    &mut move_position,
+                    &params,
+                    1,
                     iterative_deepening_max_depth,
-                    positions_processed,
-                    iterative_deepening_max_depth,
+                    &mut max_depth_reached,
+                    &mut positions_processed,
                     &start,
                     pv_eval,
-                    None,
+                    alpha,
+                    beta,
+                    move_gen,
+                    position_eval,
+                    transposition_table,
+                    &mut butterfly_history_state,
+                    Arc::clone(&terminate),
                 );
-                break 'outer;
+                if maybe_move_eval.is_none() {
+                    write_search_info(
+                        iterative_deepening_max_depth,
+                        positions_processed,
+                        iterative_deepening_max_depth,
+                        &start,
+                        pv_eval,
+                        None,
+                    );
+                    break 'outer;
+                }
+
+                let move_eval = maybe_move_eval.unwrap();
+                if alpha != Eval::MIN && move_eval <= alpha {
+                    let alpha_val = -(alpha
+                        .value()
+                        .checked_mul(alpha.value())
+                        .unwrap_or(Eval::MIN.value()));
+                    alpha = Eval(alpha_val);
+                } else if beta != Eval::MAX && move_eval >= beta {
+                    let beta_val = beta
+                        .value()
+                        .checked_mul(beta.value())
+                        .unwrap_or(Eval::MAX.value());
+                    beta = Eval(beta_val);
+                } else {
+                    move_vals.insert(mve, move_eval.flip());
+                    break;
+                }
             }
         }
         final_move_vals = move_vals.clone();
