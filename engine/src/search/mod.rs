@@ -222,21 +222,23 @@ pub fn search(
                     break 'outer;
                 }
 
-                let move_eval = maybe_move_eval.unwrap();
+                let move_eval = maybe_move_eval.unwrap().flip();
                 if alpha != Eval::MIN && move_eval <= alpha {
-                    let alpha_val = -(alpha
-                        .value()
-                        .checked_mul(alpha.value())
-                        .unwrap_or(Eval::MIN.value()));
-                    alpha = Eval(alpha_val);
+                    alpha = Eval::MIN;
+                    // let alpha_val = -(alpha
+                    //     .value()
+                    //     .checked_mul(alpha.value())
+                    //     .unwrap_or(Eval::MIN.value()));
+                    // alpha = Eval(alpha_val);
                 } else if beta != Eval::MAX && move_eval >= beta {
-                    let beta_val = beta
-                        .value()
-                        .checked_mul(beta.value())
-                        .unwrap_or(Eval::MAX.value());
-                    beta = Eval(beta_val);
+                    beta = Eval::MAX;
+                    // let beta_val = beta
+                    //     .value()
+                    //     .checked_mul(beta.value())
+                    //     .unwrap_or(Eval::MAX.value());
+                    // beta = Eval(beta_val);
                 } else {
-                    move_vals.insert(mve, move_eval.flip());
+                    move_vals.insert(mve, move_eval);
                     break;
                 }
             }
